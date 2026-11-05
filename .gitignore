@@ -1,0 +1,8 @@
+CLAUDE.md
+.env
+.env.*
+__pycache__/
+.venv/
+node_modules/
+ESTADO.md
+.claude/settings.local.json

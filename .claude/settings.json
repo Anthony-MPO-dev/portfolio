@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" 2>/dev/null; echo '[ESTADO.md do portfolio. O autor nao lembra das skills: escolha pela tabela Qual skill usar do CLAUDE.md, diga em uma linha qual vai usar e rode. Se ele disser so continua ou bora, siga o Proximo passo abaixo.]'; cat ESTADO.md 2>/dev/null || echo 'ESTADO.md nao existe: crie a partir do CLAUDE.md.'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
