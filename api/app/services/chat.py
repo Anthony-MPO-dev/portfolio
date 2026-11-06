@@ -1,11 +1,11 @@
 """Chat use case: turn one visitor message into a result the page can show.
 
 Responsibility: apply the message, IP, turn and daily limits, keep the session strict (only ids this server
-created), hold one answer at a time per session, call the model and save the turn. Fixed notices (offline,
-limits) are the page's job: this module returns a status, never notice text.
+created), hold one answer at a time per session, log the redacted question, call the model and save the turn.
+Fixed notices (offline, limits) are the page's job: this module returns a status, never notice text.
 Public API: ChatService.answer, Limits, ChatResult.
 Used by: the /api/chat route.
-Depends on: app.ports (ChatModel, SessionStore), app.lang.
+Depends on: app.ports (ChatModel, SessionStore, QuestionLog), app.lang, app.redact.
 Tests: tests/test_chat.py.
 """
 
@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.lang import page_lang as supported_lang
-from app.ports import ChatModel, ModelUnavailable, SessionStore
+from app.ports import ChatModel, ModelUnavailable, QuestionLog, QuestionLogUnavailable, SessionStore
+from app.redact import redact
 
 
 @dataclass(frozen=True)
@@ -39,10 +40,16 @@ class ChatResult:
 
 class ChatService:
     def __init__(
-        self, model: ChatModel, store: SessionStore, new_session_id: Callable[[], str], limits: Limits = Limits()
+        self,
+        model: ChatModel,
+        store: SessionStore,
+        log: QuestionLog,
+        new_session_id: Callable[[], str],
+        limits: Limits = Limits(),
     ):
         self.model = model
         self.store = store
+        self.log = log
         self.new_session_id = new_session_id
         self.limits = limits
 
@@ -73,6 +80,10 @@ class ChatService:
     def _answer_locked(self, sid: str, message: str, lang: str) -> ChatResult:
         if self.store.count_turn(sid) > self.limits.turns:
             return ChatResult("conversation_limit", sid)
+        try:
+            self.log.record(redact(message), lang)
+        except QuestionLogUnavailable:
+            pass  # the log only feeds the golden set; the visitor still gets an answer
         if self.store.hit_global() > self.limits.global_day:
             return ChatResult("offline", sid, offer_contact=True)
         try:

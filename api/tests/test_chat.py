@@ -4,16 +4,18 @@ import pytest
 
 from app.ports import ModelReply
 from app.services.chat import ChatService, Limits
-from tests.fakes import FakeModel, FakeStore
+from tests.fakes import FakeModel, FakeQuestionLog, FakeStore
 
 IP = "client-a"
 
 
-def make(model: FakeModel | None = None, limits: Limits = Limits()):
+def make(model: FakeModel | None = None, limits: Limits = Limits(), log: FakeQuestionLog | None = None):
     model = model or FakeModel()
     store = FakeStore()
     ids = (f"sid-{n}" for n in range(1, 1000))
-    chat = ChatService(model=model, store=store, new_session_id=lambda: next(ids), limits=limits)
+    chat = ChatService(
+        model=model, store=store, log=log or FakeQuestionLog(), new_session_id=lambda: next(ids), limits=limits
+    )
     return chat, model, store
 
 
@@ -116,6 +118,27 @@ def test_unsupported_page_language_falls_back_to_english():
     chat, model, _ = make()
     ask(chat, "bonjour", lang="fr")
     assert model.calls[-1].page_lang == "en"
+
+
+def test_accepted_question_is_logged_without_contact_details():
+    log = FakeQuestionLog()
+    chat, _, _ = make(log=log)
+    ask(chat, "I'm jane@acme.com, is he open to roles?", lang="pt")
+    assert log.records == [("I'm [email], is he open to roles?", "pt")]
+
+
+def test_rejected_messages_are_not_logged():
+    log = FakeQuestionLog()
+    chat, _, _ = make(limits=Limits(per_ip_hour=1), log=log)
+    ask(chat, "")
+    ask(chat, "first")
+    ask(chat, "second")
+    assert log.records == [("first", "en")]
+
+
+def test_chat_keeps_answering_when_the_question_log_is_down():
+    chat, _, _ = make(log=FakeQuestionLog(down=True))
+    assert ask(chat, "hi").status == "ok"
 
 
 def test_model_contact_signal_reaches_the_page():

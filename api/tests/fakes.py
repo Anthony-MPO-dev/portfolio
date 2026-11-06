@@ -3,7 +3,31 @@
 from collections import Counter
 from dataclasses import dataclass
 
-from app.ports import Lead, LeadUnavailable, ModelReply, ModelUnavailable, Turn
+from app.ports import Lead, LeadUnavailable, ModelReply, ModelUnavailable, QuestionLogUnavailable, Turn
+
+
+class FakeFormCounter:
+    """Counts forms per client for the day, like the Redis counter."""
+
+    def __init__(self):
+        self.today: Counter[str] = Counter()
+
+    def hit_form(self, client_key: str) -> int:
+        self.today[client_key] += 1
+        return self.today[client_key]
+
+
+class FakeQuestionLog:
+    """Keeps (question, page_lang) pairs, or raises like a database that is down."""
+
+    def __init__(self, down: bool = False):
+        self.down = down
+        self.records: list[tuple[str, str]] = []
+
+    def record(self, question: str, page_lang: str) -> None:
+        if self.down:
+            raise QuestionLogUnavailable()
+        self.records.append((question, page_lang))
 
 
 class FakeLeadSink:

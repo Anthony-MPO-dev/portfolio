@@ -7,11 +7,12 @@ live in the author's project notes (2026-11-06).
 
 | Module | Layer | Responsibility | Public API | Tests |
 |---|---|---|---|---|
-| `api/app/ports.py` | ports | Model, session-store and lead contracts, and the data that crosses them | `Turn`, `ModelReply`, `ModelUnavailable`, `ChatModel`, `SessionStore`, `Lead`, `LeadUnavailable`, `LeadSink` | through `api/tests/test_chat.py`, `api/tests/test_lead.py` |
+| `api/app/ports.py` | ports | Model, session-store, lead, form-counter and question-log contracts, and the data that crosses them | `Turn`, `ModelReply`, `ModelUnavailable`, `ChatModel`, `SessionStore`, `Lead`, `LeadUnavailable`, `LeadSink`, `FormCounter`, `QuestionLog`, `QuestionLogUnavailable` | through the service tests |
 | `api/app/lang.py` | services | Supported page languages and the English fallback | `SUPPORTED`, `page_lang` | through the unsupported-language tests |
-| `api/app/services/chat.py` | services | Chat use case: message, IP, turn and daily limits; strict session; one answer at a time per session; model call; turn saved. Returns a status, never notice text | `ChatService.answer`, `Limits`, `ChatResult` | `api/tests/test_chat.py` |
-| `api/app/services/lead.py` | services | Lead use case: validates the form, normalizes the LinkedIn URL, saves the lead, releases the WhatsApp number only to saved hiring leads | `LeadService.submit`, `LeadResult` | `api/tests/test_lead.py` |
-| `api/tests/fakes.py` | tests | In-memory fakes of the model, the store and the lead sink | `FakeModel`, `FakeStore`, `FakeLeadSink` | n/a |
+| `api/app/redact.py` | services | Replaces e-mails and phone numbers (9+ digits) in a question before it's logged | `redact` | `api/tests/test_redact.py` |
+| `api/app/services/chat.py` | services | Chat use case: message, IP, turn and daily limits; strict session; one answer at a time per session; redacted question logged (a log failure never blocks the answer); model call; turn saved. Returns a status, never notice text | `ChatService.answer`, `Limits`, `ChatResult` | `api/tests/test_chat.py` |
+| `api/app/services/lead.py` | services | Lead use case: drops honeypot submissions, validates the form, caps valid forms per client per day (3), normalizes the LinkedIn URL, saves the lead, releases the WhatsApp number only to saved hiring leads | `LeadService.submit`, `LeadResult` | `api/tests/test_lead.py` |
+| `api/tests/fakes.py` | tests | In-memory fakes of every port | `FakeModel`, `FakeStore`, `FakeLeadSink`, `FakeFormCounter`, `FakeQuestionLog` | n/a |
 
 Planned, not built yet:
 

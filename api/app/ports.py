@@ -1,9 +1,11 @@
 """Ports of the chat API: the boundaries the use cases talk to.
 
-Responsibility: define the model, session-store and lead contracts, and the data that crosses them.
-Public API: Turn, ModelReply, ModelUnavailable, ChatModel, SessionStore, Lead, LeadUnavailable, LeadSink.
+Responsibility: define the model, session-store, lead, form-counter and question-log contracts, and the data
+that crosses them.
+Public API: Turn, ModelReply, ModelUnavailable, ChatModel, SessionStore, Lead, LeadUnavailable, LeadSink,
+FormCounter, QuestionLog, QuestionLogUnavailable.
 Used by: app.services.chat, app.services.lead. Adapters implement them (local worker model, Anthropic API
-model, Redis store, Postgres plus n8n lead sink).
+model, Redis store and counters, Postgres plus n8n lead sink, Postgres question log).
 Depends on: nothing.
 Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fakes.py.
 """
@@ -80,4 +82,20 @@ class LeadUnavailable(Exception):
 class LeadSink(Protocol):
     def save(self, lead: Lead) -> None:
         """Store the lead and alert Anthony. Raises LeadUnavailable when it can't."""
+        ...
+
+
+class FormCounter(Protocol):
+    def hit_form(self, client_key: str) -> int:
+        """Count one valid form from this client and return today's total."""
+        ...
+
+
+class QuestionLogUnavailable(Exception):
+    """The question log can't be written right now."""
+
+
+class QuestionLog(Protocol):
+    def record(self, question: str, page_lang: str) -> None:
+        """Keep an already-redacted question for 30 days. Raises QuestionLogUnavailable when it can't."""
         ...

@@ -3,7 +3,7 @@
 import pytest
 
 from app.services.lead import LeadService
-from tests.fakes import FakeLeadSink
+from tests.fakes import FakeFormCounter, FakeLeadSink
 
 WHATSAPP = "+00 00 00000-0000"  # placeholder; the real number lives only in CONTACT_WHATSAPP
 FORM = {
@@ -13,12 +13,20 @@ FORM = {
     "linkedin": "",
     "kind": "hiring",
     "page_lang": "en",
+    "client_key": "client-a",
+    "honeypot": "",
 }
 
 
-def submit(sink: FakeLeadSink | None = None, **changes):
+def make(sink: FakeLeadSink | None = None, max_per_day: int = 3):
     sink = sink or FakeLeadSink()
-    return LeadService(sink=sink, whatsapp=WHATSAPP).submit(**{**FORM, **changes}), sink
+    service = LeadService(sink=sink, counter=FakeFormCounter(), whatsapp=WHATSAPP, max_per_day=max_per_day)
+    return service, sink
+
+
+def submit(sink: FakeLeadSink | None = None, **changes):
+    service, sink = make(sink)
+    return service.submit(**{**FORM, **changes}), sink
 
 
 def test_hiring_lead_is_saved_and_gets_the_whatsapp_number():
@@ -76,3 +84,26 @@ def test_unsupported_page_language_is_saved_as_english():
 def test_lead_that_could_not_be_saved_never_gets_the_number():
     result, _ = submit(FakeLeadSink(down=True))
     assert (result.status, result.whatsapp) == ("unavailable", None)
+
+
+def test_bot_that_fills_the_hidden_field_is_silently_dropped():
+    result, sink = submit(honeypot="https://spam.example")
+    assert (result.status, result.whatsapp, sink.saved) == ("ok", None, [])
+
+
+def test_fourth_valid_form_from_the_same_ip_in_a_day_is_rate_limited():
+    service, sink = make()
+    statuses = [service.submit(**FORM).status for _ in range(4)]
+    assert (statuses, len(sink.saved)) == (["ok", "ok", "ok", "rate_limited"], 3)
+
+
+def test_invalid_forms_do_not_use_up_the_daily_limit():
+    service, _ = make(max_per_day=1)
+    service.submit(**{**FORM, "email": "bad"})
+    assert service.submit(**FORM).status == "ok"
+
+
+def test_form_limit_is_per_ip():
+    service, _ = make(max_per_day=1)
+    service.submit(**FORM)
+    assert service.submit(**{**FORM, "client_key": "client-b"}).status == "ok"
