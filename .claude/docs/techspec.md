@@ -15,10 +15,11 @@ live in the author's project notes (2026-11-06).
 | `api/app/services/lead.py` | services | Lead use case: drops honeypot submissions, validates the form, caps valid forms per client per day (3), normalizes the LinkedIn URL, saves the lead, releases the WhatsApp number only to saved hiring leads | `LeadService.submit`, `LeadResult` | `api/tests/test_lead.py` |
 | `api/app/adapters/redis_store.py` | adapters | `SessionStore` and `FormCounter` on Redis: `chat:m` (24 h absolute), `chat:h` (last 20 messages, 2 h sliding), `chat:lock` (90 s), per-client hour/day counters, daily site counter, daily form counter. Every key expires; UTC fixed windows | `RedisStore` | `api/tests/test_redis_store.py` (fakeredis; real local Redis with `REDIS_TEST_URL`) |
 | `api/app/adapters/worker_queue.py` | adapters | `ChatModel` on Anthony's PC through Redis: pushes the job (system, transcript, schema, deadline) to `chat:jobs`, waits on `chat:res:{id}`; offline at once when no worker polled in 60 s (`chat:worker:seen`), on timeout or on an empty (failed) answer. Worker side: `next_job` skips jobs past their deadline, `finish` hands the raw answer back | `WorkerQueue.reply`, `WorkerQueue.next_job`, `WorkerQueue.finish` | `api/tests/test_worker_queue.py` |
+| `api/app/pc_worker.py` | worker (Anthony's PC) | Long-polls `/api/worker/next` with the token, runs `claude -p` isolated (`--safe-mode`, `--tools ""`, `--strict-mcp-config`, no session, empty folder, job's system prompt and schema, visitor text on stdin), hands the raw answer back; any failure hands back an empty answer; backoff on network errors. Standard library only | `command`, `answer`, `serve`, `Api`, `main` | `api/tests/test_pc_worker.py` |
 | `api/tests/fakes.py` | tests | In-memory fakes of every port | `FakeModel`, `FakeStore`, `FakeLeadSink`, `FakeFormCounter`, `FakeQuestionLog` | n/a |
 
 Planned, not built yet:
 
-- Local worker model adapter (on) and Anthropic API model adapter (off), switched by an environment variable.
+- Anthropic API model adapter (off), switched with the worker queue by an environment variable.
 - Lead sink adapter (Postgres plus the n8n alert to Telegram).
 - `/api/chat` and lead routes, cookie `__Host-chat_sid`, same-origin checks.
