@@ -17,9 +17,10 @@ live in the author's project notes (2026-11-06).
 | `api/app/adapters/worker_queue.py` | adapters | `ChatModel` on Anthony's PC through Redis: pushes the job (system, transcript, schema, deadline) to `chat:jobs`, waits on `chat:res:{id}`; offline at once when no worker polled in 60 s (`chat:worker:seen`), on timeout or on an empty (failed) answer. Worker side: `next_job` skips jobs past their deadline, `finish` hands the raw answer back | `WorkerQueue.reply`, `WorkerQueue.next_job`, `WorkerQueue.finish` | `api/tests/test_worker_queue.py` |
 | `api/app/pc_worker.py` | worker (Anthony's PC) | Long-polls `/api/worker/next` with the token, runs `claude -p` isolated (`--safe-mode`, `--tools ""`, `--strict-mcp-config`, no session, empty folder, job's system prompt and schema, visitor text on stdin), hands the raw answer back; any failure hands back an empty answer; backoff on network errors. Standard library only | `command`, `answer`, `serve`, `Api`, `main` | `api/tests/test_pc_worker.py` |
 | `api/app/http.py` | api | Routes only: `POST/DELETE /api/chat`, `POST /api/lead`, `GET /api/worker/next`, `POST /api/worker/jobs/{id}`, `GET /api/health`. JSON only and same origin (Sec-Fetch-Site, Origin) on browser routes; `__Host-chat_sid` cookie set only for a new session; IP turned into an HMAC; bearer token on worker routes; no-store; no public docs | `create_app` | `api/tests/test_http.py` |
+| `api/app/adapters/postgres.py` | adapters | `LeadSink` and `QuestionLog` on Postgres (`portfolio_leads` kept 12 months, `portfolio_questions` 30 days; each write deletes what is past retention); unreachable database raises the port's Unavailable | `ensure_schema`, `PostgresLeadSink`, `PostgresQuestionLog` | `api/tests/test_postgres.py` (local Postgres in `POSTGRES_TEST_URL`) |
+| `api/app/adapters/lead_alert.py` | adapters | Lead saved first, then the alert to Anthony's personal n8n webhook (Telegram); a failed alert never undoes a saved lead | `SaveThenAlert`, `N8nAlert` | `api/tests/test_lead_alert.py` |
 | `api/tests/fakes.py` | tests | In-memory fakes of every port | `FakeModel`, `FakeStore`, `FakeLeadSink`, `FakeFormCounter`, `FakeQuestionLog` | n/a |
 
 Planned, not built yet:
 
 - Anthropic API model adapter (off), switched with the worker queue by an environment variable.
-- Lead sink adapter (Postgres plus the n8n alert to Telegram).
