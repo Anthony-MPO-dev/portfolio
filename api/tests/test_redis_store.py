@@ -143,3 +143,11 @@ def test_nothing_the_chat_writes_stays_in_redis_forever(store, r):
     store.hit_form("ip-a")
     keys = list(r.scan_iter("chat:*"))
     assert len(keys) == 7 and all(r.ttl(key) > 0 for key in keys)
+
+
+def test_erasing_a_session_removes_everything_stored_about_it(store, r):
+    store.create_session("sid-1")
+    store.acquire_lock("sid-1")
+    store.append_turn("sid-1", "My name is Jane", "Hi Jane.")
+    store.delete_session("sid-1")
+    assert (store.session_exists("sid-1"), store.history("sid-1"), list(r.scan_iter("chat:*sid-1"))) == (False, [], [])

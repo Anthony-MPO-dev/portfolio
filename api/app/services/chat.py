@@ -3,7 +3,7 @@
 Responsibility: apply the message, IP, turn and daily limits, keep the session strict (only ids this server
 created), hold one answer at a time per session, log the redacted question, call the model and save the turn.
 Fixed notices (offline, limits) are the page's job: this module returns a status, never notice text.
-Public API: ChatService.answer, Limits, ChatResult.
+Public API: ChatService.answer, ChatService.forget, Limits, ChatResult.
 Used by: the /api/chat route.
 Depends on: app.ports (ChatModel, SessionStore, QuestionLog), app.lang, app.redact.
 Tests: tests/test_chat.py.
@@ -69,6 +69,11 @@ class ChatService:
             return self._answer_locked(sid, message, supported_lang(page_lang))
         finally:
             self.store.release_lock(sid)
+
+    def forget(self, session_id: str | None) -> None:
+        """The visitor's "erase conversation" button."""
+        if session_id:
+            self.store.delete_session(session_id)
 
     def _strict_session(self, sid: str | None) -> str:
         if sid and self.store.session_exists(sid):

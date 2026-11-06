@@ -77,6 +77,9 @@ class RedisStore:
         pipe.expire(key, self.idle_ttl)
         pipe.execute()
 
+    def delete_session(self, sid: str) -> None:
+        self.r.delete(f"chat:m:{sid}", f"chat:h:{sid}", f"chat:lock:{sid}")
+
     # counters
 
     def hit_ip(self, client_key: str) -> tuple[int, int]:

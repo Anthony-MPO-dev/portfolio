@@ -107,6 +107,11 @@ class FakeStore:
     def history(self, sid: str) -> list[Turn]:
         return list(self.histories.get(sid, []))
 
+    def delete_session(self, sid: str) -> None:
+        self.turns.pop(sid, None)
+        self.histories.pop(sid, None)
+        self.locks.discard(sid)
+
     def append_turn(self, sid: str, question: str, answer: str) -> None:
         self.histories.setdefault(sid, []).extend(
             [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]

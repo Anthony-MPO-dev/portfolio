@@ -64,6 +64,10 @@ class SessionStore(Protocol):
 
     def append_turn(self, sid: str, question: str, answer: str) -> None: ...
 
+    def delete_session(self, sid: str) -> None:
+        """Erase everything stored about the session ("erase conversation")."""
+        ...
+
 
 @dataclass(frozen=True)
 class Lead:

@@ -144,3 +144,16 @@ def test_chat_keeps_answering_when_the_question_log_is_down():
 def test_model_contact_signal_reaches_the_page():
     chat, _, _ = make(FakeModel(ModelReply("Sure, leave your details.", offer_contact=True)))
     assert ask(chat, "Can I talk to him?").offer_contact is True
+
+
+def test_erased_conversation_is_gone_and_the_next_message_starts_a_new_one():
+    chat, model, _ = make()
+    sid = ask(chat, "My name is Jane").session_id
+    chat.forget(sid)
+    result = ask(chat, "hi", sid=sid)
+    assert (result.session_id, model.calls[-1].history) == ("sid-2", [])
+
+
+def test_erasing_without_a_conversation_does_nothing():
+    chat, _, _ = make()
+    chat.forget(None)
