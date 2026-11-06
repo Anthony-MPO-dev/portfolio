@@ -7,3 +7,5 @@ node_modules/
 ESTADO.md
 .claude/settings.local.json
 .pytest_cache/
+site/build/
+site/.react-router/
