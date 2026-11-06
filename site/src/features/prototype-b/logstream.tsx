@@ -24,11 +24,11 @@ const BOXES = [
 ];
 
 export function Logstream() {
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLElement>(null);
   useReveal(root);
 
   return (
-    <div className="vb" ref={root}>
+    <main className="vb" ref={root}>
       <section className="vb-hero">
         <div>
           <p className="vb-prompt">$ whoami</p>
@@ -39,13 +39,11 @@ export function Logstream() {
           <p className="vb-lede">{profile.lede}</p>
         </div>
         <div className="vb-log" aria-hidden="true">
-          <div className="vb-log-track">
-            {[...LOG, ...LOG].map(([level, source, msg], n) => (
-              <p key={n} className={`vb-line vb-${level.toLowerCase()}`}>
-                <span>{level.padEnd(5)}</span> <span>{source.padEnd(12)}</span> {msg}
-              </p>
-            ))}
-          </div>
+          {LOG.map(([level, source, msg], n) => (
+            <p key={n} className={`vb-line vb-${level.toLowerCase()}`} style={{ animationDelay: `${n * 0.4}s` }}>
+              <span>{level.padEnd(5)}</span> <span>{source.padEnd(12)}</span> {msg}
+            </p>
+          ))}
         </div>
       </section>
 
@@ -115,7 +113,7 @@ export function Logstream() {
       </section>
 
       <section className="vb-work">
-        <p className="vb-prompt">$ ls ~/work</p>
+        <h2 className="vb-prompt">$ ls ~/work</h2>
         <ol className="vb-tl">
           {cases.map((c) => (
             <li key={c.id} className="reveal">
@@ -133,7 +131,7 @@ export function Logstream() {
       </section>
 
       <section className="vb-contact">
-        <p className="vb-prompt">$ contact anthony</p>
+        <h2 className="vb-prompt">$ contact anthony</h2>
         <dl>
           <dt>email</dt>
           <dd>
@@ -150,6 +148,6 @@ export function Logstream() {
         </dl>
         <p className="vb-open">{profile.open}</p>
       </section>
-    </div>
+    </main>
   );
 }

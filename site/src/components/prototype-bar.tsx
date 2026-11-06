@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
-// PROTOTYPE: switcher between the three directions. Shown in production on purpose (version 0 is for picking one).
-const DIRECTIONS = [
-  { path: "/a", key: "A", name: "Schematic" },
-  { path: "/b", key: "B", name: "Logstream" },
-  { path: "/c", key: "C", name: "Golden set" },
+// PROTOTYPE: switcher between the directions. Shown in production on purpose (version 0 is for picking one).
+export const DIRECTIONS = [
+  { path: "/a", key: "A", name: "Schematic", note: "Light, like an engineering drawing. The credit pipeline draws itself as you scroll." },
+  { path: "/b", key: "B", name: "Logstream", note: "Terminal and timeline. LogStream's flow, and healthmon closing the gate." },
+  { path: "/c", key: "C", name: "Golden set", note: "Editorial, giant numbers. The 13 of 23 test questions fill in as you scroll." },
 ] as const;
 
 type Key = (typeof DIRECTIONS)[number]["key"];
@@ -20,19 +20,20 @@ export function PrototypeBar({ current }: { current: Key }) {
   const navigate = useNavigate();
   const [theme, setTheme] = useState<"light" | "dark" | null>(null);
   const i = DIRECTIONS.findIndex((d) => d.key === current);
+  const neighbour = (offset: number) => DIRECTIONS[(i + offset + DIRECTIONS.length) % DIRECTIONS.length].path;
 
   useEffect(() => setTheme(currentTheme()), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, [contenteditable]")) return;
-      if (e.key === "ArrowLeft") navigate(DIRECTIONS[(i + 2) % 3].path);
-      if (e.key === "ArrowRight") navigate(DIRECTIONS[(i + 1) % 3].path);
+      if (e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return;
+      if ((e.target as HTMLElement).closest("input, textarea, [contenteditable]")) return;
+      if (e.key === "ArrowLeft") navigate(neighbour(-1));
+      if (e.key === "ArrowRight") navigate(neighbour(1));
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [i, navigate]);
+  });
 
   const toggleTheme = () => {
     const next = currentTheme() === "dark" ? "light" : "dark";
@@ -47,13 +48,13 @@ export function PrototypeBar({ current }: { current: Key }) {
 
   return (
     <nav className="proto-bar" aria-label="Switch design direction">
-      <button type="button" onClick={() => navigate(DIRECTIONS[(i + 2) % 3].path)} aria-label="Previous direction">
+      <button type="button" onClick={() => navigate(neighbour(-1))} aria-label="Previous direction">
         ←
       </button>
-      <Link to="/">
+      <Link to="/" aria-label={`Direction ${current}, ${DIRECTIONS[i].name}. Back to the list`}>
         {current} · {DIRECTIONS[i].name}
       </Link>
-      <button type="button" onClick={() => navigate(DIRECTIONS[(i + 1) % 3].path)} aria-label="Next direction">
+      <button type="button" onClick={() => navigate(neighbour(1))} aria-label="Next direction">
         →
       </button>
       <button type="button" onClick={toggleTheme} aria-label="Switch light or dark theme">

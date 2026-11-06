@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import "@/styles/global.css";
 
-// Runs before paint: saved theme (no flash) and the `js` flag the scroll fallbacks rely on.
-const bootScript = `document.documentElement.classList.add("js");try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
+// Runs before paint so the saved theme applies without a flash.
+const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
 
 export function links() {
   return [

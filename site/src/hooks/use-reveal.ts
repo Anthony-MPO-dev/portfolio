@@ -6,6 +6,7 @@ export function useReveal(root: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const el = root.current;
     if (!el || CSS.supports("animation-timeline: view()")) return;
+    document.documentElement.classList.add("reveal-ready");
     const io = new IntersectionObserver(
       (entries) =>
         entries.forEach((entry) => {

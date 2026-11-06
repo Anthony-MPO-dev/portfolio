@@ -1,4 +1,5 @@
-// Public facts shown on the site. Same source as knowledge/facts.md; numbers only from the approved list.
+// Public facts shown on the site: a hand copy of knowledge/facts.md and the LinkedIn profile. Keep the wording,
+// qualifiers included ("about", "as little as", "up to"), in sync with those sources.
 
 export const profile = {
   name: "Anthony Muniz",
@@ -30,7 +31,7 @@ export const cases: Case[] = [
     when: "2024 to 2026",
     title: "Credit analysis pipeline",
     summary: "I rebuilt a credit fund's manual credit analysis as Python services with queues and workers.",
-    numbers: ["1 hour down to 5 minutes", "10 to 100 operations a day", "5+ credit bureaus"],
+    numbers: ["about 1 hour down to as little as 5 minutes", "about 10 to up to 100 operations a day", "5+ credit bureaus"],
     stack: "FastAPI, RabbitMQ, Celery, Redis",
   },
   {
@@ -47,7 +48,7 @@ export const cases: Case[] = [
     when: "2026",
     title: "RAG side projects",
     summary:
-      "A PDF notes app, a resume generator and Kai, my personal copilot, all on embeddings and ChromaDB. The bug I remember: every restart wiped the vector index.",
+      "A PDF notes app and a resume generator on ChromaDB, plus Kai, my personal copilot, with embeddings and cosine similarity in numpy. The bug I remember: every restart wiped the vector index.",
     numbers: ["1,000-character chunks, 200 overlap", "duplicates dropped under 0.3 cosine distance", "100+ commits on the resume generator"],
     stack: "FastAPI, ChromaDB, Gemini embeddings, Celery",
   },

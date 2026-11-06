@@ -4,5 +4,5 @@ import type { Config } from "@react-router/dev/config";
 export default {
   appDirectory: "src/app",
   ssr: false,
-  prerender: ["/", "/a", "/b", "/c"],
+  prerender: true,
 } satisfies Config;

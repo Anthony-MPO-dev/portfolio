@@ -10,18 +10,27 @@ const IMPROVED = [0, 2, 3, 5, 7, 8, 10, 13, 14, 16, 19, 20, 22];
 const SWING = "M0 120 L50 150 L100 168 L150 70 L200 34 L250 128 L300 150 L360 96";
 
 const FIGURES = [
-  { fig: "3x", text: "faster chat replies on the support agent. A 45-second wait ran on every message. Now it's 15." },
-  { fig: "60→5", text: "minutes for a credit analysis, once I rebuilt it as Python services with queues and workers." },
-  { fig: "10→100", text: "credit operations a day after the heavy work moved to RabbitMQ and Celery workers." },
-  { fig: "0.0205", text: "MAE, the best result of my tuberculosis forecasting study. Plain DES beat the LSTM there." },
+  {
+    fig: "3x",
+    text: "faster chat replies on the support agent. A 45-second wait ran on every message. Now it's 15 seconds mid-conversation.",
+  },
+  { fig: "60→5", text: "minutes for a credit analysis: about an hour before, as little as 5 with my pipeline over 5+ credit bureaus." },
+  {
+    fig: "10→100",
+    text: "credit operations a day: about 10 before, up to 100 once the heavy work moved to RabbitMQ and Celery workers.",
+  },
+  {
+    fig: "0.0205",
+    text: "MAE, the best result of my research, from plain DES on visceral leishmaniasis with HIV. No single model won everywhere.",
+  },
 ];
 
 export function GoldenSet() {
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLElement>(null);
   useReveal(root);
 
   return (
-    <div className="vc" ref={root}>
+    <main className="vc" ref={root}>
       <header className="vc-top">
         <span>{profile.name}</span>
         <span>{profile.role}</span>
@@ -34,7 +43,7 @@ export function GoldenSet() {
 
       <section className="vc-scene scene" aria-label="The search fix">
         <div className="vc-sticky">
-          <p className="vc-label">The search fix</p>
+          <h2 className="vc-label">The search fix</h2>
           <svg
             className="vc-grid"
             viewBox="0 0 352 236"
@@ -66,7 +75,7 @@ export function GoldenSet() {
 
       <section className="vc-scene vc-scene-short scene" aria-label="The metric that lied">
         <div className="vc-sticky">
-          <p className="vc-label">The metric that lied</p>
+          <h2 className="vc-label">The metric that lied</h2>
           <svg className="vc-chart" viewBox="0 0 360 200" role="img" aria-label="A dashboard line swings up and down 4x while the bot line stays flat.">
             <path d="M0 196 H360" className="vc-axis" />
             <path d={SWING} pathLength={1} className="draw vc-swing" style={step(0)} />
@@ -95,7 +104,7 @@ export function GoldenSet() {
       </section>
 
       <section className="vc-work">
-        <p className="vc-label">Work</p>
+        <h2 className="vc-label">Work</h2>
         {cases.map((c) => (
           <article key={c.id} className="reveal">
             <h3>{c.title}</h3>
@@ -110,7 +119,7 @@ export function GoldenSet() {
       </section>
 
       <section className="vc-contact">
-        <p className="vc-label">Write to me</p>
+        <h2 className="vc-label">Write to me</h2>
         <a className="vc-mail" href={`mailto:${profile.email}`}>
           {profile.email}
         </a>
@@ -120,6 +129,6 @@ export function GoldenSet() {
         </p>
         <p className="vc-open">{profile.open}</p>
       </section>
-    </div>
+    </main>
   );
 }

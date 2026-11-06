@@ -45,7 +45,12 @@
 .vb-prompt {
   color: var(--teal);
   font-size: 14px;
+  font-weight: 400;
   margin: 0 0 14px;
+}
+.vb .fade-out {
+  --swap-x: -110px;
+  --swap-y: 0px;
 }
 
 .vb-hero {
@@ -80,27 +85,24 @@
   margin: 0;
 }
 .vb-log {
-  height: 320px;
-  overflow: hidden;
+  overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-  padding: 0 16px;
-  mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+  padding: 12px 16px;
 }
-.vb-log-track {
-  animation: scroll-log 24s linear infinite;
-}
-@keyframes scroll-log {
-  to {
-    transform: translateY(-50%);
-  }
-}
+/* Lines appear one by one, once (about 3 s), then stay still. */
 .vb-line {
   font: 13px/2.3 "JetBrains Mono", monospace;
   white-space: pre;
   margin: 0;
   color: var(--muted);
+  animation: vb-type 0.3s ease both;
+}
+@keyframes vb-type {
+  from {
+    opacity: 0;
+  }
 }
 .vb-line span:first-child {
   color: var(--teal);

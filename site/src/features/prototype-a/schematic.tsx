@@ -9,11 +9,11 @@ const BUREAUS = [0, 1, 2, 3, 4];
 const WORKERS = [80, 200, 320];
 
 export function Schematic() {
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLElement>(null);
   useReveal(root);
 
   return (
-    <div className="va" ref={root}>
+    <main className="va" ref={root}>
       <header className="va-top">
         <span>anthonymuniz.dev</span>
         <span>Open to remote roles</span>
@@ -32,15 +32,16 @@ export function Schematic() {
           <div className="va-caption">
             <p className="va-label">Fig. 1, credit analysis pipeline</p>
             <p>
-              Five credit bureaus in, one report out. With queues and workers, an hour of manual analysis came down to as
-              little as 5 minutes, and capacity went from about 10 to 100 operations a day.
+              Five credit bureaus in, one report out. A credit analysis took about an hour, and this pipeline gets it done
+              in as little as 5 minutes. Moving the heavy work to RabbitMQ and Celery workers took capacity from about 10
+              to up to 100 operations a day.
             </p>
           </div>
           <svg
             className="va-svg"
             viewBox="0 0 400 600"
             role="img"
-            aria-label="Five credit bureaus feed a RabbitMQ queue, three workers run the analysis and a report comes out. The time drops from about an hour to 5 minutes."
+            aria-label="Five credit bureaus feed a RabbitMQ queue, three workers run the analysis and a report comes out. The time drops from about an hour to as little as 5 minutes."
           >
             <text x="200" y="14" textAnchor="middle" className="va-small">
               5+ credit bureaus
@@ -84,7 +85,7 @@ export function Schematic() {
               about 1 hour
             </text>
             <text x={200} y={570} textAnchor="middle" className="va-time va-time-new fade-in" style={step(8)}>
-              5 minutes
+              down to 5 min
             </text>
           </svg>
         </div>
@@ -124,6 +125,6 @@ export function Schematic() {
         </p>
         <p className="va-open">{profile.open}</p>
       </section>
-    </div>
+    </main>
   );
 }
