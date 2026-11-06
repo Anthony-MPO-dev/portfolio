@@ -1,0 +1,226 @@
+.va {
+  --bg: #f3f0e8;
+  --ink: #16181b;
+  --muted: #5f5b52;
+  --line: #d6cfbf;
+  --grid: rgba(22, 24, 27, 0.05);
+  --signal: #d4441c;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  min-height: 100vh;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .va {
+    --bg: #121314;
+    --ink: #ebe7dd;
+    --muted: #a39e92;
+    --line: #34332f;
+    --grid: rgba(235, 231, 221, 0.05);
+    --signal: #ff6a3d;
+  }
+}
+:root[data-theme="dark"] .va {
+  --bg: #121314;
+  --ink: #ebe7dd;
+  --muted: #a39e92;
+  --line: #34332f;
+  --grid: rgba(235, 231, 221, 0.05);
+  --signal: #ff6a3d;
+}
+
+.va-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px clamp(16px, 4vw, 48px);
+  border-bottom: 1px solid var(--line);
+  font: 500 13px/1.2 "IBM Plex Mono", monospace;
+}
+.va-label {
+  font: 500 13px/1.4 "IBM Plex Mono", monospace;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.va-hero {
+  padding: clamp(56px, 14vh, 150px) clamp(16px, 4vw, 48px) 72px;
+  max-width: 1180px;
+}
+.va h1 {
+  font-size: clamp(40px, 7.6vw, 100px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  margin: 18px 0 28px;
+  max-width: 13ch;
+}
+.va-lede {
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.5;
+  max-width: 50ch;
+  color: var(--muted);
+  margin: 0;
+}
+
+.va-scene {
+  height: 320vh;
+  border-top: 1px solid var(--line);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.va-sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 20px clamp(16px, 4vw, 48px) 72px;
+  align-items: center;
+}
+@media (min-width: 900px) {
+  .va-sticky {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 48px;
+  }
+}
+.va-caption p:last-child {
+  font-size: clamp(16px, 1.7vw, 21px);
+  line-height: 1.5;
+  max-width: 40ch;
+  margin: 10px 0 0;
+}
+.va-svg {
+  width: 100%;
+  height: 100%;
+  max-height: 74svh;
+}
+.va-svg rect {
+  fill: var(--bg);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.va-svg .va-accent {
+  stroke: var(--signal);
+  stroke-width: 2.5;
+}
+.va-wire {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.25;
+}
+.va-node {
+  font: 500 15px "IBM Plex Mono", monospace;
+  fill: var(--ink);
+}
+.va-small {
+  font: 500 13px "IBM Plex Mono", monospace;
+  fill: var(--muted);
+}
+.va-time {
+  font: 700 36px "IBM Plex Sans", sans-serif;
+  fill: var(--muted);
+}
+.va-time-new {
+  fill: var(--signal);
+}
+
+.va-index {
+  padding: 96px clamp(16px, 4vw, 48px);
+  max-width: 1240px;
+}
+.va-index > ol {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+  border-top: 2px solid var(--ink);
+}
+.va-index > ol > li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px 16px;
+  padding: 30px 0;
+  border-bottom: 1px solid var(--line);
+}
+.va-index > ol > li > :not(.va-num) {
+  grid-column: 2;
+}
+@media (min-width: 900px) {
+  .va-index > ol > li {
+    grid-template-columns: 64px minmax(0, 1.4fr) minmax(0, 1fr);
+    column-gap: 32px;
+  }
+  .va-index > ol > li > .va-figs {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .va-index > ol > li > .va-stack {
+    grid-column: 2 / -1;
+  }
+}
+.va-num {
+  font: 500 14px "IBM Plex Mono", monospace;
+  color: var(--signal);
+  padding-top: 7px;
+}
+.va h3 {
+  font-size: clamp(22px, 2.5vw, 30px);
+  letter-spacing: -0.015em;
+  margin: 0 0 8px;
+}
+.va-index p {
+  margin: 0;
+  line-height: 1.55;
+}
+.va-figs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font: 500 14px/1.9 "IBM Plex Mono", monospace;
+}
+.va-figs li::before {
+  content: "+ ";
+  color: var(--signal);
+}
+.va-stack {
+  color: var(--muted);
+  font: 13px "IBM Plex Mono", monospace;
+}
+
+.va-contact {
+  padding: 96px clamp(16px, 4vw, 48px) 160px;
+  border-top: 2px solid var(--ink);
+}
+.va-contact h2 {
+  font-size: clamp(30px, 4.4vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  max-width: 17ch;
+  margin: 0 0 28px;
+}
+.va-mail {
+  display: inline-block;
+  font: 500 clamp(19px, 3.4vw, 40px) "IBM Plex Mono", monospace;
+  color: var(--signal);
+  text-underline-offset: 6px;
+  overflow-wrap: anywhere;
+}
+.va-links {
+  display: flex;
+  gap: 24px;
+  font: 500 15px "IBM Plex Mono", monospace;
+  margin: 24px 0;
+}
+.va-links a {
+  color: var(--ink);
+}
+.va-open {
+  color: var(--muted);
+  max-width: 60ch;
+  line-height: 1.55;
+}
