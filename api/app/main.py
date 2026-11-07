@@ -5,6 +5,9 @@ secrets), pick the model engine, and hand the use cases their adapters. Engines:
 default). The Anthropic API engine is planned and refused until it exists.
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
+Redis user for REDIS_URL (checked against Redis 8 on 2026-11-06; database 0, add +select for another index):
+  ACL SETUSER <user> on ><password> ~chat:* resetchannels -@all +exists +set +get +incr +incrby +ttl +expire
+  +lrange +rpush +ltrim +lrem +blpop +del +multi +exec +hello +client|setinfo
 Public API: build (pure: no network, no disk), app (the uvicorn factory: reads the facts, creates the tables,
 starts the retention purge), ConfigError.
 Run: uvicorn app.main:app --factory
