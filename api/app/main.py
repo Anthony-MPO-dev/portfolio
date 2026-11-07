@@ -5,8 +5,8 @@ secrets), pick the model engine, and hand the use cases their adapters. Engines:
 default). The Anthropic API engine is planned and refused until it exists.
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
-Public API: build (pure: no network, no disk), app (the uvicorn factory: reads the facts, creates the tables),
-ConfigError.
+Public API: build (pure: no network, no disk), app (the uvicorn factory: reads the facts, creates the tables,
+starts the retention purge), ConfigError.
 Run: uvicorn app.main:app --factory
 Used by: the Docker image.
 Depends on: every adapter, app.http, the use cases.
@@ -16,6 +16,8 @@ Tests: tests/test_main.py.
 import logging
 import os
 import secrets
+import threading
+import time
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -24,7 +26,7 @@ import redis
 from fastapi import FastAPI
 
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert
-from app.adapters.postgres import PostgresLeadSink, PostgresQuestionLog, ensure_schema
+from app.adapters.postgres import PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisStore
 from app.adapters.worker_queue import WorkerQueue
@@ -35,6 +37,7 @@ from app.services.lead import LeadService
 log = logging.getLogger(__name__)
 REQUIRED = ("REDIS_URL", "DATABASE_URL", "LEAD_WEBHOOK_URL", "WORKER_TOKEN", "IP_HMAC_KEY", "CONTACT_WHATSAPP")
 MIN_SECRET = 32
+PURGE_EVERY = 6 * 3600  # seconds
 DEFAULT_FACTS = Path(__file__).resolve().parents[2] / "knowledge" / "facts.md"
 
 
@@ -72,8 +75,20 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
 
 def app() -> FastAPI:
     api = build(os.environ, Path(os.environ.get("FACTS_PATH") or DEFAULT_FACTS).read_text(encoding="utf-8"))
+    db = os.environ["DATABASE_URL"]
     try:
-        ensure_schema(os.environ["DATABASE_URL"])
+        ensure_schema(db)
     except psycopg.Error:
         log.warning("Postgres unreachable at startup: leads and the question log are down until it's back")
+    threading.Thread(target=_purge_forever, args=(db,), daemon=True).start()
     return api
+
+
+def _purge_forever(db: str) -> None:
+    """Retention runs on a clock, not on traffic: delete expired leads and questions now and every 6 hours."""
+    while True:
+        try:
+            purge_expired(db)
+        except psycopg.Error:
+            log.warning("retention purge failed; will try again")
+        time.sleep(PURGE_EVERY)
