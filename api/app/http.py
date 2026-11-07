@@ -19,7 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Respo
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.client_ip import client_ip
+from app.client_ip import client_ip, ip_source
 from app.ports import WorkerJobs
 from app.services.chat import ChatService
 from app.services.lead import LeadService
@@ -142,7 +142,8 @@ def create_app(
             return Response(status_code=204)
 
     @app.get("/api/health")
-    def health() -> dict:
-        return {"ok": True}
+    def health(request: Request) -> dict:
+        # How the caller's address was read (never the address): "shared" means the proxy chain hides visitors.
+        return {"ok": True, "ip": ip_source(request.client.host if request.client else "", request.headers)}
 
     return app

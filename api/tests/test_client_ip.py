@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.client_ip import client_ip
+from app.client_ip import client_ip, ip_source
 
 CLOUDFLARE_PEERS = ["162.158.10.1", "2606:4700::1"]
 
@@ -23,3 +23,18 @@ def test_missing_or_malformed_header_falls_back_to_the_peer(header):
 
 def test_unknown_peer_is_kept_as_is():
     assert client_ip("testclient", {}) == "testclient"
+
+
+@pytest.mark.parametrize(
+    "peer, headers, source",
+    [
+        ("162.158.10.1", {"cf-connecting-ip": "203.0.113.7"}, "cloudflare"),  # the visitor's own address
+        ("93.184.215.14", {"cf-connecting-ip": "203.0.113.7"}, "direct"),  # a direct connection: its own address
+        ("10.0.1.5", {"cf-connecting-ip": "203.0.113.7"}, "shared"),  # a proxy's address: every visitor alike
+        ("127.0.0.1", {}, "shared"),
+        ("162.158.10.1", {}, "shared"),  # a Cloudflare edge without the header: all visitors at that edge
+        ("testclient", {}, "unknown"),
+    ],
+)
+def test_the_source_says_whose_address_keys_the_rate_limit(peer, headers, source):
+    assert ip_source(peer, headers) == source

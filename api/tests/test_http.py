@@ -173,5 +173,5 @@ def test_api_answers_are_never_cached_and_there_are_no_public_docs():
     assert [world.client.get(p).status_code for p in ("/docs", "/openapi.json")] == [404, 404]
 
 
-def test_health_check():
-    assert World().client.get("/api/health").json() == {"ok": True}
+def test_health_check_says_how_the_callers_address_was_read_never_the_address():
+    assert World().client.get("/api/health").json() == {"ok": True, "ip": "unknown"}
