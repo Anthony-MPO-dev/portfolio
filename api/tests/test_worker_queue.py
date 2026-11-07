@@ -97,3 +97,18 @@ def test_long_waits_work_with_a_client_socket_timeout_shorter_than_the_wait():
     with pytest.raises(ModelUnavailable):
         queue.reply(HELLO, "hi", "en")
     client.flushdb()
+
+
+def test_presence_is_renewed_when_a_job_is_handed_out(r):
+    queue, ttls = make(r), []
+
+    def run():
+        job = queue.next_job(wait=2)
+        ttls.append(r.ttl("chat:worker:seen"))  # while claude runs, before the answer goes back
+        queue.finish(job["id"], '{"reply": "Hi.", "offer_contact": false}')
+
+    threading.Thread(target=run, daemon=True).start()
+    time.sleep(0.2)
+    r.expire("chat:worker:seen", 1)  # the long poll used up most of the presence window
+    queue.reply(HELLO, "hi", "en")
+    assert ttls[0] > 50

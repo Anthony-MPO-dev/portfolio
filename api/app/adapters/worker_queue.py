@@ -8,7 +8,7 @@ waiting for. Blocking reads go in slices shorter than the Redis client's socket 
 so a 20 s poll or a 45 s wait never trips it. Keys, all with an expiry:
 - chat:jobs          pending jobs (JSON: id, system, prompt, schema, deadline)
 - chat:res:{id}      the raw answer for one job
-- chat:worker:seen   set on every poll and answer; missing means the PC is off
+- chat:worker:seen   set on every poll, job handed out and answer; missing means the PC is off
 Public API: WorkerQueue.reply (ChatModel), WorkerQueue.next_job and WorkerQueue.finish (the worker routes).
 Used by: the API composition (app.main) and the worker routes.
 Depends on: redis-py, app.adapters.prompt (transcript, parse_reply, REPLY_SCHEMA), app.ports.
@@ -66,6 +66,7 @@ class WorkerQueue:
         while item := self._blpop(JOBS, until - time.monotonic()):
             job = json.loads(item[1])
             if job["deadline"] > time.time():
+                self._seen()  # the poll may have used most of the window; the job can take up to `timeout`
                 return job
         return None
 
