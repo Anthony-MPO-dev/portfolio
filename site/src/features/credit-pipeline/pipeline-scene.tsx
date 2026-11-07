@@ -13,16 +13,16 @@ export function PipelineScene() {
         <div>
           <h2 className="label">The credit pipeline</h2>
           <p className="note">
-            Five or more credit bureaus in, one report out. A credit analysis took about an hour, and this pipeline gets it done in
-            as little as 5 minutes. Moving the heavy work to RabbitMQ and Celery workers took capacity from about 10 to up
-            to 100 operations a day.
+            Five or more credit bureaus in, one report out. A credit analysis used to take about an hour, and this pipeline gets
+            it done in as fast as 5 minutes. Moving the heavy work to RabbitMQ and Celery workers raised capacity from about 10
+            to up to 100 operations a day.
           </p>
         </div>
         <svg
           className="pipeline-svg"
           viewBox="0 0 400 620"
           role="img"
-          aria-label="Five or more credit bureaus feed a RabbitMQ queue, workers run the analysis and a report comes out. The time drops from about an hour to as little as 5 minutes."
+          aria-label="Five or more credit bureaus feed a RabbitMQ queue, workers run the analysis and a report comes out in as fast as 5 minutes, down from about an hour."
         >
           <text x="200" y="14" textAnchor="middle" className="pipeline-small">
             5+ credit bureaus
@@ -66,7 +66,7 @@ export function PipelineScene() {
             about 1 hour
           </text>
           <text x={200} y={600} textAnchor="middle" className="pipeline-time pipeline-time-new fade-in" style={step(8)}>
-            as little as 5 min
+            as fast as 5 min
           </text>
         </svg>
       </div>

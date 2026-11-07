@@ -85,7 +85,7 @@ export default function Home() {
         </section>
 
         <section className="contact">
-          <h2 className="label">Write to me</h2>
+          <h2 className="label">Contact me</h2>
           <a className="contact-mail" href={mail}>
             {profile.email}
           </a>
