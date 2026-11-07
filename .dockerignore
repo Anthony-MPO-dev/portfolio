@@ -1,0 +1,7 @@
+# Only the API image builds from the repository root; the site builds from site/ with its own .dockerignore.
+*
+!api/pyproject.toml
+!api/uv.lock
+!api/app
+!knowledge/facts.md
+**/__pycache__

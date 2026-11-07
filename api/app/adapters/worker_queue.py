@@ -4,7 +4,8 @@ Responsibility: the API pushes each model request to a Redis list and waits for 
 PC pulls jobs through two authenticated HTTPS routes (no port open at his home, no Redis exposed). If no worker has
 polled lately, or the answer doesn't come in time, or the worker reports a failure (empty answer), the visitor gets
 "offline" through ModelUnavailable. Jobs carry a deadline, so a worker that comes back late skips what nobody is
-waiting for. Keys, all with an expiry:
+waiting for. Blocking reads go in slices shorter than the Redis client's socket timeout (redis-py 8 defaults to 5 s),
+so a 20 s poll or a 45 s wait never trips it. Keys, all with an expiry:
 - chat:jobs          pending jobs (JSON: id, system, prompt, schema, deadline)
 - chat:res:{id}      the raw answer for one job
 - chat:worker:seen   set on every poll and answer; missing means the PC is off
@@ -28,11 +29,12 @@ SEEN = "chat:worker:seen"
 
 
 class WorkerQueue:
-    def __init__(self, redis: Redis, system: str, timeout: int = 45, seen_ttl: int = 60):
+    def __init__(self, redis: Redis, system: str, timeout: int = 45, seen_ttl: int = 60, block_slice: float = 2):
         self.r = redis
         self.system = system
         self.timeout = timeout
         self.seen_ttl = seen_ttl
+        self.block_slice = block_slice  # must stay below the client's socket timeout
 
     # API side (ChatModel)
 
@@ -51,7 +53,7 @@ class WorkerQueue:
             ensure_ascii=False,
         )
         self.r.pipeline().rpush(JOBS, payload).expire(JOBS, 2 * self.timeout).execute()
-        answer = self.r.blpop([f"chat:res:{job_id}"], timeout=self.timeout)
+        answer = self._blpop(f"chat:res:{job_id}", self.timeout)
         if answer is None:
             self.r.lrem(JOBS, 1, payload)  # not taken yet: nobody will wait for it
             raise ModelUnavailable("worker timeout")
@@ -62,7 +64,8 @@ class WorkerQueue:
     def next_job(self, wait: int) -> dict | None:
         """Wait up to `wait` seconds for a job nobody gave up on. None when there's nothing to do."""
         self._seen()
-        while item := self.r.blpop([JOBS], timeout=wait):
+        until = time.monotonic() + wait
+        while item := self._blpop(JOBS, until - time.monotonic()):
             job = json.loads(item[1])
             if job["deadline"] > time.time():
                 return job
@@ -73,6 +76,15 @@ class WorkerQueue:
         self._seen()
         key = f"chat:res:{job_id}"
         self.r.pipeline().rpush(key, raw).expire(key, 2 * self.timeout).execute()
+
+    def _blpop(self, key: str, seconds: float) -> tuple[str, str] | None:
+        """BLPOP for up to `seconds`, in slices the client's socket timeout allows."""
+        until = time.monotonic() + seconds
+        while (left := until - time.monotonic()) > 0:
+            slice_ = max(round(min(left, self.block_slice), 2), 0.01)  # BLPOP with timeout 0 would block forever
+            if item := self.r.blpop([key], timeout=slice_):
+                return item
+        return None
 
     def _seen(self) -> None:
         self.r.set(SEEN, 1, ex=self.seen_ttl)

@@ -101,3 +101,14 @@ def test_nothing_the_queue_writes_stays_in_redis_forever(r):
     queue.finish("late-job", "an answer nobody waits for")
     keys = list(r.scan_iter("chat:*"))
     assert keys and all(r.ttl(key) > 0 for key in keys)
+
+
+@pytest.mark.skipif("redis" not in BACKENDS, reason="needs a real Redis: fakeredis has no socket timeout")
+def test_long_waits_work_with_a_client_socket_timeout_shorter_than_the_wait():
+    client = redis.Redis.from_url(os.environ["REDIS_TEST_URL"], decode_responses=True, socket_timeout=1)
+    client.flushdb()
+    queue = WorkerQueue(client, system="s", timeout=3, block_slice=0.5)
+    assert queue.next_job(wait=3) is None
+    with pytest.raises(ModelUnavailable):
+        queue.reply(HELLO, "hi", "en")
+    client.flushdb()
