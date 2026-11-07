@@ -1,6 +1,6 @@
 // Public facts for the page's lists (profile, figures, work, Services): a hand copy of knowledge/facts.md and the
 // approved LinkedIn texts. Each scroll scene keeps its own caption next to its drawing. Keep the wording, qualifiers
-// included ("about", "as little as", "up to"), in sync with those sources.
+// included ("about", "as fast as", "up to"), in sync with those sources.
 
 export const profile = {
   name: "Anthony Muniz",
@@ -8,7 +8,7 @@ export const profile = {
   status: "Open to remote roles",
   headline: "I make LLM agents work with real customers, and I measure it.",
   lede: "Most AI agents look great in a demo and fall apart with real customers. I'm the engineer who finds out why and fixes it, with numbers to prove the fix worked.",
-  open: "I'm open to remote backend and AI engineering roles with US and European teams. I also take small freelance projects through my company, Insight AI & Automation.",
+  open: "I'm open to remote backend and AI engineering roles with US and European teams. I also take on small freelance projects through my company, Insight AI & Automation.",
   email: "anthonympodev@gmail.com",
   linkedin: "https://www.linkedin.com/in/anthony-mpo-dev",
   github: "https://github.com/Anthony-MPO-dev",
@@ -17,7 +17,7 @@ export const profile = {
 export const figures = [
   {
     fig: "3x",
-    text: "faster chat replies on the support agent. A 45-second wait ran on every message. Now it's 15 seconds mid-conversation.",
+    text: "faster chat replies on the support agent. A 45-second wait meant for split messages ran on every message. Now it's 15 seconds mid-conversation.",
   },
   {
     fig: "0.0205",
@@ -54,7 +54,7 @@ export const cases = [
     when: "2026",
     title: "RAG side projects",
     summary:
-      "A PDF notes app and a resume generator on ChromaDB, plus Kai, my personal copilot, with embeddings and cosine similarity in numpy. The bug I remember: every restart wiped the vector index.",
+      "A PDF notes app and a resume generator on ChromaDB, plus Kai, my personal copilot, with embeddings and cosine similarity in NumPy. The bug I remember: every restart wiped the vector index.",
     stack: "FastAPI, ChromaDB, Gemini embeddings, Celery",
   },
   {

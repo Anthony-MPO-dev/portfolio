@@ -27,7 +27,7 @@ export function MetricScene() {
         </svg>
         <p className="note">
           The dashboard number swung 4x in three weeks while the bot hadn't changed at all. I replaced it with a metric that
-          counts real resolutions: no escalation, no reopen within 7 days, no human reply.
+          counts real resolutions: no escalation, no reopening within 7 days, no human reply.
         </p>
       </div>
     </section>

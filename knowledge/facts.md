@@ -10,7 +10,7 @@ profile, his CV, or facts he approved for publishing. If something isn't here, t
 - 3+ years of professional Python experience, writing code since 2017.
 - Languages: Portuguese (native), English (professional working proficiency).
 - Open to remote full-time backend and AI engineering roles with US and European teams.
-- Also takes small freelance projects through his own company, Insight AI & Automation: n8n automations and AI
+- Also takes on small freelance projects through his own company, Insight AI & Automation: n8n automations and AI
   chatbots.
 - Core stack: Python, FastAPI, LLMs, RAG, Applied AI, Claude Code, LangChain, Agentic AI, Multi-Agent Systems, n8n,
   Machine Learning, XGBoost, RabbitMQ, Celery, Redis, Docker.
@@ -28,7 +28,7 @@ he moved SharePoint document libraries to AWS S3.
   miss, and the right one ranks 1st or 2nd instead of 3rd. An audit of the knowledge base found 44 of 307 pages with
   dead links.
 - The team's main dashboard metric swung 4x in three weeks while the bot hadn't changed at all. He replaced it with a
-  resolution metric that holds up: no escalation, no reopen within 7 days, no human reply. It showed that 1 in 4
+  resolution metric that holds up: no escalation, no reopening within 7 days, no human reply. It showed that 1 in 4
   "bot-resolved" chats actually had a human writing in them.
 - He built an evaluation that caught an LLM judge calling a change a clear win when expert review rated it no better.
   The rule that stuck: use the judge's description, never its verdict. He also retired two automated detectors that
@@ -41,7 +41,7 @@ The client's name, industry, customers and internal tools are confidential.
 
 He rebuilt a credit fund's legacy low-code automations as Python and FastAPI services, test-first.
 
-- Credit analysis used to take about an hour. His pipeline pulls from 5+ credit bureaus and gets it done in as little
+- Credit analysis used to take about an hour. His pipeline pulls from 5+ credit bureaus and gets it done in as fast
   as 5 minutes.
 - Capacity went from about 10 to up to 100 credit operations a day once he moved the heavy work to RabbitMQ and Celery
   workers. That's what let the team handle seasonal demand peaks.
@@ -107,7 +107,7 @@ injection from reaching anything.
   - The user's own data is the only source of facts the agent that writes the resume can use. So a chunk from another
     user would pass as valid evidence: an isolation bug doesn't throw an error, it produces a wrong resume.
 - **Kai, a personal copilot.** Doesn't use ChromaDB. Conversation memory with `gemini-embedding-001` and cosine
-  similarity in numpy. It indexes each turn instead of sending the whole conversation with every question.
+  similarity in NumPy. It indexes each turn instead of sending the whole conversation with every question.
 
 ## Insight AI & Automation (freelance)
 

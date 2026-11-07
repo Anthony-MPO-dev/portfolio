@@ -20,7 +20,7 @@ function toggleTheme() {
 
 export function ThemeToggle() {
   return (
-    <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label="Switch light or dark theme">
+    <button type="button" className="theme-toggle" onClick={toggleTheme} aria-label="Switch between light and dark theme">
       <span className="when-light">Dark</span>
       <span className="when-dark">Light</span>
     </button>

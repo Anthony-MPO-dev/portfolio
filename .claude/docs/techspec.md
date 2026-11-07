@@ -42,7 +42,7 @@ Identity: direction C (Archivo, big numbers, #fafaf7 / #0b0b0b / #e0322b), with 
 | `app/routes.ts` | Route list: the home page (the `/pt/` pages come with the approved Portuguese texts) |
 | `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags, header, hero, scenes, figures, work, Services, contact |
 | `features/support-agent/*` | Scroll scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles |
-| `features/credit-pipeline/*` | Scroll scene of the credit pipeline drawing itself, about 1 hour down to as little as 5 minutes |
+| `features/credit-pipeline/*` | Scroll scene of the credit pipeline drawing itself, about 1 hour down to as fast as 5 minutes |
 | `features/chat/chat.tsx` + `chat.css` | The chat: launcher in the corner, panel (a full page over the site on phones), transcript with line breaks kept, fixed notices, composer (500 characters; the attach button waits for the security work). `app/root.tsx` loads it lazily, and only in a build with `VITE_CHAT=1` |
 | `features/chat/state.ts` | Pure reducer of the conversation: messages, waiting, notices by status, and where the contact form stands. Tests: `state.test.ts` |
 | `features/chat/api.ts` | Client of `/api/chat` (POST, DELETE) and `/api/lead`; every failure becomes a status the page knows (offline, unavailable). Tests: `api.test.ts` (`npm test`, vitest) |
