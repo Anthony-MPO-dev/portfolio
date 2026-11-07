@@ -21,3 +21,22 @@ Planned, not built yet:
 - Prompt builder from `knowledge/facts.md`, shared by both model adapters.
 - Lead sink adapter (Postgres plus the n8n alert to Telegram).
 - `/api/chat` and lead routes, cookie `__Host-chat_sid`, same-origin checks.
+
+## Site (`site/src`)
+
+React Router v7 in framework mode, prerendered to static HTML (`ssr: false`, `prerender: true`) and served by nginx.
+Folders follow bulletproof-react: `app` (routes), `features`, `components`, `content`, `hooks`, `lib`, `styles`.
+Identity: direction C (Archivo, big numbers, #fafaf7 / #0b0b0b / #e0322b), with technical labels in IBM Plex Mono.
+
+| Module | Responsibility |
+|---|---|
+| `app/root.tsx` | HTML shell, fonts, and the boot script that applies the saved theme before paint |
+| `app/routes/home.tsx` | The one page: meta tags and `HomePage` |
+| `features/home/home-page.tsx` | Page layout: header, hero, scenes, figures, work, Services, contact |
+| `features/support-agent/*` | Scroll scenes of the support agent: the search fix (13 of 23) and the metric that lied |
+| `features/credit-pipeline/pipeline-scene.tsx` | Scroll scene of the credit pipeline drawing itself, about 1 hour down to 5 minutes |
+| `components/theme-toggle.tsx` | Light or dark switch, remembered in `localStorage`; CSS picks its label |
+| `content/profile.ts` | Public facts shown on the page, a hand copy of `knowledge/facts.md` and the approved LinkedIn texts |
+| `hooks/use-reveal.ts` | IntersectionObserver fallback for browsers without scroll-driven animations |
+| `lib/step.ts` | `step(i)`: an element's slice of its scene's scroll range |
+| `styles/global.css` | Colour tokens for both themes, shared type, and the scene machinery (`view-timeline: --scene`, reduced motion) |
