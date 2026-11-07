@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import "@/styles/global.css";
 
+// HTML shell of every prerendered page: fonts, and the boot script that applies the saved theme before paint.
+
 // Runs before paint so the saved theme applies without a flash.
 const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
 

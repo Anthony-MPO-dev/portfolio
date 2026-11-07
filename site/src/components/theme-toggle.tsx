@@ -1,3 +1,5 @@
+import "./theme-toggle.css";
+
 // Light or dark switch. The boot script in root.tsx applies the saved choice before paint, and CSS (.when-light,
 // .when-dark) picks the button's word, so neither the page nor the label flashes before React loads.
 function currentTheme(): "light" | "dark" {

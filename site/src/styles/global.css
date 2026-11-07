@@ -1,3 +1,4 @@
+/* Site-wide: colour tokens for both themes, shared type, the theme button's word and the scroll-scene machinery. */
 *,
 *::before,
 *::after {
@@ -236,6 +237,15 @@ svg {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* nothing moves, so the scenes don't pin either: no screens of scrolling past a still picture */
+  section.scene {
+    height: auto; /* element in the selector so it beats a scene's own height, loaded later */
+  }
+  .stage {
+    position: static;
+    height: auto;
+    min-height: 100svh;
+  }
   *,
   *::before,
   *::after {

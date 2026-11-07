@@ -1,0 +1,15 @@
+/* The theme button. Which word shows (.when-light, .when-dark) is decided in global.css, next to the theme tokens. */
+.theme-toggle {
+  font: 500 13px var(--mono);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  background: var(--ink);
+  color: var(--bg);
+}

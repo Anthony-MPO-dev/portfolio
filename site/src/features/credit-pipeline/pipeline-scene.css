@@ -1,3 +1,4 @@
+/* Credit pipeline scene: caption beside the drawing on wide screens, above it on phones. */
 .pipeline {
   height: 320vh;
 }
@@ -42,7 +43,7 @@
   fill: var(--muted);
 }
 .pipeline-time {
-  font: 800 44px var(--sans);
+  font: 800 40px var(--sans);
   font-stretch: 70%;
   text-transform: uppercase;
   fill: var(--muted);

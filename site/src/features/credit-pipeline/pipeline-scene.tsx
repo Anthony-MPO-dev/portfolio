@@ -4,7 +4,7 @@ import "./pipeline-scene.css";
 // Credit pipeline scroll scene: five bureaus feed a queue, workers run the analysis, the report comes out and the
 // time drops from about an hour to 5 minutes. Drawn in code, part by part, so each piece can animate on its own.
 const BUREAUS = [0, 1, 2, 3, 4];
-const WORKERS = [80, 200, 320];
+const WORKER_X = [80, 200, 320];
 
 export function PipelineScene() {
   return (
@@ -13,7 +13,7 @@ export function PipelineScene() {
         <div>
           <h2 className="label">The credit pipeline</h2>
           <p className="note">
-            Five credit bureaus in, one report out. A credit analysis took about an hour, and this pipeline gets it done in
+            Five or more credit bureaus in, one report out. A credit analysis took about an hour, and this pipeline gets it done in
             as little as 5 minutes. Moving the heavy work to RabbitMQ and Celery workers took capacity from about 10 to up
             to 100 operations a day.
           </p>
@@ -22,7 +22,7 @@ export function PipelineScene() {
           className="pipeline-svg"
           viewBox="0 0 400 620"
           role="img"
-          aria-label="Five credit bureaus feed a RabbitMQ queue, three workers run the analysis and a report comes out. The time drops from about an hour to as little as 5 minutes."
+          aria-label="Five or more credit bureaus feed a RabbitMQ queue, workers run the analysis and a report comes out. The time drops from about an hour to as little as 5 minutes."
         >
           <text x="200" y="14" textAnchor="middle" className="pipeline-small">
             5+ credit bureaus
@@ -48,7 +48,7 @@ export function PipelineScene() {
           <text x={200} y={219} textAnchor="middle" className="pipeline-node fade-in" style={step(3)}>
             RabbitMQ queue
           </text>
-          {WORKERS.map((cx) => (
+          {WORKER_X.map((cx) => (
             <g key={cx}>
               <path d={`M200 242 C 200 280, ${cx} 270, ${cx} 316`} pathLength={1} className="draw pipeline-wire" style={step(3)} />
               <rect x={cx - 55} y={316} width={110} height={48} pathLength={1} className="draw" style={step(4)} />
@@ -66,7 +66,7 @@ export function PipelineScene() {
             about 1 hour
           </text>
           <text x={200} y={600} textAnchor="middle" className="pipeline-time pipeline-time-new fade-in" style={step(8)}>
-            down to 5 min
+            as little as 5 min
           </text>
         </svg>
       </div>
