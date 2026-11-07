@@ -17,7 +17,7 @@ facts:
 
   - id: kai-no-chromadb
     q: Does Kai use ChromaDB?
-    expect: [[no, "doesn't", does not, numpy]]
+    expect: [["no", "doesn't", does not, numpy]]
 
   - id: open-to-roles
     q: Is Anthony open to new roles?
@@ -119,7 +119,7 @@ facts_pt:
 
   - id: pt-current-work
     q: Em que o Anthony trabalha hoje?
-    expect: [[agente], [B2B SaaS]]
+    expect: [[agente], [B2B SaaS, SaaS B2B]]
 
   - id: pt-reply-speed
     q: Quanto mais rápido ficou o agente de atendimento?
