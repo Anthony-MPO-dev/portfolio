@@ -4,7 +4,7 @@ Responsibility: the site sits behind Cloudflare's proxy, so the connection the a
 and every visitor at the same edge would share one rate limit. Cloudflare puts the visitor's address in
 CF-Connecting-IP. That header is trusted only when the peer is inside Cloudflare's published ranges: anyone calling
 the server's IP directly can't fake it. A missing or malformed header falls back to the peer.
-Public API: client_ip, CLOUDFLARE_RANGES.
+Public API: client_ip, ip_source (how the address was read, for the health check), CLOUDFLARE_RANGES.
 Used by: app.http (the IP is turned into an HMAC right after).
 Depends on: the standard library ipaddress.
 Tests: tests/test_client_ip.py.
@@ -33,9 +33,21 @@ def _ip(value: str):
         return None
 
 
-def client_ip(peer: str, headers: Mapping[str, str]) -> str:
+def _resolve(peer: str, headers: Mapping[str, str]) -> tuple[str, str]:
     peer_ip = _ip(peer)
-    if peer_ip is None or not any(peer_ip in net for net in CLOUDFLARE_RANGES):
-        return peer
-    visitor = _ip(headers.get("cf-connecting-ip", ""))
-    return str(visitor) if visitor else peer
+    if peer_ip is None:
+        return peer, "unknown"
+    if any(peer_ip in net for net in CLOUDFLARE_RANGES):
+        visitor = _ip(headers.get("cf-connecting-ip", ""))
+        return (str(visitor), "cloudflare") if visitor else (peer, "shared")
+    return peer, "shared" if peer_ip.is_private or peer_ip.is_loopback else "direct"
+
+
+def client_ip(peer: str, headers: Mapping[str, str]) -> str:
+    return _resolve(peer, headers)[0]
+
+
+def ip_source(peer: str, headers: Mapping[str, str]) -> str:
+    """Whose address client_ip used: "cloudflare" (the visitor's, from the header), "direct" (a direct caller's own),
+    "shared" (a proxy's or a Cloudflare edge's, so many visitors would share one rate limit) or "unknown"."""
+    return _resolve(peer, headers)[1]
