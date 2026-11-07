@@ -7,7 +7,7 @@ job's own system prompt and JSON schema, COPILOTO_DESLIGADO=1. The visitor's tex
 command line. Any failure hands back an empty answer, which the API shows as "offline". Nothing about the visitor is
 logged here, only the job id and how it went. Standard library only, so it runs with any Python 3.12+.
 It lives outside app/ so the API image never ships it.
-Public API: command, answer, serve, Api, run_claude, find_claude, log, main. Run: `python -m worker.pc_worker` from
+Public API: command, answer, serve, Api, run_claude, pick_claude, find_claude, log, main. Run: `python -m worker.pc_worker` from
 api/, with
 PORTFOLIO_WORKER_TOKEN set (and PORTFOLIO_API to point at a local API while testing).
 Used by: Anthony's PC (started at login).
@@ -114,24 +114,33 @@ def run_claude(cmd: list[str], prompt: str, cwd: str, timeout: float) -> tuple[i
     return done.returncode, done.stdout
 
 
+def pick_claude(setting: str | None, on_path: str | None, ide_exes: list[str]) -> str | None:
+    """CLAUDE_BIN, else a native claude on the PATH, else the newest claude.exe from an IDE extension.
+
+    An npm .cmd/.bat shim is skipped: cmd.exe caps a command line at 8191 characters and the system prompt alone is
+    about 12 000.
+    """
+    if setting:
+        return setting
+    if on_path and Path(on_path).suffix.lower() not in (".cmd", ".bat"):
+        return on_path
+
+    def version(path: str) -> tuple[int, ...]:
+        numbers = Path(path).parts[-4].removeprefix("anthropic.claude-code-").split("-")[0]
+        return tuple(int(n) for n in numbers.split(".") if n.isdigit())
+
+    return max(ide_exes, key=version) if ide_exes else None
+
+
 def find_claude() -> str:
-    """CLAUDE_BIN, the PATH, or the newest claude.exe that ships with an IDE extension."""
-    found = os.environ.get("CLAUDE_BIN") or shutil.which("claude")
-    if found:
-        return found
-    candidates = [
-        path
+    ide_exes = [
+        str(path)
         for ide in (".antigravity-ide", ".vscode", ".cursor")
         for path in Path.home().glob(f"{ide}/extensions/anthropic.claude-code-*/resources/native-binary/claude.exe")
     ]
-    if not candidates:
-        sys.exit("claude CLI not found: set CLAUDE_BIN")
-
-    def version(path: Path) -> tuple[int, ...]:
-        numbers = path.parts[-4].removeprefix("anthropic.claude-code-").split("-")[0]
-        return tuple(int(n) for n in numbers.split(".") if n.isdigit())
-
-    return str(max(candidates, key=version))
+    return pick_claude(os.environ.get("CLAUDE_BIN"), shutil.which("claude"), ide_exes) or sys.exit(
+        "no native claude found (an npm .cmd shim can't take the system prompt): set CLAUDE_BIN"
+    )
 
 
 def log(message: str) -> None:

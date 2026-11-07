@@ -5,7 +5,9 @@ import subprocess
 import threading
 import time
 
-from worker.pc_worker import answer, command, serve
+import pytest
+
+from worker.pc_worker import answer, command, pick_claude, serve
 
 WORKDIR = "portfolio-worker-empty"  # only handed to the runner, never touched
 JOB = {
@@ -105,3 +107,27 @@ def test_loop_answers_jobs_and_survives_network_errors():
     api = FakeApi([None, OSError("network down"), OSError("still down"), JOB], stop)
     serve(api, lambda job: "the answer", stop=stop, sleep=sleeps.append)
     assert (api.finished, sleeps) == ([("job-1", "the answer")], [1, 2])
+
+
+IDE_EXES = [
+    "C:/Users/a/.vscode/extensions/anthropic.claude-code-2.1.9-win32-x64/resources/native-binary/claude.exe",
+    "C:/Users/a/.vscode/extensions/anthropic.claude-code-2.1.319-win32-x64/resources/native-binary/claude.exe",
+]
+
+
+def test_claude_bin_setting_wins():
+    assert pick_claude("D:/tools/claude.exe", "C:/npm/claude.exe", IDE_EXES) == "D:/tools/claude.exe"
+
+
+def test_native_claude_on_the_path_is_used():
+    assert pick_claude(None, "C:/Users/a/.local/bin/claude.exe", IDE_EXES) == "C:/Users/a/.local/bin/claude.exe"
+
+
+@pytest.mark.parametrize("shim", ["C:/npm/claude.cmd", "C:/npm/claude.CMD", "C:/npm/claude.bat"])
+def test_npm_shim_is_skipped_for_the_newest_native_exe(shim):
+    """cmd.exe caps a command line at 8191 characters; the system prompt alone is about 12 000."""
+    assert pick_claude(None, shim, IDE_EXES) == IDE_EXES[1]
+
+
+def test_no_usable_claude_gives_none():
+    assert pick_claude(None, "C:/npm/claude.cmd", []) is None
