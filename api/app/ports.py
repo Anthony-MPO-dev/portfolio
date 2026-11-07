@@ -3,9 +3,9 @@
 Responsibility: define the model, session-store, lead, form-counter and question-log contracts, and the data
 that crosses them.
 Public API: Turn, ModelReply, ModelUnavailable, ChatModel, SessionStore, Lead, LeadUnavailable, LeadSink,
-FormCounter, QuestionLog, QuestionLogUnavailable.
-Used by: app.services.chat, app.services.lead. Adapters implement them (local worker model, Anthropic API
-model, Redis store and counters, Postgres plus n8n lead sink, Postgres question log).
+FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs.
+Used by: app.services.chat, app.services.lead, app.http (WorkerJobs). Adapters implement them (local worker
+model, Anthropic API model, Redis store and counters, Postgres plus n8n lead sink, Postgres question log).
 Depends on: nothing.
 Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fakes.py.
 """
@@ -42,8 +42,8 @@ class SessionStore(Protocol):
 
     def create_session(self, sid: str) -> None: ...
 
-    def count_turn(self, sid: str) -> int:
-        """Add one turn to the session and return the new total."""
+    def turns(self, sid: str) -> int:
+        """How many exchanges the session has saved."""
         ...
 
     def hit_ip(self, client_key: str) -> tuple[int, int]:
@@ -62,7 +62,13 @@ class SessionStore(Protocol):
 
     def history(self, sid: str) -> list[Turn]: ...
 
-    def append_turn(self, sid: str, question: str, answer: str) -> None: ...
+    def append_turn(self, sid: str, question: str, answer: str) -> None:
+        """Save one exchange in the history and count it."""
+        ...
+
+    def delete_session(self, sid: str) -> None:
+        """Erase everything stored about the session ("erase conversation")."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -99,3 +105,21 @@ class QuestionLog(Protocol):
     def record(self, question: str, page_lang: str) -> None:
         """Keep an already-redacted question for 30 days. Raises QuestionLogUnavailable when it can't."""
         ...
+
+
+class Job(TypedDict):
+    """One model request handed to the worker on Anthony's PC."""
+
+    id: str
+    system: str
+    prompt: str
+    schema: dict
+    deadline: float  # Unix time; past it, nobody is waiting
+
+
+class WorkerJobs(Protocol):
+    """The worker's side of the local-worker engine, behind the two worker routes."""
+
+    def next_job(self, wait: int) -> Job | None: ...
+
+    def finish(self, job_id: str, raw: str) -> None: ...

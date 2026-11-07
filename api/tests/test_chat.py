@@ -144,3 +144,33 @@ def test_chat_keeps_answering_when_the_question_log_is_down():
 def test_model_contact_signal_reaches_the_page():
     chat, _, _ = make(FakeModel(ModelReply("Sure, leave your details.", offer_contact=True)))
     assert ask(chat, "Can I talk to him?").offer_contact is True
+
+
+def test_erased_conversation_is_gone_and_the_next_message_starts_a_new_one():
+    chat, model, _ = make()
+    sid = ask(chat, "My name is Jane").session_id
+    chat.forget(sid)
+    result = ask(chat, "hi", sid=sid)
+    assert (result.session_id, model.calls[-1].history) == ("sid-2", [])
+
+
+def test_erasing_without_a_conversation_does_nothing():
+    chat, _, _ = make()
+    chat.forget(None)
+
+
+def test_offline_answers_do_not_use_up_the_conversation():
+    model = FakeModel(unavailable=True)
+    chat, _, _ = make(model, limits=Limits(turns=2))
+    sid = ask(chat, "1").session_id
+    ask(chat, "2", sid=sid)
+    model.unavailable = False
+    assert [ask(chat, m, sid=sid).status for m in ("3", "4", "5")] == ["ok", "ok", "conversation_limit"]
+
+
+def test_conversation_erased_while_the_model_answers_is_not_saved_again():
+    holder = {}
+    chat, _, store = make(FakeModel(during=lambda: holder["chat"].forget("sid-1")))
+    holder["chat"] = chat
+    ask(chat, "My name is Jane")
+    assert (store.histories, store.session_exists("sid-1")) == ({}, False)

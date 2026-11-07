@@ -2,8 +2,10 @@
 
 Responsibility: apply the message, IP, turn and daily limits, keep the session strict (only ids this server
 created), hold one answer at a time per session, log the redacted question, call the model and save the turn.
+Only saved exchanges count toward the conversation limit, so offline answers don't use it up, and a
+conversation erased while the model was answering is not saved again.
 Fixed notices (offline, limits) are the page's job: this module returns a status, never notice text.
-Public API: ChatService.answer, Limits, ChatResult.
+Public API: ChatService.answer, ChatService.forget, Limits, ChatResult.
 Used by: the /api/chat route.
 Depends on: app.ports (ChatModel, SessionStore, QuestionLog), app.lang, app.redact.
 Tests: tests/test_chat.py.
@@ -70,6 +72,11 @@ class ChatService:
         finally:
             self.store.release_lock(sid)
 
+    def forget(self, session_id: str | None) -> None:
+        """The visitor's "erase conversation" button."""
+        if session_id:
+            self.store.delete_session(session_id)
+
     def _strict_session(self, sid: str | None) -> str:
         if sid and self.store.session_exists(sid):
             return sid
@@ -78,7 +85,7 @@ class ChatService:
         return sid
 
     def _answer_locked(self, sid: str, message: str, lang: str) -> ChatResult:
-        if self.store.count_turn(sid) > self.limits.turns:
+        if self.store.turns(sid) >= self.limits.turns:
             return ChatResult("conversation_limit", sid)
         try:
             self.log.record(redact(message), lang)
@@ -90,5 +97,6 @@ class ChatService:
             reply = self.model.reply(self.store.history(sid), message, lang)
         except ModelUnavailable:
             return ChatResult("offline", sid, offer_contact=True)
-        self.store.append_turn(sid, message, reply.text)
+        if self.store.session_exists(sid):  # the visitor may have erased it while the model was answering
+            self.store.append_turn(sid, message, reply.text)
         return ChatResult("ok", sid, reply.text, reply.offer_contact)

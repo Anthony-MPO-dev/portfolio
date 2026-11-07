@@ -53,13 +53,16 @@ class ModelCall:
 class FakeModel:
     """Returns a scripted reply (or "reply N"), or raises ModelUnavailable like a worker that is offline."""
 
-    def __init__(self, reply: ModelReply | None = None, unavailable: bool = False):
+    def __init__(self, reply: ModelReply | None = None, unavailable: bool = False, during=None):
         self.scripted = reply
         self.unavailable = unavailable
+        self.during = during  # called while "answering", to simulate what happens meanwhile
         self.calls: list[ModelCall] = []
 
     def reply(self, history: list[Turn], message: str, page_lang: str) -> ModelReply:
         self.calls.append(ModelCall(list(history), message, page_lang))
+        if self.during:
+            self.during()
         if self.unavailable:
             raise ModelUnavailable()
         return self.scripted or ModelReply(f"reply {len(self.calls)}", offer_contact=False)
@@ -69,7 +72,7 @@ class FakeStore:
     """Same contract as the Redis store, kept in dictionaries. No expiry: TTLs are the adapter's job."""
 
     def __init__(self):
-        self.turns: dict[str, int] = {}
+        self.turn_counts: dict[str, int] = {}
         self.histories: dict[str, list[Turn]] = {}
         self.locks: set[str] = set()
         self.ip_hour: Counter[str] = Counter()
@@ -77,14 +80,13 @@ class FakeStore:
         self.global_day = 0
 
     def session_exists(self, sid: str) -> bool:
-        return sid in self.turns
+        return sid in self.turn_counts
 
     def create_session(self, sid: str) -> None:
-        self.turns.setdefault(sid, 0)
+        self.turn_counts.setdefault(sid, 0)
 
-    def count_turn(self, sid: str) -> int:
-        self.turns[sid] += 1
-        return self.turns[sid]
+    def turns(self, sid: str) -> int:
+        return self.turn_counts.get(sid, 0)
 
     def hit_ip(self, client_key: str) -> tuple[int, int]:
         self.ip_hour[client_key] += 1
@@ -107,7 +109,13 @@ class FakeStore:
     def history(self, sid: str) -> list[Turn]:
         return list(self.histories.get(sid, []))
 
+    def delete_session(self, sid: str) -> None:
+        self.turn_counts.pop(sid, None)
+        self.histories.pop(sid, None)
+        self.locks.discard(sid)
+
     def append_turn(self, sid: str, question: str, answer: str) -> None:
         self.histories.setdefault(sid, []).extend(
             [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
         )
+        self.turn_counts[sid] = self.turn_counts.get(sid, 0) + 1

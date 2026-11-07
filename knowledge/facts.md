@@ -92,7 +92,7 @@ LOCKED claims, idempotent upserts) until he approves them in a Telegram bot, the
 AI drafting jobs read strangers' comments, so they run with file access only: no shell, no web. That keeps a prompt
 injection from reaching anything.
 
-## Side projects: RAG with ChromaDB
+## Side projects with RAG (two on ChromaDB, Kai without it)
 
 - **PDF notes app.** FastAPI, Gemini embeddings, ChromaDB, Celery, Redis and PostgreSQL.
   - Chunks of 1,000 characters with 200 of overlap.
@@ -106,8 +106,8 @@ injection from reaching anything.
   - Chunks split by heading (H2, H3), and CSV rows turned into "key: value" lines before embedding.
   - The user's own data is the only source of facts the agent that writes the resume can use. So a chunk from another
     user would pass as valid evidence: an isolation bug doesn't throw an error, it produces a wrong resume.
-- **Kai, a personal copilot.** Conversation memory with `gemini-embedding-001` and cosine similarity in numpy. It
-  indexes each turn instead of sending the whole conversation with every question.
+- **Kai, a personal copilot.** Doesn't use ChromaDB. Conversation memory with `gemini-embedding-001` and cosine
+  similarity in numpy. It indexes each turn instead of sending the whole conversation with every question.
 
 ## Insight AI & Automation (freelance)
 
