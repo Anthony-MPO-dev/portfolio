@@ -1,0 +1,44 @@
+// Fixed English text of the chat panel: labels, notices and the contact form. The Portuguese copy comes with the
+// /pt/ pages, after the author approves it. Used by: features/chat/chat.tsx, lead-form.tsx.
+import type { Notice } from "./state";
+
+export const copy = {
+  launcher: "Ask about Anthony",
+  title: "Ask about Anthony",
+  sub: "An AI assistant that answers from Anthony's public profile. It can be wrong.",
+  intro: "What do you want to know?",
+  suggestions: ["Is he open to remote roles in the US or Europe?", "What has he built with RAG and ChromaDB?", "What does Insight AI & Automation build for companies?"],
+  placeholder: "Ask about his Python, RAG or n8n work",
+  send: "Send",
+  attach: "Attach a file (coming soon)",
+  clear: "Clear",
+  close: "Close",
+  you: "You",
+  bot: "Assistant",
+  typing: "The assistant is typing",
+  privacy: "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored.",
+  notices: {
+    offline: "Offline right now. You can still reach Anthony below.",
+    rate_limited: "You've hit the limit of 20 messages an hour or 60 a day. Try again later, or reach Anthony below.",
+    busy: "One moment, still on your last message.",
+    conversation_limit: "This conversation used its 20 exchanges. Clear it to start over, or reach Anthony below.",
+    invalid: "Messages can be up to 500 characters.",
+  } satisfies Record<Notice, string>,
+  talk: "Talk to Anthony",
+  form: {
+    name: "Name",
+    company: "Company",
+    email: "Email",
+    linkedin: "LinkedIn",
+    optional: "optional",
+    linkedinHint: "Send me your LinkedIn and Anthony will connect with you.",
+    kind: "What is it about?",
+    hiring: "Hiring",
+    project: "Project",
+    submit: "Send to Anthony",
+    error: "Check the fields. Name, company and a valid email are needed.",
+  },
+  sentHiring: "Sent. Anthony will get back to you. For a quicker reply, message him on WhatsApp:",
+  sentProject: "Sent. Anthony will reply by email.",
+  emailFallback: "Please email Anthony at",
+};

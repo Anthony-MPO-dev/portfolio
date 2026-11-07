@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import "@/styles/global.css";
 
@@ -37,6 +37,20 @@ export function Layout({ children }: { children: ReactNode }) {
   );
 }
 
+// The chat stays out of the page until its security work is done: only a build with VITE_CHAT=1 includes it, and
+// then it loads after the page.
+const Chat =
+  import.meta.env.VITE_CHAT === "1" ? lazy(() => import("@/features/chat/chat").then((m) => ({ default: m.Chat }))) : null;
+
 export default function App() {
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      {Chat && (
+        <Suspense fallback={null}>
+          <Chat lang="en" />
+        </Suspense>
+      )}
+    </>
+  );
 }
