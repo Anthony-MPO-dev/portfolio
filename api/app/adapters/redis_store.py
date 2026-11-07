@@ -25,60 +25,52 @@ from app.ports import Turn
 
 HOUR = 3600
 DAY = 86400
+HISTORY_SIZE = 20  # messages
+IDLE_TTL = 2 * HOUR
+SESSION_TTL = DAY
+LOCK_TTL = 90  # longer than the model timeout
 
 
 class RedisStore:
-    def __init__(
-        self,
-        redis: Redis,
-        now: Callable[[], datetime] = lambda: datetime.now(UTC),
-        history_size: int = 20,
-        idle_ttl: int = 2 * HOUR,
-        session_ttl: int = DAY,
-        lock_ttl: int = 90,
-    ):
-        self.r = redis
+    def __init__(self, redis: Redis, now: Callable[[], datetime] = lambda: datetime.now(UTC)):
+        self.redis = redis
         self.now = now
-        self.history_size = history_size
-        self.idle_ttl = idle_ttl
-        self.session_ttl = session_ttl
-        self.lock_ttl = lock_ttl
 
     # sessions
 
     def session_exists(self, sid: str) -> bool:
-        return bool(self.r.exists(f"chat:m:{sid}"))
+        return bool(self.redis.exists(f"chat:m:{sid}"))
 
     def create_session(self, sid: str) -> None:
-        self.r.set(f"chat:m:{sid}", 0, ex=self.session_ttl, nx=True)
+        self.redis.set(f"chat:m:{sid}", 0, ex=SESSION_TTL, nx=True)
 
     def count_turn(self, sid: str) -> int:
         key = f"chat:m:{sid}"
-        turns, ttl = self.r.pipeline().incr(key).ttl(key).execute()
+        turns, ttl = self.redis.pipeline().incr(key).ttl(key).execute()
         if ttl == -1:  # the session expired between the check and the INCR, which recreated it without expiry
-            self.r.expire(key, self.session_ttl)
+            self.redis.expire(key, SESSION_TTL)
         return turns
 
     def acquire_lock(self, sid: str) -> bool:
-        return bool(self.r.set(f"chat:lock:{sid}", 1, ex=self.lock_ttl, nx=True))
+        return bool(self.redis.set(f"chat:lock:{sid}", 1, ex=LOCK_TTL, nx=True))
 
     def release_lock(self, sid: str) -> None:
-        self.r.delete(f"chat:lock:{sid}")
+        self.redis.delete(f"chat:lock:{sid}")
 
     def history(self, sid: str) -> list[Turn]:
-        return [json.loads(item) for item in self.r.lrange(f"chat:h:{sid}", 0, -1)]
+        return [json.loads(item) for item in self.redis.lrange(f"chat:h:{sid}", 0, -1)]
 
     def append_turn(self, sid: str, question: str, answer: str) -> None:
         key = f"chat:h:{sid}"
         turns = ({"role": "user", "content": question}, {"role": "assistant", "content": answer})
-        pipe = self.r.pipeline()
+        pipe = self.redis.pipeline()
         pipe.rpush(key, *(json.dumps(t, ensure_ascii=False) for t in turns))
-        pipe.ltrim(key, -self.history_size, -1)
-        pipe.expire(key, self.idle_ttl)
+        pipe.ltrim(key, -HISTORY_SIZE, -1)
+        pipe.expire(key, IDLE_TTL)
         pipe.execute()
 
     def delete_session(self, sid: str) -> None:
-        self.r.delete(f"chat:m:{sid}", f"chat:h:{sid}", f"chat:lock:{sid}")
+        self.redis.delete(f"chat:m:{sid}", f"chat:h:{sid}", f"chat:lock:{sid}")
 
     # counters
 
@@ -96,7 +88,7 @@ class RedisStore:
         return self._count((f"chat:form:{client_key}:{self.now():%Y%m%d}", 2 * DAY))[0]
 
     def _count(self, *windows: tuple[str, int]) -> list[int]:
-        pipe = self.r.pipeline()
+        pipe = self.redis.pipeline()
         for key, ttl in windows:
             pipe.incr(key).expire(key, ttl)
         return pipe.execute()[::2]

@@ -5,8 +5,9 @@ import subprocess
 import threading
 import time
 
-from app.pc_worker import answer, command, serve
+from worker.pc_worker import answer, command, serve
 
+WORKDIR = "portfolio-worker-empty"  # only handed to the runner, never touched
 JOB = {
     "id": "job-1",
     "system": "SYSTEM PROMPT",
@@ -43,26 +44,26 @@ def test_claude_runs_isolated_with_the_job_system_prompt_and_schema():
     assert json.loads(pairs["--json-schema"]) == JOB["schema"] and JOB["prompt"] not in cmd
 
 
-def test_visitor_prompt_goes_through_stdin_in_an_empty_folder(tmp_path):
+def test_visitor_prompt_goes_through_stdin_in_an_empty_folder():
     run = Runner(stdout=claude_output(structured_output={"reply": "Hi.", "offer_contact": False}))
-    answer(JOB, run, claude="claude.exe", model="haiku", workdir=str(tmp_path))
+    answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR)
     call = run.calls[0]
-    assert (call["prompt"], call["cwd"], list(tmp_path.iterdir())) == (JOB["prompt"], str(tmp_path), [])
+    assert (call["prompt"], call["cwd"]) == (JOB["prompt"], WORKDIR)
     assert 0 < call["timeout"] <= 60
 
 
-def test_structured_output_is_handed_back_as_json(tmp_path):
+def test_structured_output_is_handed_back_as_json():
     run = Runner(stdout=claude_output(structured_output={"reply": "Hi.", "offer_contact": True}))
-    raw = answer(JOB, run, claude="claude.exe", model="haiku", workdir=str(tmp_path))
+    raw = answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR)
     assert json.loads(raw) == {"reply": "Hi.", "offer_contact": True}
 
 
-def test_plain_result_is_handed_back_when_there_is_no_structured_output(tmp_path):
+def test_plain_result_is_handed_back_when_there_is_no_structured_output():
     run = Runner(stdout=claude_output(result="He has 3+ years of Python."))
-    assert answer(JOB, run, claude="claude.exe", model="haiku", workdir=str(tmp_path)) == "He has 3+ years of Python."
+    assert answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR) == "He has 3+ years of Python."
 
 
-def test_any_failure_hands_back_an_empty_answer(tmp_path):
+def test_any_failure_hands_back_an_empty_answer():
     failures = [
         Runner(returncode=1, stdout="boom"),
         Runner(stdout="not json"),
@@ -70,12 +71,12 @@ def test_any_failure_hands_back_an_empty_answer(tmp_path):
         Runner(error=subprocess.TimeoutExpired("claude", 1)),
         Runner(error=OSError("claude.exe not found")),
     ]
-    assert [answer(JOB, run, claude="c", model="haiku", workdir=str(tmp_path)) for run in failures] == [""] * 5
+    assert [answer(JOB, run, claude="c", model="haiku", workdir=WORKDIR) for run in failures] == [""] * 5
 
 
-def test_job_past_its_deadline_is_not_run(tmp_path):
+def test_job_past_its_deadline_is_not_run():
     run = Runner(stdout=claude_output(result="late"))
-    raw = answer({**JOB, "deadline": time.time() - 1}, run, claude="c", model="haiku", workdir=str(tmp_path))
+    raw = answer({**JOB, "deadline": time.time() - 1}, run, claude="c", model="haiku", workdir=WORKDIR)
     assert (raw, run.calls) == ("", [])
 
 

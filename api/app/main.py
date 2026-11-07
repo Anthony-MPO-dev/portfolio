@@ -5,10 +5,11 @@ secrets), pick the model engine, and hand the use cases their adapters. Engines:
 default). The Anthropic API engine is planned and refused until it exists.
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
-Public API: build (pure: no network), app (the uvicorn factory: also creates the tables), ConfigError.
+Public API: build (pure: no network, no disk), app (the uvicorn factory: reads the facts, creates the tables),
+ConfigError.
 Run: uvicorn app.main:app --factory
 Used by: the Docker image.
-Depends on: every adapter, app.http, app.prompt, the use cases.
+Depends on: every adapter, app.http, the use cases.
 Tests: tests/test_main.py.
 """
 
@@ -24,10 +25,10 @@ from fastapi import FastAPI
 
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert
 from app.adapters.postgres import PostgresLeadSink, PostgresQuestionLog, ensure_schema
+from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisStore
 from app.adapters.worker_queue import WorkerQueue
 from app.http import create_app
-from app.prompt import system_prompt
 from app.services.chat import ChatService
 from app.services.lead import LeadService
 
@@ -41,7 +42,7 @@ class ConfigError(RuntimeError):
     """The API can't start with these settings."""
 
 
-def build(env: Mapping[str, str]) -> FastAPI:
+def build(env: Mapping[str, str], facts: str) -> FastAPI:
     missing = [key for key in REQUIRED if not env.get(key)]
     if missing:
         raise ConfigError(f"missing settings: {', '.join(missing)}")
@@ -52,7 +53,6 @@ def build(env: Mapping[str, str]) -> FastAPI:
     if engine != "worker":
         raise ConfigError(f"MODEL_ENGINE={engine!r} is not available; use 'worker'")
 
-    facts = Path(env.get("FACTS_PATH") or DEFAULT_FACTS).read_text(encoding="utf-8")
     r = redis.Redis.from_url(env["REDIS_URL"], decode_responses=True)
     store = RedisStore(r)
     queue = WorkerQueue(r, system_prompt(facts), timeout=int(env.get("MODEL_TIMEOUT", "45")))
@@ -71,7 +71,7 @@ def build(env: Mapping[str, str]) -> FastAPI:
 
 
 def app() -> FastAPI:
-    api = build(os.environ)
+    api = build(os.environ, Path(os.environ.get("FACTS_PATH") or DEFAULT_FACTS).read_text(encoding="utf-8"))
     try:
         ensure_schema(os.environ["DATABASE_URL"])
     except psycopg.Error:

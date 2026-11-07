@@ -6,7 +6,9 @@ no Redis exposed), run `claude -p` fully isolated for each job, and hand the raw
 job's own system prompt and JSON schema, COPILOTO_DESLIGADO=1. The visitor's text goes through stdin, never the
 command line. Any failure hands back an empty answer, which the API shows as "offline". Nothing about the visitor is
 logged here, only the job id and how it went. Standard library only, so it runs with any Python 3.12+.
-Public API: command, answer, serve, Api, main. Run: `python -m app.pc_worker` from api/, with
+It lives outside app/ so the API image never ships it.
+Public API: command, answer, serve, Api, run_claude, find_claude, log, main. Run: `python -m worker.pc_worker` from
+api/, with
 PORTFOLIO_WORKER_TOKEN set (and PORTFOLIO_API to point at a local API while testing).
 Used by: Anthony's PC (started at login).
 Depends on: the claude CLI, the API's /api/worker routes.

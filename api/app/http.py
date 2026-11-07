@@ -7,20 +7,20 @@ JSON only and refuse other sites (Sec-Fetch-Site, then Origin). The session live
 there are no public API docs.
 Public API: create_app.
 Used by: app.main (composition with the real adapters) and tests/test_http.py (with fakes).
-Depends on: FastAPI, app.services.chat.ChatService, app.services.lead.LeadService, a worker queue
-(next_job, finish), app.client_ip, the standard library hmac.
+Depends on: FastAPI, app.services.chat.ChatService, app.services.lead.LeadService, app.ports.WorkerJobs,
+app.client_ip, the standard library hmac.
 Tests: tests/test_http.py.
 """
 
 import hashlib
 import hmac
-from typing import Protocol
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.client_ip import client_ip
+from app.ports import WorkerJobs
 from app.services.chat import ChatService
 from app.services.lead import LeadService
 
@@ -35,11 +35,6 @@ CODES = {
     "conversation_limit": 429,
     "unavailable": 503,
 }
-
-
-class Worker(Protocol):
-    def next_job(self, wait: int) -> dict | None: ...
-    def finish(self, job_id: str, raw: str) -> None: ...
 
 
 class ChatIn(BaseModel):
@@ -62,8 +57,15 @@ class AnswerIn(BaseModel):
 
 
 def create_app(
-    *, chat: ChatService, lead: LeadService, worker: Worker, worker_token: str, ip_key: bytes, origin: str
+    *,
+    chat: ChatService,
+    lead: LeadService,
+    worker: WorkerJobs | None,
+    worker_token: str,
+    ip_key: bytes,
+    origin: str,
 ) -> FastAPI:
+    """`worker` is the local-worker engine's job queue; None (another engine) leaves the worker routes out."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
@@ -72,7 +74,7 @@ def create_app(
         response.headers["Cache-Control"] = "no-store"
         return response
 
-    def same_origin(request: Request) -> None:
+    def same_origin_json(request: Request) -> None:
         site, sent_origin = request.headers.get("sec-fetch-site"), request.headers.get("origin")
         if (site and site != "same-origin") or (sent_origin and sent_origin != origin):
             raise HTTPException(403)
@@ -89,7 +91,7 @@ def create_app(
         ip = client_ip(request.client.host if request.client else "", request.headers)
         return hmac.new(ip_key, ip.encode(), hashlib.sha256).hexdigest()[:32]
 
-    browser = [Depends(same_origin)]
+    browser = [Depends(same_origin_json)]
 
     @app.post("/api/chat", dependencies=browser)
     def post_chat(body: ChatIn, request: Request) -> Response:
@@ -127,15 +129,17 @@ def create_app(
         payload = {"status": result.status} | ({"whatsapp": result.whatsapp} if result.whatsapp else {})
         return JSONResponse(payload, CODES[result.status])
 
-    @app.get("/api/worker/next", dependencies=[Depends(worker_auth)])
-    def next_job(wait: int = Query(20, ge=1, le=25)) -> Response:
-        job = worker.next_job(wait)
-        return JSONResponse(job) if job else Response(status_code=204)
+    if worker is not None:
 
-    @app.post("/api/worker/jobs/{job_id}", status_code=204, dependencies=[Depends(worker_auth)])
-    def finish_job(body: AnswerIn, job_id: str = Path(pattern="^[0-9a-f]{32}$")) -> Response:
-        worker.finish(job_id, body.answer)
-        return Response(status_code=204)
+        @app.get("/api/worker/next", dependencies=[Depends(worker_auth)])
+        def next_job(wait: int = Query(20, ge=1, le=25)) -> Response:
+            job = worker.next_job(wait)
+            return JSONResponse(job) if job else Response(status_code=204)
+
+        @app.post("/api/worker/jobs/{job_id}", status_code=204, dependencies=[Depends(worker_auth)])
+        def finish_job(body: AnswerIn, job_id: str = Path(pattern="^[0-9a-f]{32}$")) -> Response:
+            worker.finish(job_id, body.answer)
+            return Response(status_code=204)
 
     @app.get("/api/health")
     def health() -> dict:

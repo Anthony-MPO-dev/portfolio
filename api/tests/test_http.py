@@ -28,7 +28,7 @@ class FakeWorker:
 
 
 class World:
-    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient"):
+    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker"):
         self.model = model or FakeModel()
         self.store = FakeStore()
         self.sink = FakeLeadSink()
@@ -36,7 +36,8 @@ class World:
         ids = (f"sid-{n}" for n in range(1, 1000))
         chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits)
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
-        app = create_app(chat=chat, lead=lead, worker=self.worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN)
+        worker = self.worker if engine == "worker" else None
+        app = create_app(chat=chat, lead=lead, worker=worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN)
         self.client = TestClient(app, base_url=ORIGIN, client=(peer, 50000))
 
     def chat(self, message="hi", headers=SAME_SITE, **body):
@@ -158,6 +159,12 @@ def test_worker_takes_a_job_and_hands_the_answer_back():
         204,
         [("a" * 32, "raw")],
     )
+
+
+def test_another_engine_leaves_the_worker_routes_out():
+    world = World(engine="anthropic")
+    auth = {"Authorization": f"Bearer {TOKEN}"}
+    assert world.client.get("/api/worker/next", headers=auth).status_code == 404
 
 
 def test_api_answers_are_never_cached_and_there_are_no_public_docs():

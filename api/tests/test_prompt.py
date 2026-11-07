@@ -2,8 +2,8 @@
 
 import pytest
 
+from app.adapters.prompt import parse_reply, system_prompt, transcript
 from app.ports import ModelUnavailable
-from app.prompt import parse_reply, system_prompt, transcript
 
 FACTS = "# Anthony Muniz: public facts\n- 3+ years of professional Python experience."
 

@@ -11,7 +11,7 @@ so a 20 s poll or a 45 s wait never trips it. Keys, all with an expiry:
 - chat:worker:seen   set on every poll and answer; missing means the PC is off
 Public API: WorkerQueue.reply (ChatModel), WorkerQueue.next_job and WorkerQueue.finish (the worker routes).
 Used by: the API composition (app.main) and the worker routes.
-Depends on: redis-py, app.prompt (transcript, parse_reply, REPLY_SCHEMA), app.ports.
+Depends on: redis-py, app.adapters.prompt (transcript, parse_reply, REPLY_SCHEMA), app.ports.
 Tests: tests/test_worker_queue.py (fakeredis; a real local Redis when REDIS_TEST_URL is set).
 """
 
@@ -21,47 +21,45 @@ import time
 
 from redis import Redis
 
-from app.ports import ModelReply, ModelUnavailable, Turn
-from app.prompt import REPLY_SCHEMA, parse_reply, transcript
+from app.adapters.prompt import REPLY_SCHEMA, parse_reply, transcript
+from app.ports import Job, ModelReply, ModelUnavailable, Turn
 
 JOBS = "chat:jobs"
 SEEN = "chat:worker:seen"
+SEEN_TTL = 60
 
 
 class WorkerQueue:
-    def __init__(self, redis: Redis, system: str, timeout: int = 45, seen_ttl: int = 60, block_slice: float = 2):
-        self.r = redis
+    def __init__(self, redis: Redis, system: str, timeout: int = 45, block_slice: float = 2):
+        self.redis = redis
         self.system = system
         self.timeout = timeout
-        self.seen_ttl = seen_ttl
         self.block_slice = block_slice  # must stay below the client's socket timeout
 
     # API side (ChatModel)
 
     def reply(self, history: list[Turn], message: str, page_lang: str) -> ModelReply:
-        if not self.r.exists(SEEN):
+        if not self.redis.exists(SEEN):
             raise ModelUnavailable("worker offline")
         job_id = secrets.token_hex(16)
-        payload = json.dumps(
-            {
-                "id": job_id,
-                "system": self.system,
-                "prompt": transcript(history, message, page_lang),
-                "schema": REPLY_SCHEMA,
-                "deadline": time.time() + self.timeout,
-            },
-            ensure_ascii=False,
+        job = Job(
+            id=job_id,
+            system=self.system,
+            prompt=transcript(history, message, page_lang),
+            schema=REPLY_SCHEMA,
+            deadline=time.time() + self.timeout,
         )
-        self.r.pipeline().rpush(JOBS, payload).expire(JOBS, 2 * self.timeout).execute()
+        payload = json.dumps(job, ensure_ascii=False)
+        self.redis.pipeline().rpush(JOBS, payload).expire(JOBS, 2 * self.timeout).execute()
         answer = self._blpop(f"chat:res:{job_id}", self.timeout)
         if answer is None:
-            self.r.lrem(JOBS, 1, payload)  # not taken yet: nobody will wait for it
+            self.redis.lrem(JOBS, 1, payload)  # not taken yet: nobody will wait for it
             raise ModelUnavailable("worker timeout")
         return parse_reply(answer[1])
 
     # worker side (the two routes)
 
-    def next_job(self, wait: int) -> dict | None:
+    def next_job(self, wait: int) -> Job | None:
         """Wait up to `wait` seconds for a job nobody gave up on. None when there's nothing to do."""
         self._seen()
         until = time.monotonic() + wait
@@ -75,16 +73,16 @@ class WorkerQueue:
         """Hand the model's raw answer back. An empty answer tells the API the model failed."""
         self._seen()
         key = f"chat:res:{job_id}"
-        self.r.pipeline().rpush(key, raw).expire(key, 2 * self.timeout).execute()
+        self.redis.pipeline().rpush(key, raw).expire(key, 2 * self.timeout).execute()
 
     def _blpop(self, key: str, seconds: float) -> tuple[str, str] | None:
         """BLPOP for up to `seconds`, in slices the client's socket timeout allows."""
         until = time.monotonic() + seconds
         while (left := until - time.monotonic()) > 0:
             slice_ = max(round(min(left, self.block_slice), 2), 0.01)  # BLPOP with timeout 0 would block forever
-            if item := self.r.blpop([key], timeout=slice_):
+            if item := self.redis.blpop([key], timeout=slice_):
                 return item
         return None
 
     def _seen(self) -> None:
-        self.r.set(SEEN, 1, ex=self.seen_ttl)
+        self.redis.set(SEEN, 1, ex=SEEN_TTL)

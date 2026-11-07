@@ -41,35 +41,47 @@ def ensure_schema(url: str) -> None:
         conn.execute(SCHEMA)
 
 
+LEADS_KEPT = "12 months"
+QUESTIONS_KEPT = "30 days"
+
+
+def _write(url: str, table: str, kept: str, insert: str, values: tuple) -> None:
+    """Delete what is past retention, then insert. Raises psycopg.Error when the database can't be reached."""
+    with psycopg.connect(url, connect_timeout=5) as conn:
+        conn.execute(f"DELETE FROM {table} WHERE created_at < now() - %s::interval", (kept,))
+        conn.execute(insert, values)
+
+
 class PostgresLeadSink:
-    def __init__(self, url: str, keep: str = "12 months"):
+    def __init__(self, url: str):
         self.url = url
-        self.keep = keep
 
     def save(self, lead: Lead) -> None:
         try:
-            with psycopg.connect(self.url, connect_timeout=5) as conn:
-                conn.execute("DELETE FROM portfolio_leads WHERE created_at < now() - %s::interval", (self.keep,))
-                conn.execute(
-                    "INSERT INTO portfolio_leads (name, company, email, linkedin, kind, page_lang) "
-                    "VALUES (%s, %s, %s, %s, %s, %s)",
-                    (lead.name, lead.company, lead.email, lead.linkedin, lead.kind, lead.page_lang),
-                )
+            _write(
+                self.url,
+                "portfolio_leads",
+                LEADS_KEPT,
+                "INSERT INTO portfolio_leads (name, company, email, linkedin, kind, page_lang) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (lead.name, lead.company, lead.email, lead.linkedin, lead.kind, lead.page_lang),
+            )
         except psycopg.Error as error:
             raise LeadUnavailable() from error
 
 
 class PostgresQuestionLog:
-    def __init__(self, url: str, keep: str = "30 days"):
+    def __init__(self, url: str):
         self.url = url
-        self.keep = keep
 
     def record(self, question: str, page_lang: str) -> None:
         try:
-            with psycopg.connect(self.url, connect_timeout=5) as conn:
-                conn.execute("DELETE FROM portfolio_questions WHERE created_at < now() - %s::interval", (self.keep,))
-                conn.execute(
-                    "INSERT INTO portfolio_questions (question, page_lang) VALUES (%s, %s)", (question, page_lang)
-                )
+            _write(
+                self.url,
+                "portfolio_questions",
+                QUESTIONS_KEPT,
+                "INSERT INTO portfolio_questions (question, page_lang) VALUES (%s, %s)",
+                (question, page_lang),
+            )
         except psycopg.Error as error:
             raise QuestionLogUnavailable() from error

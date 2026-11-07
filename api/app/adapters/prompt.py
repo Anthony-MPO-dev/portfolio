@@ -4,7 +4,7 @@ Responsibility: put the public facts and the bot's rules in one system prompt th
 (so it can be cached), render the conversation for engines that take a single prompt, keep visitor text from
 opening or closing prompt tags, and read the model's {reply, offer_contact} answer.
 Public API: system_prompt, transcript, parse_reply, REPLY_SCHEMA.
-Used by: the model adapters (local worker queue, Anthropic API).
+Used by: app.adapters.worker_queue (the transcript and the reply) and app.main (the system prompt).
 Depends on: app.ports (ModelReply, ModelUnavailable, Turn).
 Tests: tests/test_prompt.py.
 """

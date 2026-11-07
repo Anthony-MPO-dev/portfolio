@@ -3,17 +3,11 @@
 Runs on fakeredis by default. Set REDIS_TEST_URL (local Redis only, the tests flush it) to run on a real server too.
 """
 
-import os
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlparse
 
-import fakeredis
 import pytest
-import redis
 
 from app.adapters.redis_store import RedisStore
-
-BACKENDS = ["fakeredis"] + (["redis"] if os.environ.get("REDIS_TEST_URL") else [])
 
 
 class Clock:
@@ -25,19 +19,6 @@ class Clock:
 
     def advance(self, **delta) -> None:
         self.now += timedelta(**delta)
-
-
-@pytest.fixture(params=BACKENDS)
-def r(request):
-    if request.param == "fakeredis":
-        client = fakeredis.FakeRedis(decode_responses=True)
-    else:
-        url = os.environ["REDIS_TEST_URL"]
-        assert urlparse(url).hostname in ("localhost", "127.0.0.1"), "these tests flush the database"
-        client = redis.Redis.from_url(url, decode_responses=True)
-    client.flushdb()
-    yield client
-    client.flushdb()
 
 
 @pytest.fixture
