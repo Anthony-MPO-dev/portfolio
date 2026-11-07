@@ -42,3 +42,12 @@ def test_short_secrets_are_refused(env, key):
 def test_engine_that_is_not_built_yet_is_refused(env):
     with pytest.raises(ConfigError, match="MODEL_ENGINE"):
         build({**env, "MODEL_ENGINE": "anthropic"}, FACTS)
+
+
+def test_each_process_plants_its_own_canary_in_the_system_prompt(env, monkeypatch):
+    seen = []
+    monkeypatch.setattr("app.main.WorkerQueue", lambda r, system, timeout: seen.append(system))
+    build(env, FACTS)
+    build(env, FACTS)
+    codes = [s.split("Internal reference code: ")[1].split(".")[0] for s in seen]
+    assert len(codes) == 2 and codes[0] != codes[1] and len(codes[0]) >= 16

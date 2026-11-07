@@ -23,6 +23,7 @@ export const copy = {
     busy: "One moment, still on your last message.",
     conversation_limit: "This conversation used its 20 exchanges. Clear it to start over, or reach Anthony below.",
     invalid: "Messages can be up to 500 characters.",
+    blocked: "I can only help with questions about Anthony's work. You can also reach him below.",
   } satisfies Record<Notice, string>,
   talk: "Talk to Anthony",
   form: {

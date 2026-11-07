@@ -1,7 +1,8 @@
 """Composition: wire the real adapters from the environment and build the API.
 
 Responsibility: read the settings, refuse to start when a secret is missing or too short (there are no default
-secrets), pick the model engine, and hand the use cases their adapters. Engines: "worker" (Anthony's PC, the
+secrets), pick the model engine, plant a fresh canary in the system prompt on every start, and hand the use cases
+their adapters, with the output guard bound to that canary. Engines: "worker" (the isolated chat worker, the
 default). The Anthropic API engine is planned and refused until it exists.
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
@@ -22,6 +23,7 @@ import secrets
 import threading
 import time
 from collections.abc import Mapping
+from functools import partial
 from pathlib import Path
 
 import psycopg
@@ -34,6 +36,7 @@ from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisStore
 from app.adapters.worker_queue import WorkerQueue
 from app.http import create_app
+from app.output_guard import check
 from app.services.chat import ChatService
 from app.services.lead import LeadService
 
@@ -61,9 +64,16 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
 
     r = redis.Redis.from_url(env["REDIS_URL"], decode_responses=True)
     store = RedisStore(r)
-    queue = WorkerQueue(r, system_prompt(facts), timeout=int(env.get("MODEL_TIMEOUT", "45")))
+    canary = secrets.token_hex(12)  # new on every start: it shows up in a reply only if the prompt leaked
+    queue = WorkerQueue(r, system_prompt(facts, canary=canary), timeout=int(env.get("MODEL_TIMEOUT", "45")))
     db = env["DATABASE_URL"]
-    chat = ChatService(queue, store, PostgresQuestionLog(db), new_session_id=lambda: secrets.token_urlsafe(32))
+    chat = ChatService(
+        queue,
+        store,
+        PostgresQuestionLog(db),
+        new_session_id=lambda: secrets.token_urlsafe(32),
+        guard=partial(check, canary=canary),
+    )
     sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"]))
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])
     return create_app(

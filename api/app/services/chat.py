@@ -1,7 +1,8 @@
 """Chat use case: turn one visitor message into a result the page can show.
 
-Responsibility: apply the message, IP, turn and daily limits, keep the session strict (only ids this server
-created), hold one answer at a time per session, log the redacted question, call the model and save the turn.
+Responsibility: honour the off switch, apply the message, IP, turn and daily limits, keep the session strict (only
+ids this server created), hold one answer at a time per session, log the redacted question, call the model, run
+the reply through the injected output guard (a hit is "blocked": never shown, never saved) and save the turn.
 Only saved exchanges count toward the conversation limit, so offline answers don't use it up, and a
 conversation erased while the model was answering is not saved again.
 Fixed notices (offline, limits) are the page's job: this module returns a status, never notice text.
@@ -11,6 +12,7 @@ Depends on: app.ports (ChatModel, SessionStore, QuestionLog), app.lang, app.reda
 Tests: tests/test_chat.py.
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
@@ -18,6 +20,8 @@ from typing import Literal
 from app.lang import page_lang as supported_lang
 from app.ports import ChatModel, ModelUnavailable, QuestionLog, QuestionLogUnavailable, SessionStore
 from app.redact import redact
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -29,7 +33,7 @@ class Limits:
     global_day: int = 300
 
 
-Status = Literal["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline"]
+Status = Literal["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline", "blocked"]
 
 
 @dataclass(frozen=True)
@@ -48,17 +52,21 @@ class ChatService:
         log: QuestionLog,
         new_session_id: Callable[[], str],
         limits: Limits = Limits(),
+        guard: Callable[[str], str | None] = lambda reply: None,
     ):
         self.model = model
         self.store = store
         self.log = log
         self.new_session_id = new_session_id
         self.limits = limits
+        self.guard = guard
 
     def answer(self, *, session_id: str | None, client_key: str, message: str, page_lang: str) -> ChatResult:
         message = message.strip()
         if not message or len(message) > self.limits.max_chars:
             return ChatResult("invalid", session_id)
+        if self.store.switched_off():
+            return ChatResult("offline", session_id, offer_contact=True)
 
         per_hour, per_day = self.store.hit_ip(client_key)
         if per_hour > self.limits.per_ip_hour or per_day > self.limits.per_ip_day:
@@ -97,6 +105,9 @@ class ChatService:
             reply = self.model.reply(self.store.history(sid), message, lang)
         except ModelUnavailable:
             return ChatResult("offline", sid, offer_contact=True)
+        if reason := self.guard(reply.text):
+            log.warning("reply blocked by the output guard: %s", reason)  # the reason only, never the text
+            return ChatResult("blocked", sid, offer_contact=True)
         if self.store.session_exists(sid):  # the visitor may have erased it while the model was answering
             self.store.append_turn(sid, message, reply.text)
         return ChatResult("ok", sid, reply.text, reply.offer_contact)

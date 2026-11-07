@@ -4,13 +4,13 @@
 // clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
 
 export type Lang = "en" | "pt";
-export type ChatStatus = "ok" | "invalid" | "rate_limited" | "busy" | "conversation_limit" | "offline";
+export type ChatStatus = "ok" | "invalid" | "rate_limited" | "busy" | "conversation_limit" | "offline" | "blocked";
 export type ChatResult = { status: ChatStatus; reply: string; offerContact: boolean };
 export type LeadStatus = "ok" | "invalid" | "rate_limited" | "unavailable";
 export type LeadResult = { status: LeadStatus; whatsapp?: string };
 export type LeadFields = { name: string; company: string; email: string; linkedin: string; kind: "hiring" | "project" };
 
-const CHAT: readonly string[] = ["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline"];
+const CHAT: readonly string[] = ["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline", "blocked"];
 const LEAD: readonly string[] = ["ok", "invalid", "rate_limited", "unavailable"];
 const OFFLINE: ChatResult = { status: "offline", reply: "", offerContact: true };
 

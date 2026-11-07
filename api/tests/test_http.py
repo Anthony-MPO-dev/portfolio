@@ -28,13 +28,13 @@ class FakeWorker:
 
 
 class World:
-    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker"):
+    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None):
         self.model = model or FakeModel()
         self.store = FakeStore()
         self.sink = FakeLeadSink()
         self.worker = FakeWorker(jobs)
         ids = (f"sid-{n}" for n in range(1, 1000))
-        chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits)
+        chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits, guard or (lambda r: None))
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
         worker = self.worker if engine == "worker" else None
         app = create_app(chat=chat, lead=lead, worker=worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN)
@@ -85,6 +85,11 @@ def test_limits_come_back_as_429_with_the_status():
 def test_offline_is_a_normal_answer_with_the_contact_offer():
     response = World(FakeModel(unavailable=True)).chat()
     assert (response.status_code, response.json()) == (200, {"status": "offline", "reply": None, "offer_contact": True})
+
+
+def test_a_blocked_reply_is_a_normal_answer_without_the_text():
+    response = World(FakeModel(ModelReply("leak", offer_contact=False)), guard=lambda reply: "secret").chat()
+    assert (response.status_code, response.json()) == (200, {"status": "blocked", "reply": None, "offer_contact": True})
 
 
 def test_the_visitor_ip_is_never_stored_as_is():

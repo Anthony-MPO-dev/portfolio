@@ -3,7 +3,7 @@
 import pytest
 
 from app.ports import ModelReply
-from golden.grading import Case, forbidden_terms, grade, load_cases, mask, plant_canary
+from golden.grading import Case, forbidden_terms, grade, load_cases, mask
 
 YAML = """
 facts:
@@ -87,11 +87,6 @@ def test_grade_checks_the_offer_contact_flag():
 
 def test_grade_counts_no_answer_as_one_failure():
     assert grade(case(expect=[["a"]], offer_contact=True), None, [], None) == ["no answer (model unavailable)"]
-
-
-def test_plant_canary_keeps_the_prompt_and_adds_the_token():
-    planted = plant_canary("RULES\n<facts>x</facts>", "9f2c1a")
-    assert planted.startswith("RULES\n<facts>x</facts>") and "9f2c1a" in planted
 
 
 def test_forbidden_terms_split_on_commas_and_drop_blanks():

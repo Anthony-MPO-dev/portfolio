@@ -1,4 +1,5 @@
-"""Worker on Anthony's PC: runs `claude -p` isolated (no tools, no CLAUDE.md, no MCP) and hands the answer back."""
+"""Chat worker: runs `claude -p` with no tools, MCP, hooks, commands or CLAUDE.md, checks that it really had none,
+and hands the answer back."""
 
 import json
 import subprocess
@@ -7,7 +8,7 @@ import time
 
 import pytest
 
-from worker.pc_worker import answer, command, pick_claude, serve
+from worker.pc_worker import answer, child_env, command, pick_claude, serve
 
 WORKDIR = "portfolio-worker-empty"  # only handed to the runner, never touched
 JOB = {
@@ -34,34 +35,57 @@ class Runner:
         return self.result
 
 
-def claude_output(**fields):
-    return json.dumps({"type": "result", "is_error": False, **fields})
+CLEAN_INIT = {"type": "system", "subtype": "init", "tools": [], "mcp_servers": [], "skills": [], "slash_commands": [],
+              "plugins": [{"name": "cc-plugin-privacy", "path": "builtin"}]}
 
 
-def test_claude_runs_isolated_with_the_job_system_prompt_and_schema():
+def stream(*events, init=CLEAN_INIT, **result):
+    """A claude stream-json output: the init event, any other events, then the result event."""
+    result_event = {"type": "result", "is_error": False, "permission_denials": [], **result}
+    return "\n".join(json.dumps(e) for e in ([init] if init else []) + list(events) + [result_event])
+
+
+def test_claude_runs_with_no_tools_mcp_hooks_or_commands_and_streams_json():
     cmd = command("claude.exe", JOB, model="haiku")
     pairs = dict(zip(cmd, cmd[1:]))
-    assert {"-p", "--safe-mode", "--strict-mcp-config", "--no-session-persistence"} <= set(cmd)
-    assert (pairs["--tools"], pairs["--model"], pairs["--system-prompt"]) == ("", "haiku", "SYSTEM PROMPT")
-    assert json.loads(pairs["--json-schema"]) == JOB["schema"] and JOB["prompt"] not in cmd
+    assert {"-p", "--restricted", "--safe-mode", "--strict-mcp-config", "--no-session-persistence",
+            "--disable-slash-commands", "--verbose"} <= set(cmd)  # fmt: skip
+    # dontAsk denies every tool not allowed by name; the answer tool is the only one (a deny-all "*" would beat it)
+    assert (pairs["--tools"], pairs["--allowedTools"], pairs["--permission-mode"]) == ("", "StructuredOutput", "dontAsk")
+    assert json.loads(pairs["--settings"]) == {"disableAllHooks": True}
+    assert (pairs["--input-format"], pairs["--output-format"]) == ("stream-json", "stream-json")
+    assert (pairs["--model"], pairs["--system-prompt"]) == ("haiku", "SYSTEM PROMPT")
+    assert json.loads(pairs["--json-schema"]) == JOB["schema"] and JOB["prompt"] not in " ".join(cmd)
 
 
-def test_visitor_prompt_goes_through_stdin_in_an_empty_folder():
-    run = Runner(stdout=claude_output(structured_output={"reply": "Hi.", "offer_contact": False}))
+def test_claude_gets_only_the_environment_it_needs():
+    env = child_env({"PATH": "/bin", "USERPROFILE": "C:/Users/a", "HOME": "/home/chat", "CLAUDE_CODE_OAUTH_TOKEN": "o",
+                     "PORTFOLIO_WORKER_TOKEN": "secret", "AWS_SECRET_ACCESS_KEY": "x", "GITHUB_TOKEN": "y"})  # fmt: skip
+    assert {"PORTFOLIO_WORKER_TOKEN", "AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN"}.isdisjoint(env)
+    assert (env["PATH"], env["HOME"], env["CLAUDE_CODE_OAUTH_TOKEN"]) == ("/bin", "/home/chat", "o")
+    for flag in ("CLAUDE_CODE_DISABLE_CLAUDE_MDS", "CLAUDE_CODE_DISABLE_AUTO_MEMORY", "CLAUDE_CODE_DISABLE_ATTACHMENTS",
+                 "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "COPILOTO_DESLIGADO"):  # fmt: skip
+        assert env[flag] == "1"
+    assert env["ENABLE_CLAUDEAI_MCP_SERVERS"] == "false"
+
+
+def test_visitor_prompt_goes_through_stdin_as_one_stream_json_message_in_an_empty_folder():
+    run = Runner(stdout=stream(structured_output={"reply": "Hi.", "offer_contact": False}))
     answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR)
     call = run.calls[0]
-    assert (call["prompt"], call["cwd"]) == (JOB["prompt"], WORKDIR)
-    assert 0 < call["timeout"] <= 60
+    message = json.loads(call["prompt"])
+    assert message == {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": JOB["prompt"]}]}}
+    assert call["cwd"] == WORKDIR and 0 < call["timeout"] <= 60
 
 
 def test_structured_output_is_handed_back_as_json():
-    run = Runner(stdout=claude_output(structured_output={"reply": "Hi.", "offer_contact": True}))
+    run = Runner(stdout=stream(structured_output={"reply": "Hi.", "offer_contact": True}))
     raw = answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR)
     assert json.loads(raw) == {"reply": "Hi.", "offer_contact": True}
 
 
 def test_plain_result_is_handed_back_when_there_is_no_structured_output():
-    run = Runner(stdout=claude_output(result="He has 3+ years of Python."))
+    run = Runner(stdout=stream(result="He has 3+ years of Python."))
     assert answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR) == "He has 3+ years of Python."
 
 
@@ -69,15 +93,49 @@ def test_any_failure_hands_back_an_empty_answer():
     failures = [
         Runner(returncode=1, stdout="boom"),
         Runner(stdout="not json"),
-        Runner(stdout=json.dumps({"type": "result", "is_error": True, "result": "quota"})),
+        Runner(stdout=stream(is_error=True, result="quota")),
         Runner(error=subprocess.TimeoutExpired("claude", 1)),
         Runner(error=OSError("claude.exe not found")),
     ]
     assert [answer(JOB, run, claude="c", model="haiku", workdir=WORKDIR) for run in failures] == [""] * 5
 
 
+@pytest.mark.parametrize(
+    "init",
+    [
+        None,  # nothing to check means nothing to trust
+        {**CLEAN_INIT, "tools": ["Read"]},
+        {**CLEAN_INIT, "mcp_servers": [{"name": "crm", "status": "connected"}]},
+        {**CLEAN_INIT, "skills": ["deploy"]},
+        {**CLEAN_INIT, "slash_commands": ["config"]},
+        {**CLEAN_INIT, "plugins": [{"name": "my-plugin", "path": "C:/Users/a/.claude/plugins/my-plugin"}]},
+    ],
+)
+def test_an_init_with_any_tool_server_skill_or_installed_plugin_is_refused(init, capsys):
+    run = Runner(stdout=stream(init=init, result="Sure."))
+    assert answer(JOB, run, claude="c", model="haiku", workdir=WORKDIR) == ""
+    assert "ALERT" in capsys.readouterr().out
+
+
+def test_the_structured_output_tool_is_the_only_one_allowed():
+    init = {**CLEAN_INIT, "tools": ["StructuredOutput"]}
+    call = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "StructuredOutput", "input": {}}]}}
+    status = {"type": "system", "subtype": "status", "message": "a status line, not a dict"}
+    out = stream(status, call, init=init, structured_output={"reply": "Hi.", "offer_contact": False})
+    assert json.loads(answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR))["reply"] == "Hi."
+    out = stream(call, init={**init, "tools": ["StructuredOutput", "Read"]}, structured_output={"reply": "Hi."})
+    assert answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR) == ""
+
+
+def test_a_tool_use_or_a_permission_denial_is_refused(capsys):
+    tool_use = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {}}]}}
+    for out in (stream(tool_use, result="Done."), stream(result="Done.", permission_denials=[{"tool_name": "Bash"}])):
+        assert answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR) == ""
+    assert capsys.readouterr().out.count("ALERT") == 2
+
+
 def test_job_past_its_deadline_is_not_run():
-    run = Runner(stdout=claude_output(result="late"))
+    run = Runner(stdout=stream(result="late"))
     raw = answer({**JOB, "deadline": time.time() - 1}, run, claude="c", model="haiku", workdir=WORKDIR)
     assert (raw, run.calls) == ("", [])
 

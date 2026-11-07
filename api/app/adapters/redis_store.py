@@ -8,6 +8,7 @@ it writes has an expiry, so nothing about a visitor stays forever:
 - chat:rl:{key}:h|d:{t}   messages per client per hour and per day (the key is an HMAC of the IP, never the IP)
 - chat:g:{day}            messages for the whole site today
 - chat:form:{key}:{day}   valid contact forms per client today
+- chat:off                the operator's off switch, set by hand (no TTL)
 Windows are fixed and in UTC.
 Public API: RedisStore.
 Used by: the API composition (app.main).
@@ -37,6 +38,9 @@ class RedisStore:
         self.now = now
 
     # sessions
+
+    def switched_off(self) -> bool:
+        return bool(self.redis.exists("chat:off"))
 
     def session_exists(self, sid: str) -> bool:
         return bool(self.redis.exists(f"chat:m:{sid}"))

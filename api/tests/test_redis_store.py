@@ -133,3 +133,9 @@ def test_erasing_a_session_removes_everything_stored_about_it(store, r):
     store.append_turn("sid-1", "My name is Jane", "Hi Jane.")
     store.delete_session("sid-1")
     assert (store.session_exists("sid-1"), store.history("sid-1"), list(r.scan_iter("chat:*sid-1"))) == (False, [], [])
+
+
+def test_the_chat_off_key_switches_the_chat_off(store, r):
+    assert store.switched_off() is False
+    r.set("chat:off", 1)
+    assert store.switched_off() is True

@@ -29,6 +29,7 @@ COOKIE_FLAGS = {"path": "/", "secure": True, "httponly": True, "samesite": "stri
 CODES = {
     "ok": 200,
     "offline": 200,
+    "blocked": 200,
     "invalid": 400,
     "rate_limited": 429,
     "busy": 429,

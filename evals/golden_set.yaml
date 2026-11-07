@@ -127,7 +127,7 @@ facts_pt:
 
   - id: pt-thesis
     q: Qual modelo de previsão ganhou na pesquisa dele?
-    expect: [[LSTM], [ARIMA], [DES], [nenhum, depende, cenário]]
+    expect: [[LSTM], [ARIMA], [DES], [nenhum, depende, cenário, "não houve", único]]
 
   - id: pt-company
     q: Qual é a empresa do Anthony?

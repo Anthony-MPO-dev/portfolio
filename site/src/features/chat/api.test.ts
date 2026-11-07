@@ -20,6 +20,11 @@ describe("sendMessage", () => {
     expect(JSON.parse(init.body as string)).toEqual({ message: "Open to remote?", page_lang: "pt" });
   });
 
+  it("reads a reply the output guard blocked", async () => {
+    respond(200, { status: "blocked", reply: null, offer_contact: true });
+    expect(await sendMessage("q", "en")).toEqual({ status: "blocked", reply: "", offerContact: true });
+  });
+
   it("reads a limit from a 429", async () => {
     respond(429, { status: "rate_limited", reply: "", offer_contact: false });
     expect((await sendMessage("q", "en")).status).toBe("rate_limited");

@@ -78,6 +78,10 @@ class FakeStore:
         self.ip_hour: Counter[str] = Counter()
         self.ip_day: Counter[str] = Counter()
         self.global_day = 0
+        self.off = False
+
+    def switched_off(self) -> bool:
+        return self.off
 
     def session_exists(self, sid: str) -> bool:
         return sid in self.turn_counts

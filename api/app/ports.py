@@ -36,6 +36,10 @@ class ChatModel(Protocol):
 
 
 class SessionStore(Protocol):
+    def switched_off(self) -> bool:
+        """The operator's off switch (chat:off): the chat answers offline until it's gone."""
+        ...
+
     def session_exists(self, sid: str) -> bool:
         """True only for an id this server created that hasn't expired."""
         ...

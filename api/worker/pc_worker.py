@@ -1,15 +1,19 @@
-"""Worker on Anthony's PC: answers the portfolio chat with the Claude Code login on this machine.
+"""Chat worker: answers the portfolio chat with `claude -p`, meant to run in its own isolated WSL distro or VM.
 
 Responsibility: long-poll the API over HTTPS with a secret token (only outbound connections: no port open at home,
-no Redis exposed), run `claude -p` fully isolated for each job, and hand the raw answer back. Isolation: --safe-mode
-(no CLAUDE.md, skills, plugins, hooks or MCP servers), no tools, no session saved, an empty working folder, the
-job's own system prompt and JSON schema, COPILOTO_DESLIGADO=1. The visitor's text goes through stdin, never the
-command line. Any failure hands back an empty answer, which the API shows as "offline". Nothing about the visitor is
-logged here, only the job id and how it went. Standard library only, so it runs with any Python 3.12+.
-It lives outside app/ so the API image never ships it.
-Public API: command, answer, serve, Api, run_claude, pick_claude, find_claude, log, main. Run: `python -m worker.pc_worker` from
-api/, with
-PORTFOLIO_WORKER_TOKEN set (and PORTFOLIO_API to point at a local API while testing).
+no Redis exposed), run `claude -p` hardened for each job, check it really was, and hand the raw answer back.
+Hardening (pesquisa-seguranca-chat-portfolio.md, section 3): --restricted and --safe-mode, no built-in tools, dontAsk
+with only the StructuredOutput answer tool allowed, no MCP, hooks, commands or saved session, an empty working
+folder, the job's own system prompt and JSON schema, and an environment with only what claude needs (the worker
+token never reaches it; CLAUDE.md, memory, @-attachments and claude.ai connectors switched off). The visitor's text
+goes through stdin as one stream-json message, never the command line. Checks on every run: the init event lists no
+tool but the answer tool, no MCP server, skill or command and only built-in plugins, and no other tool_use or
+permission denial follows; a miss drops the answer and logs an ALERT. Any failure hands back an empty answer, which
+the API shows as "offline". Nothing about the visitor is logged here, only the job id and how it went. Standard
+library only, so it runs with any Python 3.12+. It lives outside app/ so the API image never ships it.
+Public API: command, child_env, stdin_message, unsafe, answer, serve, Api, run_claude, pick_claude, find_claude,
+log, main. Run: `python -m worker.pc_worker` from api/, with PORTFOLIO_WORKER_TOKEN set (and PORTFOLIO_API to point
+at a local API while testing).
 Used by: Anthony's PC (started at login).
 Depends on: the claude CLI, the API's /api/worker routes.
 Tests: tests/test_pc_worker.py.
@@ -24,7 +28,7 @@ import tempfile
 import threading
 import time
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import partial
 from pathlib import Path
 
@@ -33,10 +37,60 @@ Runner = Callable[[list[str], str, str, float], tuple[int, str]]
 
 def command(claude: str, job: dict, model: str) -> list[str]:
     return [
-        claude, "-p", "--safe-mode", "--output-format", "json", "--no-session-persistence",
-        "--strict-mcp-config", "--disable-slash-commands", "--tools", "",
+        claude, "-p", "--restricted", "--safe-mode", "--tools", "", "--allowedTools", ANSWER_TOOL, "--strict-mcp-config",
+        "--disable-slash-commands", "--no-session-persistence", "--permission-mode", "dontAsk",
+        "--permission-prompts", "none", "--settings", json.dumps({"disableAllHooks": True}), "--max-budget-usd", "0.25",
+        "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
         "--system-prompt", job["system"], "--json-schema", json.dumps(job["schema"]), "--model", model,
     ]  # fmt: skip
+
+
+# What claude needs to start and log in (Windows or Linux); everything else, the worker token included, stays out.
+PASS_THROUGH = ("PATH", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SYSTEMROOT", "SYSTEMDRIVE", "TEMP", "TMP",
+                "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN")  # fmt: skip
+HARDENING = {
+    "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+    "CLAUDE_CODE_DISABLE_ATTACHMENTS": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "1500",
+    "COPILOTO_DESLIGADO": "1",
+}
+
+
+def child_env(env: Mapping[str, str]) -> dict[str, str]:
+    return {key: env[key] for key in PASS_THROUGH if key in env} | HARDENING
+
+
+def stdin_message(job: dict) -> str:
+    return json.dumps({"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": job["prompt"]}]}})
+
+
+ANSWER_TOOL = "StructuredOutput"  # added by --json-schema; its only effect is handing back the reply JSON
+
+
+def unsafe(events: list[dict]) -> str | None:
+    """Why this run can't be trusted, or None. The init event must show no tool but the answer tool, no MCP server,
+    skill or command, and only the plugins built into the binary; no other tool_use and no permission denial."""
+    init = next((e for e in events if e.get("type") == "system" and e.get("subtype") == "init"), None)
+    if init is None:
+        return "no init event"
+    if set(init.get("tools") or []) - {ANSWER_TOOL}:
+        return "init has tools"
+    for key in ("mcp_servers", "skills", "slash_commands"):
+        if init.get(key):
+            return f"init has {key}"
+    if any(p.get("path") != "builtin" for p in init.get("plugins") or []):
+        return "init has an installed plugin"
+    for event in events:
+        message = event.get("message")
+        for block in message.get("content") or [] if isinstance(message, dict) else []:
+            if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") != ANSWER_TOOL:
+                return "tool_use in the stream"
+        if event.get("type") == "result" and event.get("permission_denials"):
+            return "permission denial"
+    return None
 
 
 def answer(job: dict, run: Runner, *, claude: str, model: str, workdir: str) -> str:
@@ -44,15 +98,19 @@ def answer(job: dict, run: Runner, *, claude: str, model: str, workdir: str) -> 
     if timeout <= 1:
         return ""  # the visitor already got "offline"
     try:
-        code, out = run(command(claude, job, model), job["prompt"], workdir, timeout)
-        data = json.loads(out) if code == 0 else {}
+        code, out = run(command(claude, job, model), stdin_message(job), workdir, timeout)
+        events = [json.loads(line) for line in out.splitlines() if line.strip()] if code == 0 else []
     except (OSError, ValueError, subprocess.SubprocessError):
         return ""
-    if not isinstance(data, dict) or data.get("is_error"):
+    result = next((e for e in events if isinstance(e, dict) and e.get("type") == "result"), None)
+    if not result or result.get("is_error"):
         return ""
-    if isinstance(data.get("structured_output"), dict):
-        return json.dumps(data["structured_output"], ensure_ascii=False)
-    return str(data.get("result") or "")
+    if reason := unsafe(events):
+        log(f"ALERT job {str(job.get('id'))[:8]}: {reason}; answer dropped")
+        return ""
+    if isinstance(result.get("structured_output"), dict):
+        return json.dumps(result["structured_output"], ensure_ascii=False)
+    return str(result.get("result") or "")
 
 
 def serve(api, handle: Callable[[dict], str], stop: threading.Event | None = None, sleep=time.sleep) -> None:
@@ -107,7 +165,7 @@ def run_claude(cmd: list[str], prompt: str, cwd: str, timeout: float) -> tuple[i
         text=True,
         encoding="utf-8",
         cwd=cwd,
-        env=dict(os.environ, COPILOTO_DESLIGADO="1"),
+        env=child_env(os.environ),
         timeout=timeout,
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )

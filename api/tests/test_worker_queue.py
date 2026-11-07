@@ -52,7 +52,7 @@ def test_worker_gets_the_prompt_and_its_answer_reaches_the_visitor(r):
     job = jobs[0]
     assert reply == ModelReply("Python and FastAPI.", False)
     assert job["system"] == "SYSTEM PROMPT" and job["schema"]["required"] == ["reply", "offer_contact"]
-    assert "And his stack?" in job["prompt"] and "<page_language>pt</page_language>" in job["prompt"]
+    assert "And his stack?" in job["prompt"] and '"page_language": "pt"' in job["prompt"]
 
 
 def test_worker_failure_is_offline_without_waiting_for_the_timeout(r):

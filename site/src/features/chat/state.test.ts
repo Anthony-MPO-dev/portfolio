@@ -3,7 +3,7 @@ import { initial, reduce, type State } from "./state";
 
 const ok = (reply: string, offerContact = false) =>
   ({ type: "answer", result: { status: "ok", reply, offerContact } }) as const;
-const failed = (status: "offline" | "rate_limited" | "busy" | "conversation_limit" | "invalid") =>
+const failed = (status: "offline" | "rate_limited" | "busy" | "conversation_limit" | "invalid" | "blocked") =>
   ({ type: "answer", result: { status, reply: "", offerContact: false } }) as const;
 const sent = (text = "Is he open to remote roles?") => reduce(initial, { type: "send", text });
 const texts = (s: State) => s.entries.map((e) => (e.from === "notice" ? `notice:${e.notice}` : `${e.from}:${e.text}`));
@@ -34,7 +34,7 @@ describe("answers", () => {
     expect(reduce(sent(), ok("Talk to Anthony.", true)).contact.step).toBe("offered");
   });
 
-  it.each(["offline", "rate_limited", "conversation_limit"] as const)(
+  it.each(["offline", "rate_limited", "conversation_limit", "blocked"] as const)(
     "turns %s into a fixed notice and offers the contact",
     (status) => {
       const s = reduce(sent(), failed(status));

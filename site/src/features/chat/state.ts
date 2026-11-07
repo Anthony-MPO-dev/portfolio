@@ -19,7 +19,7 @@ export type Action =
   | { type: "clear" };
 
 export const initial: State = { entries: [], pending: false, contact: { step: "none" } };
-const OFFER_ON: readonly Notice[] = ["offline", "rate_limited", "conversation_limit"];
+const OFFER_ON: readonly Notice[] = ["offline", "rate_limited", "conversation_limit", "blocked"];
 
 export function reduce(state: State, action: Action): State {
   const id = state.entries.length;
