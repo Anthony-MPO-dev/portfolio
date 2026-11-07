@@ -1,10 +1,11 @@
 """Composition: wire the real adapters from the environment and build the API.
 
 Responsibility: read the settings, refuse to start when a secret is missing or too short (there are no default
-secrets), pick the model engine, and hand the use cases their adapters. Engines: "worker" (Anthony's PC, the
-default). The Anthropic API engine is planned and refused until it exists.
-Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
-CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
+secrets), pick the model engine, and hand the use cases their adapters. Engines (MODEL_ENGINE): "worker" (Anthony's
+PC, the default; needs WORKER_TOKEN, 32+ chars) or "anthropic" (the API, off; needs ANTHROPIC_API_KEY from a personal
+account with a spending cap, optional ANTHROPIC_MODEL, default claude-haiku-5-5; no worker routes).
+Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, IP_HMAC_KEY (32+ chars), CONTACT_WHATSAPP, plus the engine's;
+optional SITE_ORIGIN, MODEL_TIMEOUT (seconds), FACTS_PATH.
 Redis user for REDIS_URL (checked against Redis 8 on 2026-11-06; database 0, add +select for another index):
   ACL SETUSER <user> on ><password> ~chat:* resetchannels -@all +exists +set +get +incr +incrby +ttl +expire
   +lrange +rpush +ltrim +lrem +blpop +del +multi +exec +hello +client|setinfo
@@ -24,10 +25,12 @@ import time
 from collections.abc import Mapping
 from pathlib import Path
 
+import anthropic
 import psycopg
 import redis
 from fastapi import FastAPI
 
+from app.adapters.anthropic_model import AnthropicModel
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert
 from app.adapters.postgres import PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
@@ -38,7 +41,8 @@ from app.services.chat import ChatService
 from app.services.lead import LeadService
 
 log = logging.getLogger(__name__)
-REQUIRED = ("REDIS_URL", "DATABASE_URL", "LEAD_WEBHOOK_URL", "WORKER_TOKEN", "IP_HMAC_KEY", "CONTACT_WHATSAPP")
+REQUIRED = ("REDIS_URL", "DATABASE_URL", "LEAD_WEBHOOK_URL", "IP_HMAC_KEY", "CONTACT_WHATSAPP")
+ENGINES = {"worker": ("WORKER_TOKEN",), "anthropic": ("ANTHROPIC_API_KEY",)}  # engine: the settings it needs
 MIN_SECRET = 32
 PURGE_EVERY = 6 * 3600  # seconds
 DEFAULT_FACTS = Path(__file__).resolve().parents[2] / "knowledge" / "facts.md"
@@ -49,28 +53,34 @@ class ConfigError(RuntimeError):
 
 
 def build(env: Mapping[str, str], facts: str) -> FastAPI:
-    missing = [key for key in REQUIRED if not env.get(key)]
+    engine = env.get("MODEL_ENGINE", "worker")
+    if engine not in ENGINES:
+        raise ConfigError(f"MODEL_ENGINE={engine!r} is not available; use one of {', '.join(ENGINES)}")
+    missing = [key for key in ENGINES[engine] + REQUIRED if not env.get(key)]
     if missing:
         raise ConfigError(f"missing settings: {', '.join(missing)}")
-    short = [key for key in ("WORKER_TOKEN", "IP_HMAC_KEY") if len(env[key]) < MIN_SECRET]
+    short = [key for key in ("WORKER_TOKEN", "IP_HMAC_KEY") if key in env and len(env[key]) < MIN_SECRET]
     if short:
         raise ConfigError(f"{', '.join(short)} must have at least {MIN_SECRET} characters")
-    engine = env.get("MODEL_ENGINE", "worker")
-    if engine != "worker":
-        raise ConfigError(f"MODEL_ENGINE={engine!r} is not available; use 'worker'")
 
     r = redis.Redis.from_url(env["REDIS_URL"], decode_responses=True)
     store = RedisStore(r)
-    queue = WorkerQueue(r, system_prompt(facts), timeout=int(env.get("MODEL_TIMEOUT", "45")))
+    timeout = int(env.get("MODEL_TIMEOUT", "45"))
+    queue = WorkerQueue(r, system_prompt(facts), timeout=timeout) if engine == "worker" else None
+    model = queue or AnthropicModel(
+        anthropic.Anthropic(api_key=env["ANTHROPIC_API_KEY"], timeout=timeout, max_retries=1),
+        system_prompt(facts),
+        model=env.get("ANTHROPIC_MODEL", "claude-haiku-5-5"),
+    )
     db = env["DATABASE_URL"]
-    chat = ChatService(queue, store, PostgresQuestionLog(db), new_session_id=lambda: secrets.token_urlsafe(32))
+    chat = ChatService(model, store, PostgresQuestionLog(db), new_session_id=lambda: secrets.token_urlsafe(32))
     sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"]))
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])
     return create_app(
         chat=chat,
         lead=lead,
         worker=queue,
-        worker_token=env["WORKER_TOKEN"],
+        worker_token=env.get("WORKER_TOKEN", ""),
         ip_key=env["IP_HMAC_KEY"].encode(),
         origin=env.get("SITE_ORIGIN", "https://anthonymuniz.dev"),
     )

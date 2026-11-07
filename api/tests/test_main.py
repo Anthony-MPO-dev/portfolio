@@ -39,6 +39,14 @@ def test_short_secrets_are_refused(env, key):
         build({**env, key: "short"}, FACTS)
 
 
-def test_engine_that_is_not_built_yet_is_refused(env):
+def test_unknown_engine_is_refused(env):
     with pytest.raises(ConfigError, match="MODEL_ENGINE"):
-        build({**env, "MODEL_ENGINE": "anthropic"}, FACTS)
+        build({**env, "MODEL_ENGINE": "openai"}, FACTS)
+
+
+def test_anthropic_engine_needs_its_key_but_not_the_worker_token(env):
+    env = {k: v for k, v in env.items() if k != "WORKER_TOKEN"} | {"MODEL_ENGINE": "anthropic"}
+    with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
+        build(env, FACTS)
+    paths = {route.path for route in build({**env, "ANTHROPIC_API_KEY": "sk-test"}, FACTS).routes}
+    assert "/api/chat" in paths and not any(p.startswith("/api/worker") for p in paths)
