@@ -1,9 +1,11 @@
 """Prompt builder and reply parser shared by both model engines (local worker and Anthropic API)."""
 
+import json
+
 import pytest
 
 from app.adapters.prompt import parse_reply, system_prompt, transcript
-from app.ports import ModelUnavailable
+from app.ports import ModelReply, ModelUnavailable
 
 FACTS = "# Anthony Muniz: public facts\n- 3+ years of professional Python experience."
 
@@ -51,3 +53,8 @@ def test_reply_is_read_from_json_or_kept_as_plain_text(raw, reply, offer):
 def test_empty_reply_counts_as_the_model_being_unavailable(raw):
     with pytest.raises(ModelUnavailable):
         parse_reply(raw)
+
+
+def test_reply_the_model_wrapped_in_json_twice_is_unwrapped():
+    raw = json.dumps({"reply": json.dumps({"reply": "Only about Anthony.", "offer_contact": True}), "offer_contact": True})
+    assert parse_reply(raw) == ModelReply("Only about Anthony.", True)
