@@ -1,0 +1,39 @@
+/* Drawings of the support-agent scenes: the 23-question grid and the metric chart. */
+.agent-svg {
+  width: min(100%, 520px);
+  height: auto;
+  max-height: 44svh;
+}
+.agent-grid rect {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+.agent-grid .agent-hit {
+  fill: var(--accent);
+  stroke: none;
+}
+.agent-axis {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.agent-swing {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+.agent-flat {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.agent-chart-label {
+  font: 500 12px var(--mono);
+  fill: var(--muted);
+  /* a halo in the page colour keeps the label readable where a line crosses it */
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}

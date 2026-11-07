@@ -21,3 +21,22 @@ Planned, not built yet:
 - Prompt builder from `knowledge/facts.md`, shared by both model adapters.
 - Lead sink adapter (Postgres plus the n8n alert to Telegram).
 - `/api/chat` and lead routes, cookie `__Host-chat_sid`, same-origin checks.
+
+## Site (`site/src`)
+
+React Router v7 in framework mode, prerendered to static HTML (`ssr: false`, `prerender: true`) and served by nginx.
+Folders follow bulletproof-react: `app` (routes), `features`, `components`, `content`, `hooks`, `lib`, `styles`.
+Identity: direction C (Archivo, big numbers, #fafaf7 / #0b0b0b / #e0322b), with technical labels in IBM Plex Mono.
+
+| Module | Responsibility |
+|---|---|
+| `app/root.tsx` | HTML shell, fonts, and the boot script that applies the saved theme before paint |
+| `app/routes.ts` | Route list: the home page (the `/pt/` pages come with the approved Portuguese texts) |
+| `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags, header, hero, scenes, figures, work, Services, contact |
+| `features/support-agent/*` | Scroll scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles |
+| `features/credit-pipeline/*` | Scroll scene of the credit pipeline drawing itself, about 1 hour down to as little as 5 minutes |
+| `components/theme-toggle.tsx` + `.css` | Light or dark switch, remembered in `localStorage`; global.css picks its label |
+| `content/profile.ts` | Public facts for the page's lists (profile, figures, work, Services), a hand copy of `knowledge/facts.md` and the approved LinkedIn texts. Each scene keeps its own caption next to its drawing |
+| `hooks/use-reveal.ts` | IntersectionObserver fallback for browsers without scroll-driven animations |
+| `lib/step.ts` | `step(i)`: an element's slice of its scene's scroll range |
+| `styles/global.css` | Colour tokens for both themes, shared type, and the scene machinery (`view-timeline: --scene`; with reduced motion nothing moves or pins) |

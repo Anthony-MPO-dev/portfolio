@@ -1,0 +1,154 @@
+/* Sections of the home page. Colour tokens, shared type (.label, .note, .big) and the scenes live in global.css. */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px var(--gutter);
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid var(--ink);
+}
+.top-status {
+  margin-left: auto;
+  color: var(--accent);
+}
+
+.hero {
+  padding: clamp(40px, 10vh, 110px) var(--gutter) 80px;
+}
+.hero h1 {
+  font-size: clamp(48px, 11.5vw, 176px);
+  font-weight: 800;
+  font-stretch: 72%;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0 0 36px;
+}
+.hero-lede {
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.45;
+  max-width: 44ch;
+  margin: 0;
+  color: var(--muted);
+}
+
+.figures {
+  border-top: 1px solid var(--ink);
+}
+.figures article {
+  padding: 56px var(--gutter);
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 8px 48px;
+  align-items: end;
+}
+@media (min-width: 900px) {
+  .figures article {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+}
+.figure {
+  font-size: clamp(88px, 20vw, 260px);
+  font-weight: 800;
+  font-stretch: 65%;
+  line-height: 0.82;
+  letter-spacing: -0.03em;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.figures article p:last-child {
+  font-size: clamp(17px, 1.9vw, 22px);
+  line-height: 1.45;
+  max-width: 34ch;
+  margin: 0;
+}
+
+/* Work list: title on the left, text on the right. */
+.work,
+.services {
+  padding: 96px var(--gutter);
+}
+.services {
+  border-top: 1px solid var(--ink);
+}
+.row {
+  display: grid;
+  gap: 8px 48px;
+  padding: 28px 0;
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 900px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+}
+.row h3 {
+  font-size: clamp(26px, 3.4vw, 44px);
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 1;
+  text-transform: uppercase;
+  margin: 0;
+}
+.row p {
+  margin: 0 0 8px;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.row .meta {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.services-lead {
+  font-size: clamp(36px, 6.4vw, 96px);
+  font-weight: 800;
+  font-stretch: 72%;
+  line-height: 0.95;
+  text-transform: uppercase;
+  max-width: 16ch;
+  margin: 0 0 24px;
+}
+.services-text {
+  font-size: clamp(17px, 1.9vw, 22px);
+  line-height: 1.45;
+  max-width: 48ch;
+  margin: 0 0 24px;
+}
+.services-cta {
+  font-size: clamp(20px, 2.6vw, 30px);
+  font-weight: 700;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 0.1em;
+  text-underline-offset: 0.18em;
+}
+
+.contact {
+  padding: 96px var(--gutter) 120px;
+  border-top: 1px solid var(--ink);
+}
+.contact-mail {
+  display: block;
+  font-size: clamp(30px, 7.4vw, 104px);
+  font-weight: 800;
+  font-stretch: 68%;
+  line-height: 1;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+  overflow-wrap: anywhere;
+}
+.contact-links {
+  display: flex;
+  gap: 28px;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 32px 0 24px;
+}
+.contact-open {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.5;
+  max-width: 56ch;
+}
