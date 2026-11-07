@@ -3,12 +3,12 @@
 Responsibility: translate HTTP into the use cases and back, nothing else. Browser routes (/api/chat, /api/lead) take
 JSON only and refuse other sites (Sec-Fetch-Site, then Origin). The session lives in the __Host-chat_sid cookie
 (Secure, HttpOnly, SameSite=Strict, no Max-Age), set only when the server created a new session. The visitor's IP
-becomes an HMAC before it reaches any use case. Worker routes need the bearer token. Every answer is no-store and
+(through Cloudflare, see app.client_ip) becomes an HMAC before it reaches any use case. Worker routes need the bearer token. Every answer is no-store and
 there are no public API docs.
 Public API: create_app.
 Used by: app.main (composition with the real adapters) and tests/test_http.py (with fakes).
 Depends on: FastAPI, app.services.chat.ChatService, app.services.lead.LeadService, a worker queue
-(next_job, finish), the standard library hmac.
+(next_job, finish), app.client_ip, the standard library hmac.
 Tests: tests/test_http.py.
 """
 
@@ -20,6 +20,7 @@ from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Respo
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.client_ip import client_ip
 from app.services.chat import ChatService
 from app.services.lead import LeadService
 
@@ -85,7 +86,7 @@ def create_app(
             raise HTTPException(401)
 
     def client_key(request: Request) -> str:
-        ip = request.client.host if request.client else ""
+        ip = client_ip(request.client.host if request.client else "", request.headers)
         return hmac.new(ip_key, ip.encode(), hashlib.sha256).hexdigest()[:32]
 
     browser = [Depends(same_origin)]

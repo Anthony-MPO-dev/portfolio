@@ -28,7 +28,7 @@ class FakeWorker:
 
 
 class World:
-    def __init__(self, model=None, limits=Limits(), jobs=()):
+    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient"):
         self.model = model or FakeModel()
         self.store = FakeStore()
         self.sink = FakeLeadSink()
@@ -37,7 +37,7 @@ class World:
         chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits)
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
         app = create_app(chat=chat, lead=lead, worker=self.worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN)
-        self.client = TestClient(app, base_url=ORIGIN)
+        self.client = TestClient(app, base_url=ORIGIN, client=(peer, 50000))
 
     def chat(self, message="hi", headers=SAME_SITE, **body):
         return self.client.post("/api/chat", json={"message": message, "page_lang": "en", **body}, headers=headers)
@@ -90,6 +90,14 @@ def test_the_visitor_ip_is_never_stored_as_is():
     world = World()
     world.chat()
     assert [key for key in world.store.ip_day if "testclient" in key] == [] and len(world.store.ip_day) == 1
+
+
+def test_visitors_behind_the_same_cloudflare_edge_do_not_share_a_limit():
+    world = World(limits=Limits(per_ip_hour=1), peer="162.158.10.1")
+    first = world.chat(headers={**SAME_SITE, "CF-Connecting-IP": "203.0.113.7"})
+    world.client.cookies.clear()
+    second = world.chat(headers={**SAME_SITE, "CF-Connecting-IP": "203.0.113.8"})
+    assert (first.status_code, second.status_code) == (200, 200)
 
 
 def test_erase_conversation_removes_it_and_clears_the_cookie():
