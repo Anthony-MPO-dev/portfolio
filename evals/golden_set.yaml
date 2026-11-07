@@ -11,6 +11,14 @@
 #                WhatsApp number are handled by API code (unit tests), never by the model.
 
 facts:
+  - id: chromadb-projects
+    q: Which of his projects use ChromaDB?
+    expect: [[notes, PDF], [resume, CV]]
+
+  - id: kai-no-chromadb
+    q: Does Kai use ChromaDB?
+    expect: [[no, "doesn't", does not, numpy]]
+
   - id: open-to-roles
     q: Is Anthony open to new roles?
     expect: [[remote], [backend], ["AI"], [US, United States, America, Europe]]
