@@ -42,8 +42,8 @@ class SessionStore(Protocol):
 
     def create_session(self, sid: str) -> None: ...
 
-    def count_turn(self, sid: str) -> int:
-        """Add one turn to the session and return the new total."""
+    def turns(self, sid: str) -> int:
+        """How many exchanges the session has saved."""
         ...
 
     def hit_ip(self, client_key: str) -> tuple[int, int]:
@@ -62,7 +62,9 @@ class SessionStore(Protocol):
 
     def history(self, sid: str) -> list[Turn]: ...
 
-    def append_turn(self, sid: str, question: str, answer: str) -> None: ...
+    def append_turn(self, sid: str, question: str, answer: str) -> None:
+        """Save one exchange in the history and count it."""
+        ...
 
     def delete_session(self, sid: str) -> None:
         """Erase everything stored about the session ("erase conversation")."""

@@ -157,3 +157,20 @@ def test_erased_conversation_is_gone_and_the_next_message_starts_a_new_one():
 def test_erasing_without_a_conversation_does_nothing():
     chat, _, _ = make()
     chat.forget(None)
+
+
+def test_offline_answers_do_not_use_up_the_conversation():
+    model = FakeModel(unavailable=True)
+    chat, _, _ = make(model, limits=Limits(turns=2))
+    sid = ask(chat, "1").session_id
+    ask(chat, "2", sid=sid)
+    model.unavailable = False
+    assert [ask(chat, m, sid=sid).status for m in ("3", "4", "5")] == ["ok", "ok", "conversation_limit"]
+
+
+def test_conversation_erased_while_the_model_answers_is_not_saved_again():
+    holder = {}
+    chat, _, store = make(FakeModel(during=lambda: holder["chat"].forget("sid-1")))
+    holder["chat"] = chat
+    ask(chat, "My name is Jane")
+    assert (store.histories, store.session_exists("sid-1")) == ({}, False)

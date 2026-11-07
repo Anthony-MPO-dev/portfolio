@@ -36,14 +36,16 @@ def test_only_sessions_the_server_created_exist(store):
     assert (store.session_exists("sid-1"), store.session_exists("forged")) == (True, False)
 
 
-def test_turns_are_counted_and_the_session_keeps_its_24_hour_limit(store, r):
+def test_saved_exchanges_are_counted_and_the_session_keeps_its_24_hour_limit(store, r):
     store.create_session("sid-1")
-    counts = [store.count_turn("sid-1") for _ in range(2)]
-    assert (counts, 0 < r.ttl("chat:m:sid-1") <= 86400) == ([1, 2], True)
+    before = store.turns("sid-1")
+    store.append_turn("sid-1", "q1", "a1")
+    store.append_turn("sid-1", "q2", "a2")
+    assert (before, store.turns("sid-1"), 0 < r.ttl("chat:m:sid-1") <= 86400) == (0, 2, True)
 
 
-def test_counting_a_turn_on_a_session_that_just_expired_never_creates_a_key_without_expiry(store, r):
-    store.count_turn("sid-gone")
+def test_saving_on_a_session_that_just_expired_never_creates_a_key_without_expiry(store, r):
+    store.append_turn("sid-gone", "q", "a")
     assert r.ttl("chat:m:sid-gone") > 0
 
 
@@ -116,7 +118,6 @@ def test_form_count_is_per_client_per_day(store, clock):
 
 def test_nothing_the_chat_writes_stays_in_redis_forever(store, r):
     store.create_session("sid-1")
-    store.count_turn("sid-1")
     store.acquire_lock("sid-1")
     store.append_turn("sid-1", "q", "a")
     store.hit_ip("ip-a")

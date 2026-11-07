@@ -44,12 +44,8 @@ class RedisStore:
     def create_session(self, sid: str) -> None:
         self.redis.set(f"chat:m:{sid}", 0, ex=SESSION_TTL, nx=True)
 
-    def count_turn(self, sid: str) -> int:
-        key = f"chat:m:{sid}"
-        turns, ttl = self.redis.pipeline().incr(key).ttl(key).execute()
-        if ttl == -1:  # the session expired between the check and the INCR, which recreated it without expiry
-            self.redis.expire(key, SESSION_TTL)
-        return turns
+    def turns(self, sid: str) -> int:
+        return int(self.redis.get(f"chat:m:{sid}") or 0)
 
     def acquire_lock(self, sid: str) -> bool:
         return bool(self.redis.set(f"chat:lock:{sid}", 1, ex=LOCK_TTL, nx=True))
@@ -61,13 +57,15 @@ class RedisStore:
         return [json.loads(item) for item in self.redis.lrange(f"chat:h:{sid}", 0, -1)]
 
     def append_turn(self, sid: str, question: str, answer: str) -> None:
-        key = f"chat:h:{sid}"
+        key, counter = f"chat:h:{sid}", f"chat:m:{sid}"
         turns = ({"role": "user", "content": question}, {"role": "assistant", "content": answer})
         pipe = self.redis.pipeline()
         pipe.rpush(key, *(json.dumps(t, ensure_ascii=False) for t in turns))
         pipe.ltrim(key, -HISTORY_SIZE, -1)
         pipe.expire(key, IDLE_TTL)
-        pipe.execute()
+        pipe.incr(counter).ttl(counter)
+        if pipe.execute()[-1] == -1:  # the session expired just before, and INCR recreated it without expiry
+            self.redis.expire(counter, SESSION_TTL)
 
     def delete_session(self, sid: str) -> None:
         self.redis.delete(f"chat:m:{sid}", f"chat:h:{sid}", f"chat:lock:{sid}")
