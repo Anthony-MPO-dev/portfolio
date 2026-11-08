@@ -9,7 +9,9 @@ the API the Docker socket would be worse, so the same limits are applied to a ch
 - on Linux (production) it locks itself down before reading a byte: 512 MB of address space, 20 s of CPU, no file
   writes (RLIMIT_FSIZE 0), and a seccomp filter that refuses socket, socketpair, execve and execveat, so a parser
   exploit can neither reach the network next door nor start a program. The API runs as a non-root user already;
-- the parent waits at most 20 s; a hang, a crash or nonsense output is a refusal.
+- the parent waits at most 20 s; a hang, a crash or nonsense output is a refusal;
+- at most 3 children run at once (512 MB each on a shared VPS); a file that finds no slot within 10 s is refused as
+  "busy". A visitor's files arrive as separate requests, so they convert side by side (standards item 15).
 Public API: convert_isolated, lock_down, CHILD.
 Used by: app.main (the chat use case's attachment converter).
 Depends on: app.attachments (run in the child), pyseccomp and resource (Linux only).
@@ -22,6 +24,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from app.attachments import Converted, Rejected, convert
@@ -30,13 +33,20 @@ TIMEOUT = 20  # seconds, wall clock in the parent and CPU in the child
 MEMORY = 512 * 1024 * 1024
 ROOT = Path(__file__).resolve().parents[1]  # where `app` is importable from
 CHILD = [sys.executable, "-B", "-E", "-s", "-m", "app.attachment_sandbox"]
+SLOTS = threading.BoundedSemaphore(3)
+SLOT_WAIT = 10  # seconds
 
 
 def convert_isolated(data: bytes, timeout: float = TIMEOUT) -> Converted:
+    slots = SLOTS
+    if not slots.acquire(timeout=SLOT_WAIT):
+        raise Rejected("busy")
     try:
         run = subprocess.run(CHILD, input=data, capture_output=True, timeout=timeout, cwd=ROOT, env=_bare_env())
     except subprocess.TimeoutExpired as error:
         raise Rejected("too_big") from error
+    finally:
+        slots.release()
     try:
         out = json.loads(run.stdout) if run.returncode == 0 else None
     except ValueError:

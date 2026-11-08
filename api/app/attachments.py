@@ -24,12 +24,12 @@ import itertools
 import warnings
 import zipfile
 from collections.abc import Iterable
-from dataclasses import dataclass
-from typing import Literal
 
 from openpyxl import load_workbook
 from PIL import Image
 from pypdf import PdfReader
+
+from app.ports import Attachment, AttachmentRejected
 
 MB = 1024 * 1024
 IMAGE_MAX, PDF_MAX, XLSX_MAX, CSV_MAX = 5 * MB, 10 * MB, 10 * MB, 2 * MB
@@ -42,16 +42,7 @@ ROWS, COLS = 200, 30
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS  # Pillow warns above this and raises above twice it; both are refused here
 
 
-class Rejected(Exception):
-    """The file can't come in. The message is the reason: type, too_big, unreadable or no_text."""
-
-
-@dataclass(frozen=True)
-class Converted:
-    kind: Literal["image", "pdf", "spreadsheet"]
-    summary: str  # what the history keeps, e.g. "pdf, 3 pages"
-    text: str | None = None
-    png: bytes | None = None
+Converted, Rejected = Attachment, AttachmentRejected  # the names this module has always used
 
 
 def convert(data: bytes) -> Converted:

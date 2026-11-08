@@ -2,17 +2,17 @@
 
 Responsibility: define the model, session-store, answer-cache, lead, form-counter and question-log contracts, and
 the data that crosses them.
-Public API: Turn, ModelReply, ModelUnavailable, ChatModel, SessionStore, AnswerCache, Lead, LeadUnavailable,
-LeadSink, FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs.
+Public API: Turn, ModelReply, ModelUnavailable, Attachment, AttachmentRejected, ChatModel, SessionStore,
+AnswerCache, Lead, LeadUnavailable, LeadSink, FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs.
 Used by: app.services.chat, app.services.lead, app.http (WorkerJobs). Adapters implement them (the worker queue
 model, Redis store, answer cache and counters, Postgres plus n8n lead sink, Postgres question log).
 Depends on: nothing.
 Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fakes.py.
 """
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol, TypedDict
+from typing import Literal, NotRequired, Protocol, TypedDict
 
 
 class Turn(TypedDict):
@@ -30,10 +30,26 @@ class ModelUnavailable(Exception):
     """The model can't answer right now: worker offline, timeout or quota."""
 
 
+@dataclass(frozen=True)
+class Attachment:
+    """A visitor's file after conversion (app.attachments): plain data, never the original bytes."""
+
+    kind: Literal["image", "pdf", "spreadsheet"]
+    summary: str  # what the history keeps, e.g. "pdf, 3 pages"
+    text: str | None = None
+    png: bytes | None = None
+
+
+class AttachmentRejected(Exception):
+    """The file can't come in. The message is the reason: type, too_big, unreadable, no_text or busy."""
+
+
 class ChatModel(Protocol):
-    def stream(self, history: list[Turn], message: str, page_lang: str) -> Iterator[str | ModelReply]:
-        """Answer `message` given the earlier turns: yield text pieces as they are written, then the final
-        ModelReply. Raises ModelUnavailable when it can't, even mid-stream."""
+    def stream(
+        self, history: list[Turn], message: str, page_lang: str, attachments: Sequence[Attachment] = ()
+    ) -> Iterator[str | ModelReply]:
+        """Answer `message` (and its converted attachments) given the earlier turns: yield text pieces as they are
+        written, then the final ModelReply. Raises ModelUnavailable when it can't, even mid-stream."""
         ...
 
 
@@ -76,6 +92,24 @@ class SessionStore(Protocol):
     def release_lock(self, sid: str) -> None: ...
 
     def history(self, sid: str) -> list[Turn]: ...
+
+    def attachments_off(self) -> bool:
+        """The operator's attachment switch (chat:attachments:off): uploads are refused until it's gone."""
+        ...
+
+    def attachment_count(self, sid: str) -> int:
+        """How many files this session has uploaded."""
+        ...
+
+    def save_attachment(self, sid: str, attachment: Attachment) -> str:
+        """Keep a converted file until its answer ends (30 minutes at most) and return its new random id."""
+        ...
+
+    def attachments(self, sid: str, ids: Sequence[str]) -> list[Attachment] | None:
+        """This session's files, in order. None when any of them is gone or belongs to another session."""
+        ...
+
+    def drop_attachments(self, sid: str, ids: Sequence[str]) -> None: ...
 
     def append_turn(self, sid: str, question: str, answer: str) -> None:
         """Save one exchange in the history and count it."""
@@ -129,6 +163,7 @@ class Job(TypedDict):
     system: str
     prompt: str
     deadline: float  # Unix time; past it, nobody is waiting
+    images: NotRequired[list[str]]  # the message's attachment images, base64 PNG made by the API
 
 
 class WorkerJobs(Protocol):

@@ -1,7 +1,8 @@
 """HTTP layer of the chat API.
 
 Responsibility: translate HTTP into the use cases and back, nothing else. Browser routes (/api/chat, /api/lead) take
-JSON only and refuse other sites (Sec-Fetch-Site, then Origin). The session lives in the __Host-chat_sid cookie
+JSON only, /api/attachments one file as raw bytes (10 MB at most), and all refuse other sites (Sec-Fetch-Site,
+then Origin). The session lives in the __Host-chat_sid cookie
 (Secure, HttpOnly, SameSite=Strict, no Max-Age), set only when the server created a new session. The visitor's IP
 (through Cloudflare, see app.client_ip) becomes an HMAC before it reaches any use case. Worker routes need the bearer token. Every answer is no-store and
 there are no public API docs.
@@ -15,10 +16,12 @@ Tests: tests/test_http.py.
 import hashlib
 import json
 from collections.abc import Callable
+from typing import Annotated
 import hmac
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from app.client_ip import client_ip, ip_source
@@ -37,12 +40,17 @@ CODES = {
     "busy": 429,
     "conversation_limit": 429,
     "unavailable": 503,
+    "rejected": 422,
+    "too_many": 429,
 }
+MAX_UPLOAD = 10 * 1024 * 1024  # the largest file app.attachments takes; each type has its own, smaller limit too
+FileId = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,40}$")]
 
 
 class ChatIn(BaseModel):
     message: str = Field(max_length=2000)  # the use case enforces the real 500-character limit
     page_lang: str = Field("en", max_length=10)
+    attachments: list[FileId] = Field(default_factory=list, max_length=3)  # ids from /api/attachments
 
 
 class LeadIn(BaseModel):
@@ -83,13 +91,21 @@ def create_app(
         response.headers["Cache-Control"] = "no-store"
         return response
 
-    def same_origin_json(request: Request) -> None:
+    def same_origin(request: Request) -> None:
         site, sent_origin = request.headers.get("sec-fetch-site"), request.headers.get("origin")
         if (site and site != "same-origin") or (sent_origin and sent_origin != origin):
             raise HTTPException(403)
-        content_type = request.headers.get("content-type", "").split(";")[0].strip()
-        if request.method == "POST" and content_type != "application/json":
-            raise HTTPException(415)
+
+    def body_type(expected: str):
+        """Neither JSON nor raw bytes can be posted by another site's form without a CORS preflight, and there is
+        no CORS here."""
+
+        def check(request: Request) -> None:
+            content_type = request.headers.get("content-type", "").split(";")[0].strip()
+            if request.method == "POST" and content_type != expected:
+                raise HTTPException(415)
+
+        return Depends(check)
 
     def worker_auth(request: Request) -> None:
         sent = request.headers.get("authorization", "").encode()
@@ -100,13 +116,18 @@ def create_app(
         ip = client_ip(request.client.host if request.client else "", request.headers)
         return hmac.new(ip_key, ip.encode(), hashlib.sha256).hexdigest()[:32]
 
-    browser = [Depends(same_origin_json)]
+    browser = [Depends(same_origin), body_type("application/json")]
+    upload = [Depends(same_origin), body_type("application/octet-stream")]
 
     @app.post("/api/chat", dependencies=browser)
     def post_chat(body: ChatIn, request: Request) -> Response:
         sid = request.cookies.get(COOKIE)
         result = chat.answer(
-            session_id=sid, client_key=client_key(request), message=body.message, page_lang=body.page_lang
+            session_id=sid,
+            client_key=client_key(request),
+            message=body.message,
+            page_lang=body.page_lang,
+            attachments=body.attachments,
         )
         if result.events is not None:  # the answer streams: one JSON event per line, as it is written
             lines = (json.dumps(event, ensure_ascii=False) + "\n" for event in result.events)
@@ -116,6 +137,27 @@ def create_app(
                 {"status": result.status, "reply": result.reply, "offer_contact": result.offer_contact},
                 CODES[result.status],
             )
+        if result.session_id and result.session_id != sid:
+            response.set_cookie(COOKIE, result.session_id, **COOKIE_FLAGS)
+        return response
+
+    @app.post("/api/attachments", dependencies=upload)
+    async def post_attachment(request: Request) -> Response:
+        """One file as the raw request body, read in memory and never past 10 MB."""
+        declared, data = int(request.headers.get("content-length") or 0), bytearray()
+        if declared <= MAX_UPLOAD:
+            async for piece in request.stream():
+                data += piece
+                if len(data) > MAX_UPLOAD:
+                    break
+        too_big = declared > MAX_UPLOAD or len(data) > MAX_UPLOAD
+        if too_big or not data:
+            reason, code = ("too_big", 413) if too_big else ("unreadable", 422)
+            return JSONResponse({"status": "rejected", "reason": reason}, code)
+        sid = request.cookies.get(COOKIE)
+        result = await run_in_threadpool(chat.attach, session_id=sid, client_key=client_key(request), data=bytes(data))
+        body = {"status": result.status} | ({"id": result.id, "summary": result.summary} if result.status == "ok" else {})
+        response = JSONResponse(body | ({"reason": result.reason} if result.reason else {}), CODES[result.status])
         if result.session_id and result.session_id != sid:
             response.set_cookie(COOKIE, result.session_id, **COOKIE_FLAGS)
         return response

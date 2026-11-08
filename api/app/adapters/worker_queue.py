@@ -16,15 +16,16 @@ Depends on: redis-py, app.adapters.prompt (transcript, parse_reply), app.ports.
 Tests: tests/test_worker_queue.py (fakeredis; a real local Redis when REDIS_TEST_URL is set).
 """
 
+import base64
 import json
 import secrets
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 
 from redis import Redis
 
 from app.adapters.prompt import parse_reply, transcript
-from app.ports import Job, ModelReply, ModelUnavailable, Turn
+from app.ports import Attachment, Job, ModelReply, ModelUnavailable, Turn
 
 JOBS = "chat:jobs"
 SEEN = "chat:worker:seen"
@@ -40,13 +41,18 @@ class WorkerQueue:
 
     # API side (ChatModel)
 
-    def stream(self, history: list[Turn], message: str, page_lang: str) -> Iterator[str | ModelReply]:
-        """Yield the answer's text pieces as the worker writes them, then the final ModelReply."""
+    def stream(
+        self, history: list[Turn], message: str, page_lang: str, attachments: Sequence[Attachment] = ()
+    ) -> Iterator[str | ModelReply]:
+        """Yield the answer's text pieces as the worker writes them, then the final ModelReply. File texts go in the
+        prompt; images ride in the job as base64 PNG, which the worker sends as image blocks."""
         if not self.redis.exists(SEEN):
             raise ModelUnavailable("worker offline")
         job_id = secrets.token_hex(16)
-        job = Job(id=job_id, system=self.system, prompt=transcript(history, message, page_lang),
+        job = Job(id=job_id, system=self.system, prompt=transcript(history, message, page_lang, attachments),
                   deadline=time.time() + self.timeout)  # fmt: skip
+        if images := [base64.b64encode(f.png).decode() for f in attachments if f.png]:
+            job["images"] = images
         payload = json.dumps(job, ensure_ascii=False)
         self.redis.pipeline().rpush(JOBS, payload).expire(JOBS, 2 * self.timeout).execute()
         until = time.monotonic() + self.timeout

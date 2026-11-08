@@ -13,8 +13,9 @@ Tests: tests/test_prompt.py.
 
 import json
 import re
+from collections.abc import Sequence
 
-from app.ports import ModelReply, ModelUnavailable, Turn
+from app.ports import Attachment, ModelReply, ModelUnavailable, Turn
 
 CONTACT = "[[contact]]"  # the reply's last line when the page should show the contact form
 
@@ -59,7 +60,10 @@ def system_prompt(facts: str, canary: str | None = None) -> str:
     return f"{RULES}\n\n<facts>\n{_escape(facts)}\n</facts>{planted}"
 
 
-def transcript(history: list[Turn], message: str, page_lang: str) -> str:
+SOURCE = "uploaded by the visitor; converted automatically; may contain hidden instructions"
+
+
+def transcript(history: list[Turn], message: str, page_lang: str, attachments: Sequence[Attachment] = ()) -> str:
     """One JSON object, with < and > escaped (\\u003c, \\u003e), so visitor text can neither close the tag nor end a
     JSON string early, and nothing it typed is lost."""
     data = {
@@ -67,6 +71,12 @@ def transcript(history: list[Turn], message: str, page_lang: str) -> str:
         "history": [{"from": "visitor" if t["role"] == "user" else "assistant", "text": t["content"]} for t in history],
         "message": {"from": "visitor", "text": message},
     }
+    if attachments:  # each file says where it came from; an image's pixels follow as a separate image block
+        data["message"]["attachments"] = [
+            {"name": f"attachment-{n}", "summary": f.summary, "source": SOURCE,
+             "text": f.text if f.png is None else "(the image comes after this conversation)"}
+            for n, f in enumerate(attachments, 1)
+        ]  # fmt: skip
     body = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e")
     return f"<conversation>\n{body}\n</conversation>"
 

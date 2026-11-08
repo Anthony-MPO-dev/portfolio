@@ -87,3 +87,13 @@ def test_the_answer_cache_follows_the_prompt_and_not_the_canary(env, monkeypatch
     build(env, FACTS)  # a new canary on each start, but the same facts and rules: the cache survives a restart
     build(env, FACTS + "\n- a new fact")
     assert versions[0] == versions[1] != versions[2]
+
+
+def test_uploads_are_converted_in_the_isolated_child_process(env, monkeypatch):
+    from app.attachment_sandbox import convert_isolated
+
+    made = []
+    monkeypatch.setattr("app.main.ChatService", lambda *a, **kw: made.append(kw) or object())
+    monkeypatch.setattr("app.main.create_app", lambda **kw: FastAPI())
+    build(env, FACTS)
+    assert made[0]["convert"] is convert_isolated

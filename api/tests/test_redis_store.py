@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.adapters.redis_store import RedisAnswerCache, RedisStore
-from app.ports import ModelReply
+from app.ports import Attachment, ModelReply
 
 
 class Clock:
@@ -154,3 +154,20 @@ def test_the_answer_cache_misses_on_another_language_or_prompt_version(r):
     RedisAnswerCache(r, version="v1").put("en", "q", ModelReply("A", offer_contact=False))
     assert RedisAnswerCache(r, version="v1").get("pt", "q") is None
     assert RedisAnswerCache(r, version="v2").get("en", "q") is None
+
+
+def test_a_file_is_kept_for_its_session_only_for_30_minutes_and_dropped_after_its_answer(store, r):
+    image, pdf = Attachment("image", "image, 2x2", png=b"\x89PNG\x00"), Attachment("pdf", "pdf, 1 page", text="Hi")
+    ids = [store.save_attachment("sid-1", image), store.save_attachment("sid-1", pdf)]
+    assert store.attachments("sid-1", ids) == [image, pdf]
+    assert store.attachments("sid-2", ids) is None
+    assert all(0 < r.ttl(f"chat:a:sid-1:{aid}") <= 1800 for aid in ids) and len(set(ids)) == 2
+    assert store.attachment_count("sid-1") == 2 and 0 < r.ttl("chat:ac:sid-1") <= 86400
+    store.drop_attachments("sid-1", ids[:1])
+    assert (store.attachments("sid-1", ids), store.attachments("sid-1", ids[1:])) == (None, [pdf])
+
+
+def test_the_attachment_switch_is_read_from_redis(store, r):
+    before = store.attachments_off()
+    r.set("chat:attachments:off", 1)
+    assert (before, store.attachments_off()) == (False, True)

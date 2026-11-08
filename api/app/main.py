@@ -37,6 +37,7 @@ from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisAnswerCache, RedisStore
 from app.adapters.security_alert import N8nSecurityAlert
 from app.adapters.worker_queue import WorkerQueue
+from app.attachment_sandbox import convert_isolated
 from app.http import create_app
 from app.http_post import Poster
 from app.output_guard import check
@@ -86,6 +87,7 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         alert=alert,
         # keyed by the prompt without the canary: new facts or rules start a fresh cache, a restart doesn't
         cache=RedisAnswerCache(r, version=hashlib.sha256(system_prompt(facts).encode()).hexdigest()[:12]),
+        convert=convert_isolated,  # each upload in a locked-down child process, 3 at a time
     )
     sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"], post=post))
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])

@@ -93,3 +93,15 @@ def test_locked_child_can_not_write_a_file():
 def test_locked_child_can_not_take_more_than_512_mb():
     run = locked("x = bytearray(700 * 1024 * 1024)")
     assert run.returncode != 0 and "MemoryError" in run.stderr
+
+
+def test_conversions_beyond_the_slots_wait_briefly_then_are_refused_as_busy(monkeypatch):
+    import threading
+
+    monkeypatch.setattr(attachment_sandbox, "SLOTS", threading.BoundedSemaphore(1))
+    monkeypatch.setattr(attachment_sandbox, "SLOT_WAIT", 0.1)
+    attachment_sandbox.SLOTS.acquire()  # another visitor's file is being converted
+    with pytest.raises(Rejected, match="busy"):
+        convert_isolated(png())
+    attachment_sandbox.SLOTS.release()
+    assert convert_isolated(png()).kind == "image"

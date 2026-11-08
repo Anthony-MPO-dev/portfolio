@@ -4,7 +4,15 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 
-from app.ports import Lead, LeadUnavailable, ModelReply, ModelUnavailable, QuestionLogUnavailable, Turn
+from app.ports import (
+    Attachment,
+    Lead,
+    LeadUnavailable,
+    ModelReply,
+    ModelUnavailable,
+    QuestionLogUnavailable,
+    Turn,
+)
 
 
 class FakeFormCounter:
@@ -49,6 +57,7 @@ class ModelCall:
     history: list[Turn]
     message: str
     page_lang: str
+    attachments: list[Attachment]
 
 
 class FakeModel:
@@ -63,8 +72,8 @@ class FakeModel:
         self.pieces, self.fail_after = pieces, fail_after
         self.calls: list[ModelCall] = []
 
-    def stream(self, history: list[Turn], message: str, page_lang: str):
-        self.calls.append(ModelCall(list(history), message, page_lang))
+    def stream(self, history: list[Turn], message: str, page_lang: str, attachments=()):
+        self.calls.append(ModelCall(list(history), message, page_lang, list(attachments)))
         if self.during:
             self.during()
         if self.unavailable:
@@ -89,6 +98,9 @@ class FakeStore:
         self.ip_day: Counter[str] = Counter()
         self.global_day = 0
         self.off = False
+        self.files: dict[tuple[str, str], Attachment] = {}
+        self.file_counts: Counter[str] = Counter()
+        self.files_off = False
 
     def switched_off(self) -> bool:
         return self.off
@@ -133,6 +145,26 @@ class FakeStore:
             [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
         )
         self.turn_counts[sid] = self.turn_counts.get(sid, 0) + 1
+
+    def attachments_off(self) -> bool:
+        return self.files_off
+
+    def attachment_count(self, sid: str) -> int:
+        return self.file_counts[sid]
+
+    def save_attachment(self, sid: str, attachment: Attachment) -> str:
+        self.file_counts[sid] += 1
+        aid = f"file-{len(self.files) + 1}"
+        self.files[(sid, aid)] = attachment
+        return aid
+
+    def attachments(self, sid: str, ids) -> list[Attachment] | None:
+        found = [self.files.get((sid, aid)) for aid in ids]
+        return None if None in found else found
+
+    def drop_attachments(self, sid: str, ids) -> None:
+        for aid in ids:
+            self.files.pop((sid, aid), None)
 
 
 class FakeCache:

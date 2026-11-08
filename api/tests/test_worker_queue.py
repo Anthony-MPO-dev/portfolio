@@ -126,3 +126,24 @@ def test_presence_is_renewed_when_a_job_is_handed_out(r):
     r.expire("chat:worker:seen", 1)  # the long poll used up most of the presence window
     ask(queue)
     assert ttls[0] > 50
+
+
+def test_images_ride_in_the_job_as_base64_png_and_texts_in_the_prompt(r):
+    from app.ports import Attachment
+
+    queue, jobs = make(r), []
+    worker_answers(queue, "Two files.", jobs)
+    files = [Attachment("pdf", "pdf, 1 page", text="Invoice 42"), Attachment("image", "image, 2x2", png=b"\x89PNG")]
+    pieces, final = [], None
+    for item in queue.stream(HELLO, "What are these?", "en", files):
+        final = item if isinstance(item, ModelReply) else final
+    job = jobs[0]
+    assert final == ModelReply("Two files.", False)
+    assert job["images"] == ["iVBORw=="] and "Invoice 42" in job["prompt"]
+
+
+def test_a_job_without_images_carries_no_image_list(r):
+    queue, jobs = make(r), []
+    worker_answers(queue, "Hi.", jobs)
+    ask(queue)
+    assert "images" not in jobs[0]

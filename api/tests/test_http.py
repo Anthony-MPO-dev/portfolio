@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.http import create_app
-from app.ports import ModelReply
+from app.ports import Attachment, AttachmentRejected, ModelReply
 from app.services.chat import ChatService, Limits
 from app.services.lead import LeadService
 from tests.fakes import FakeFormCounter, FakeLeadSink, FakeModel, FakeQuestionLog, FakeStore
@@ -13,6 +13,8 @@ from tests.fakes import FakeFormCounter, FakeLeadSink, FakeModel, FakeQuestionLo
 ORIGIN = "https://anthonymuniz.dev"
 TOKEN = "worker-secret"
 SAME_SITE = {"Sec-Fetch-Site": "same-origin"}
+RAW = {**SAME_SITE, "Content-Type": "application/octet-stream"}
+PDF = Attachment("pdf", "pdf, 3 pages", text="Invoice 42")
 LEAD = {"name": "Jane", "company": "Acme", "email": "jane@acme.com", "kind": "hiring", "page_lang": "en"}
 
 
@@ -38,14 +40,17 @@ def events(response):
 
 
 class World:
-    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None):
+    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None, convert=None):
         self.alerts = []
         self.model = model or FakeModel()
         self.store = FakeStore()
         self.sink = FakeLeadSink()
         self.worker = FakeWorker(jobs)
         ids = (f"sid-{n}" for n in range(1, 1000))
-        chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits, guard or (lambda r: None))
+        self.converted = []
+        convert = convert or (lambda data: self.converted.append(data) or PDF)
+        chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits, guard or (lambda r: None),
+                           convert=convert)  # fmt: skip
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
         worker = self.worker if engine == "worker" else None
         app = create_app(
@@ -222,3 +227,46 @@ def test_the_worker_streams_pieces_of_the_answer():
     done = world.client.post(f"/api/worker/jobs/{'c' * 32}/chunks", json={"text": "He has "}, headers=auth)
     refused = world.client.post(f"/api/worker/jobs/{'c' * 32}/chunks", json={"text": "x"})
     assert (done.status_code, refused.status_code, world.worker.chunks) == (204, 401, [("c" * 32, "He has ")])
+
+
+def test_a_file_goes_up_as_raw_bytes_and_comes_back_as_an_id_and_a_summary():
+    world = World()
+    response = world.client.post("/api/attachments", content=b"%PDF-1.7", headers=RAW)
+    assert (response.status_code, response.json()) == (200, {"status": "ok", "id": "file-1", "summary": "pdf, 3 pages"})
+    assert response.headers["set-cookie"].lower().startswith("__host-chat_sid=sid-1;")
+    assert world.converted == [b"%PDF-1.7"]
+
+
+@pytest.mark.parametrize("headers", [{**SAME_SITE, "Content-Type": "multipart/form-data; boundary=x"},
+                                     {"Sec-Fetch-Site": "cross-site", "Content-Type": "application/octet-stream"}])  # fmt: skip
+def test_an_upload_must_be_raw_bytes_from_this_site(headers):
+    world = World()
+    status = world.client.post("/api/attachments", content=b"%PDF", headers=headers).status_code
+    assert (status, world.converted) in [(415, []), (403, [])]
+
+
+def test_an_upload_over_10_mb_is_refused_before_any_conversion():
+    world = World()
+    response = world.client.post("/api/attachments", content=b"x" * (10 * 1024 * 1024 + 1), headers=RAW)
+    assert (response.status_code, response.json(), world.converted) == (413, {"status": "rejected", "reason": "too_big"}, [])
+
+
+def test_a_refused_file_says_why():
+    def refuse(data):
+        raise AttachmentRejected("type")
+
+    response = World(convert=refuse).client.post("/api/attachments", content=b"MZ", headers=RAW)
+    assert (response.status_code, response.json()) == (422, {"status": "rejected", "reason": "type"})
+
+
+def test_the_message_names_its_files_and_the_model_gets_them():
+    world = World()
+    file_id = world.client.post("/api/attachments", content=b"%PDF", headers=RAW).json()["id"]
+    events(world.chat("What is this?", attachments=[file_id]))
+    assert world.model.calls[-1].attachments == [PDF]
+
+
+@pytest.mark.parametrize("ids", [["../x:*"], ["a"] * 4])
+def test_file_ids_must_be_short_plain_tokens_and_3_at_most(ids):
+    world = World()
+    assert (world.chat(attachments=ids).status_code, world.model.calls) == (422, [])
