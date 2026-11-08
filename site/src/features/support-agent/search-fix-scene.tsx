@@ -1,4 +1,4 @@
-import { CountUp } from "@/features/numbers/count-up";
+import { CountUp } from "@/components/count-up";
 import { step } from "@/lib/step";
 import "./support-agent.css";
 

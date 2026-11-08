@@ -1,13 +1,10 @@
 import { Fragment, useRef } from "react";
-import portrait400 from "@/assets/portrait-400.avif";
-import portrait700 from "@/assets/portrait-700.avif";
-import portrait400webp from "@/assets/portrait-400.webp";
-import portrait700webp from "@/assets/portrait-700.webp";
+import portrait from "@/assets/portrait-168.webp";
+import { FireFigure } from "@/components/fire-figure";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cases, figures, profile, services } from "@/content/profile";
 import { PipelineScene } from "@/features/credit-pipeline/pipeline-scene";
 import { MatrixRain } from "@/features/matrix-rain/rain";
-import { FireFigure } from "@/features/numbers/count-up";
 import { MetricScene } from "@/features/support-agent/metric-scene";
 import { SearchFixScene } from "@/features/support-agent/search-fix-scene";
 import { useDecode } from "@/hooks/use-decode";
@@ -69,19 +66,8 @@ export default function Home() {
           <Headline text={profile.headline} />
           <p className="hero-lede">{profile.lede}</p>
           <div className="byline">
-            <picture>
-              <source type="image/avif" srcSet={`${portrait400} 400w, ${portrait700} 700w`} sizes="56px" />
-              <img
-                className="byline-photo"
-                src={portrait400webp}
-                srcSet={`${portrait400webp} 400w, ${portrait700webp} 700w`}
-                sizes="56px"
-                width={700}
-                height={875}
-                decoding="async"
-                alt={profile.name}
-              />
-            </picture>
+            {/* 168 px: sharp at 56 px up to a 3x screen, 5 KB */}
+            <img className="byline-photo" src={portrait} width={168} height={210} decoding="async" alt={profile.name} />
             <p>
               <strong>{profile.name}</strong>
               <span>
@@ -99,7 +85,7 @@ export default function Home() {
         <section className="figures typed" aria-label="Results">
           {figures.map((f) => (
             <article key={f.fig}>
-              {"fire" in f ? <FireFigure text={f.fig} /> : <p className="figure">{f.fig}</p>}
+              {/^\d+x$/.test(f.fig) ? <FireFigure text={f.fig} /> : <p className="figure">{f.fig}</p>}
               <p>{f.text}</p>
             </article>
           ))}

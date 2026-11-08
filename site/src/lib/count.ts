@@ -1,7 +1,7 @@
 // Count-up maths for the page's big numbers: read a figure such as "3x" or "13", then give the text to show at
 // a point of the animation (0 to 1). Eased out (fast, then slowing), rounded down so the final figure only shows
 // at the very end, with the figure's own decimals and the text around the number kept.
-// Public API: parseFigure, figureAt, Figure. Used by count-up.tsx. Tests: count.test.ts.
+// Public API: parseFigure, figureAt, Figure. Used by components/count-up.tsx and fire-figure.tsx. Tests: count.test.ts.
 
 export type Figure = { prefix: string; value: number; decimals: number; suffix: string };
 

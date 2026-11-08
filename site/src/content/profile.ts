@@ -18,7 +18,6 @@ export const profile = {
 export const figures = [
   {
     fig: "3x",
-    fire: true, // the clickable figure that jumps 1x, 2x, 3x and catches fire (features/numbers)
     text: "faster chat replies on the support agent. A 45-second wait meant for split messages ran on every message. Now it's 15 seconds mid-conversation.",
   },
   {
