@@ -26,9 +26,7 @@ live in the author's project notes (2026-11-06).
 | `api/golden/test_live.py` | evals (dev only) | The live golden set: each case through the production path (prompt builder, the worker's isolated `claude -p`, reply parser), one model call per case. `uv run pytest golden` from `api/`, outside the unit run | pytest module | is the test |
 | `api/tests/fakes.py` | tests | In-memory fakes of every port | `FakeModel`, `FakeStore`, `FakeLeadSink`, `FakeFormCounter`, `FakeQuestionLog` | n/a |
 
-Planned, not built yet:
-
-- Anthropic API model adapter (off), switched with the worker queue by an environment variable.
+No paid model APIs (author's rule, 2026-11-08): the only engine is the isolated worker on Anthony's PC.
 
 ## Site (`site/src`)
 

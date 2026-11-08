@@ -3,7 +3,7 @@
 Responsibility: read the settings, refuse to start when a secret is missing or too short (there are no default
 secrets), pick the model engine, plant a fresh canary in the system prompt on every start, and hand the use cases
 their adapters, with the output guard bound to that canary. Engines: "worker" (the isolated chat worker, the
-default). The Anthropic API engine is planned and refused until it exists.
+only one). No paid model APIs, by the author's rule of 2026-11-08: the chat runs on his own Claude Code.
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
 Redis user for REDIS_URL (checked against Redis 8 on 2026-11-06; database 0, add +select for another index):
