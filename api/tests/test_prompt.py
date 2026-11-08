@@ -57,8 +57,6 @@ def test_a_canary_is_planted_only_when_given():
         ("He is open to remote roles.\n[[contact]]", "He is open to remote roles.", True),
         ("He has 3+ years of Python.", "He has 3+ years of Python.", False),
         ("I can only help with Anthony. [[contact]]\n", "I can only help with Anthony.", True),
-        ('{"reply": "He is open to roles.", "offer_contact": true}', "He is open to roles.", True),  # old habit
-        ('```json\n{"reply": "Hi.", "offer_contact": false}\n```', "Hi.", False),
     ],
 )
 def test_reply_is_plain_text_and_a_last_contact_line_offers_the_form(raw, reply, offer):
@@ -66,7 +64,7 @@ def test_reply_is_plain_text_and_a_last_contact_line_offers_the_form(raw, reply,
     assert (parsed.text, parsed.offer_contact) == (reply, offer)
 
 
-@pytest.mark.parametrize("raw", ["", "   ", "[[contact]]", '{"reply": "", "offer_contact": true}'])
+@pytest.mark.parametrize("raw", ["", "   ", "[[contact]]", "\n[[contact]]\n"])
 def test_empty_reply_counts_as_the_model_being_unavailable(raw):
     with pytest.raises(ModelUnavailable):
         parse_reply(raw)

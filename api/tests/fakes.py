@@ -96,6 +96,7 @@ class FakeStore:
         self.locks: set[str] = set()
         self.ip_hour: Counter[str] = Counter()
         self.ip_day: Counter[str] = Counter()
+        self.uploads: Counter[str] = Counter()
         self.global_day = 0
         self.off = False
         self.files: dict[tuple[str, str], Attachment] = {}
@@ -119,6 +120,10 @@ class FakeStore:
         self.ip_day[client_key] += 1
         return self.ip_hour[client_key], self.ip_day[client_key]
 
+    def hit_uploads(self, client_key: str) -> tuple[int, int]:
+        self.uploads[client_key] += 1
+        return self.uploads[client_key], self.uploads[client_key]
+
     def hit_global(self) -> int:
         self.global_day += 1
         return self.global_day
@@ -139,6 +144,8 @@ class FakeStore:
         self.turn_counts.pop(sid, None)
         self.histories.pop(sid, None)
         self.locks.discard(sid)
+        self.files = {key: f for key, f in self.files.items() if key[0] != sid}
+        self.file_counts.pop(sid, None)
 
     def append_turn(self, sid: str, question: str, answer: str) -> None:
         self.histories.setdefault(sid, []).extend(

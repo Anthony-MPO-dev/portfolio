@@ -7,12 +7,14 @@ Responsibility: the type comes from the file's first bytes, never from its name 
 - PDF up to 10 MB and 20 pages: its text, page by page, up to 30,000 characters. Locked or text-less (scanned) PDFs
   are refused; metadata and embedded files are never read.
 - XLSX up to 10 MB (20 MB unzipped, summed before opening; no macros): the values Excel stored, as CSV, visible
-  sheets only, at most 200 rows by 30 columns. Nothing is calculated and links aren't followed.
-- CSV up to 2 MB: UTF-8 without null bytes, kept as CSV within the same limits. Markup (SVG, HTML) is refused.
-Anything else, or anything that fails to convert, raises Rejected with a reason: type, too_big, unreadable, no_text.
+  sheets only, at most 200 rows by 30 columns and 30,000 characters. Nothing is calculated and links aren't followed.
+- CSV up to 2 MB: UTF-8 without null bytes and at least two columns, kept as CSV within the same limits. Plain text
+  and markup (SVG, HTML) are refused.
+Anything else, or anything that fails to convert, raises AttachmentRejected with a reason: type, too_big,
+unreadable, no_text.
 Text that hides inside a file (white text, a sheet cell) still comes through: it is data, and the prompt and the
 output guard treat it as such.
-Public API: convert, Converted, Rejected, IMAGE_SIDE.
+Public API: convert, IMAGE_SIDE, TEXT_MAX.
 Used by: app.attachment_sandbox (always inside the isolated child process, never in the API process).
 Depends on: Pillow, pypdf, openpyxl (with defusedxml installed, which openpyxl uses for its XML).
 Tests: tests/test_attachments.py.
@@ -42,10 +44,7 @@ ROWS, COLS = 200, 30
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS  # Pillow warns above this and raises above twice it; both are refused here
 
 
-Converted, Rejected = Attachment, AttachmentRejected  # the names this module has always used
-
-
-def convert(data: bytes) -> Converted:
+def convert(data: bytes) -> Attachment:
     if data.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff")) or (data[:4] == b"RIFF" and data[8:12] == b"WEBP"):
         return _image(data)
     if data.startswith(b"%PDF-"):
@@ -57,90 +56,93 @@ def convert(data: bytes) -> Converted:
 
 def _limit(data: bytes, most: int) -> None:
     if len(data) > most:
-        raise Rejected("too_big")
+        raise AttachmentRejected("too_big")
 
 
-def _image(data: bytes) -> Converted:
+def _image(data: bytes) -> Attachment:
     _limit(data, IMAGE_MAX)
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             img = Image.open(io.BytesIO(data))
             if img.format not in ("PNG", "JPEG", "WEBP"):
-                raise Rejected("type")
+                raise AttachmentRejected("type")
             width, height = img.size
             rgb = img.convert("RGB")
     except (Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
-        raise Rejected("too_big") from error
-    except Rejected:
+        raise AttachmentRejected("too_big") from error
+    except AttachmentRejected:
         raise
     except Exception as error:  # whatever the decoder chokes on is refused, never half-read
-        raise Rejected("unreadable") from error
+        raise AttachmentRejected("unreadable") from error
     rgb.thumbnail((IMAGE_SIDE, IMAGE_SIDE))
     clean = Image.frombytes("RGB", rgb.size, rgb.tobytes())  # pixels only: no info, EXIF or ICC carried over
     out = io.BytesIO()
     clean.save(out, "PNG")
-    return Converted("image", f"image, {width}x{height}", png=out.getvalue())
+    return Attachment("image", f"image, {width}x{height}", png=out.getvalue())
 
 
-def _pdf(data: bytes) -> Converted:
+def _pdf(data: bytes) -> Attachment:
     _limit(data, PDF_MAX)
     try:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
-            raise Rejected("unreadable")
+            raise AttachmentRejected("unreadable")
         pages = len(reader.pages)
         if pages > PDF_PAGES:
-            raise Rejected("too_big")
+            raise AttachmentRejected("too_big")
         text = "\n\n".join((page.extract_text() or "").strip() for page in reader.pages).strip()
-    except Rejected:
+    except AttachmentRejected:
         raise
     except Exception as error:
-        raise Rejected("unreadable") from error
+        raise AttachmentRejected("unreadable") from error
     if not text:
-        raise Rejected("no_text")
-    return Converted("pdf", f"pdf, {pages} page{'' if pages == 1 else 's'}", text=text[:TEXT_MAX])
+        raise AttachmentRejected("no_text")
+    return Attachment("pdf", f"pdf, {pages} page{'' if pages == 1 else 's'}", text=text[:TEXT_MAX])
 
 
-def _xlsx(data: bytes) -> Converted:
+def _xlsx(data: bytes) -> Attachment:
     _limit(data, XLSX_MAX)
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as z:
             names = set(z.namelist())
             unzipped = sum(info.file_size for info in z.infolist())
     except (zipfile.BadZipFile, ValueError) as error:
-        raise Rejected("unreadable") from error
+        raise AttachmentRejected("unreadable") from error
     if "xl/workbook.xml" not in names or "xl/vbaProject.bin" in names:
-        raise Rejected("type")
+        raise AttachmentRejected("type")
     if unzipped > XLSX_UNZIPPED_MAX:
-        raise Rejected("too_big")
+        raise AttachmentRejected("too_big")
     try:
         wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True, keep_links=False)
         rows = itertools.chain.from_iterable(
             ws.iter_rows(max_col=COLS, values_only=True) for ws in wb.worksheets if ws.sheet_state == "visible"
         )
         return _table(rows)
+    except AttachmentRejected:
+        raise
     except Exception as error:
-        raise Rejected("unreadable") from error
+        raise AttachmentRejected("unreadable") from error
 
 
-def _csv(data: bytes) -> Converted:
+def _csv(data: bytes) -> Attachment:
     if not data:
-        raise Rejected("type")
+        raise AttachmentRejected("type")
     _limit(data, CSV_MAX)
     try:
         text = data.decode("utf-8-sig")
     except UnicodeDecodeError as error:
-        raise Rejected("type") from error
+        raise AttachmentRejected("type") from error
     if "\x00" in text or text.lstrip().startswith("<"):
-        raise Rejected("type")
+        raise AttachmentRejected("type")
     try:
-        return _table(csv.reader(io.StringIO(text)))
+        return _table(csv.reader(io.StringIO(text)), columns=2)  # one column is just text
     except csv.Error as error:
-        raise Rejected("unreadable") from error
+        raise AttachmentRejected("unreadable") from error
 
 
-def _table(rows: Iterable) -> Converted:
+def _table(rows: Iterable, columns: int = 1) -> Attachment:
+    """The first ROWS non-empty rows as CSV; refused when the first has fewer than `columns` cells."""
     kept, more = [], False
     for row in rows:
         cells = ["" if value is None else str(value) for value in row][:COLS]
@@ -152,7 +154,11 @@ def _table(rows: Iterable) -> Converted:
             more = True
             break
         kept.append(cells)
+    if not kept:
+        raise AttachmentRejected("no_text")
+    if len(kept[0]) < columns:
+        raise AttachmentRejected("type")
     out = io.StringIO()
     csv.writer(out, lineterminator="\n").writerows(kept)
     summary = f"spreadsheet, first {ROWS} rows" if more else f"spreadsheet, {len(kept)} row{'' if len(kept) == 1 else 's'}"
-    return Converted("spreadsheet", summary, text=out.getvalue())
+    return Attachment("spreadsheet", summary, text=out.getvalue()[:TEXT_MAX])

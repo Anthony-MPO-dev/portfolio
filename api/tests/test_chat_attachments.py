@@ -56,9 +56,18 @@ def test_a_conversation_takes_10_files_at_most():
     assert statuses == ["ok"] * 9 + ["too_many"]
 
 
-def test_uploads_count_toward_the_ip_limit():
-    chat, _, _ = make(limits=Limits(per_ip_hour=2))
-    assert [upload(chat).status for _ in range(3)] == ["ok", "ok", "rate_limited"]
+def test_uploads_have_their_own_ip_limit_and_leave_the_message_limit_alone():
+    chat, _, _ = make(limits=Limits(per_ip_hour=1, upload_ip_hour=2))
+    statuses = [upload(chat).status for _ in range(3)]
+    assert (statuses, ask(chat, "Hi", None)) == (["ok", "ok", "rate_limited"], "ok")
+
+
+def test_switching_files_off_also_stops_the_files_already_uploaded():
+    chat, model, store = make()
+    pdf = upload(chat)
+    store.files_off = True
+    assert (ask(chat, "Read this", pdf.session_id, [pdf.id]), model.calls, store.files) == ("offline", [], {})
+    assert ask(chat, "And in text?", pdf.session_id) == "ok"
 
 
 def test_uploads_are_refused_while_the_chat_or_the_attachments_are_switched_off():

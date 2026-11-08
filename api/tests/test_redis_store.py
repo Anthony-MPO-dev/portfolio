@@ -102,6 +102,14 @@ def test_ip_counts_are_per_client(store):
     assert store.hit_ip("ip-b") == (1, 1)
 
 
+def test_upload_counts_are_kept_apart_from_message_counts(store, clock):
+    store.hit_ip("ip-a")
+    store.hit_ip("ip-a")
+    first = store.hit_uploads("ip-a")
+    clock.advance(hours=1)
+    assert (first, store.hit_uploads("ip-a"), store.hit_ip("ip-a")) == ((1, 1), (1, 2), (1, 3))
+
+
 def test_global_count_resets_each_day(store, clock):
     store.hit_global()
     second = store.hit_global()
@@ -124,16 +132,21 @@ def test_nothing_the_chat_writes_stays_in_redis_forever(store, r):
     store.hit_ip("ip-a")
     store.hit_global()
     store.hit_form("ip-a")
+    store.hit_uploads("ip-a")
+    store.save_attachment("sid-1", Attachment("pdf", "pdf, 1 page", text="Hi"))
     keys = list(r.scan_iter("chat:*"))
-    assert len(keys) == 7 and all(r.ttl(key) > 0 for key in keys)
+    assert len(keys) == 11 and all(r.ttl(key) > 0 for key in keys)
 
 
 def test_erasing_a_session_removes_everything_stored_about_it(store, r):
     store.create_session("sid-1")
     store.acquire_lock("sid-1")
     store.append_turn("sid-1", "My name is Jane", "Hi Jane.")
+    store.save_attachment("sid-1", Attachment("pdf", "pdf, 1 page", text="Jane's CV"))  # uploaded, never sent
+    store.save_attachment("sid-2", Attachment("pdf", "pdf, 1 page", text="someone else's"))
     store.delete_session("sid-1")
-    assert (store.session_exists("sid-1"), store.history("sid-1"), list(r.scan_iter("chat:*sid-1"))) == (False, [], [])
+    assert (store.session_exists("sid-1"), store.history("sid-1"), list(r.scan_iter("chat:*sid-1*"))) == (False, [], [])
+    assert len(list(r.scan_iter("chat:*sid-2*"))) == 2
 
 
 def test_the_chat_off_key_switches_the_chat_off(store, r):

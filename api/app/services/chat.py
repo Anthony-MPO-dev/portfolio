@@ -11,7 +11,7 @@ Fixed notices (offline, limits) are the page's job: this module returns a status
 Public API: ChatService.answer, ChatService.attach, ChatService.forget, Limits, ChatResult, AttachResult.
 Used by: the /api/chat route.
 Depends on: app.ports (ChatModel, SessionStore, QuestionLog, AnswerCache), app.lang, app.redact.
-Tests: tests/test_chat.py.
+Tests: tests/test_chat.py, tests/test_chat_attachments.py.
 """
 
 import logging
@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.lang import page_lang as supported_lang
-from app.adapters.prompt import CONTACT
 from app.ports import (
     AnswerCache,
     Attachment,
@@ -46,6 +45,8 @@ class Limits:
     global_day: int = 300
     message_files: int = 3
     session_files: int = 10
+    upload_ip_hour: int = 20  # apart from the messages: a message with 3 files still counts as one message
+    upload_ip_day: int = 60
 
 
 Status = Literal["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline", "blocked"]
@@ -93,12 +94,11 @@ class ChatService:
         self.convert = convert
 
     def attach(self, *, session_id: str | None, client_key: str, data: bytes) -> AttachResult:
-        """One uploaded file: converted in isolation and kept for this session until its answer ends. Uploads count
-        toward the IP limit, a conversation takes 10 at most, and the attachment switch turns them all away."""
+        """One uploaded file: converted in isolation and kept for this session until its answer ends. Uploads have
+        their own IP limit, a conversation takes 10 at most, and the attachment switch turns them all away."""
         if self.convert is None or self.store.switched_off() or self.store.attachments_off():
             return AttachResult("offline", session_id)
-        per_hour, per_day = self.store.hit_ip(client_key)
-        if per_hour > self.limits.per_ip_hour or per_day > self.limits.per_ip_day:
+        if _over(self.store.hit_uploads(client_key), self.limits.upload_ip_hour, self.limits.upload_ip_day):
             return AttachResult("rate_limited", session_id)
         sid = self._strict_session(session_id)
         if self.store.attachment_count(sid) >= self.limits.session_files:
@@ -118,8 +118,7 @@ class ChatService:
         if self.store.switched_off():
             return ChatResult("offline", session_id, offer_contact=True)
 
-        per_hour, per_day = self.store.hit_ip(client_key)
-        if per_hour > self.limits.per_ip_hour or per_day > self.limits.per_ip_day:
+        if _over(self.store.hit_ip(client_key), self.limits.per_ip_hour, self.limits.per_ip_day):
             return ChatResult("rate_limited", session_id)
 
         sid = self._strict_session(session_id)
@@ -149,6 +148,9 @@ class ChatService:
     def _answer_locked(self, sid: str, message: str, lang: str, ids: list[str]) -> ChatResult:
         if self.store.turns(sid) >= self.limits.turns:
             return ChatResult("conversation_limit", sid)
+        if ids and self.store.attachments_off():  # switched off after the upload: the files never reach the model
+            self.store.drop_attachments(sid, ids)
+            return ChatResult("offline", sid, offer_contact=True)
         files = self.store.attachments(sid, ids) if ids else []
         if files is None:  # another session's file, or one already answered or expired
             return ChatResult("invalid", sid)
@@ -164,11 +166,12 @@ class ChatService:
         """The answer as events: {"type": "delta", "text"} pieces, then one {"type": "done", "status",
         "offer_contact"}. Only whole words go out (the word still being written is held back), and the guard checks
         everything shown so far before each piece: a hit ends the stream as "blocked" and the page drops what it
-        showed. The contact line never reaches the page. The turn is saved only when the answer completed clean.
+        showed. Whether to offer the contact form comes with the final reply. The turn is saved only when the
+        answer completed clean.
         A conversation's first question is answered from the cache when it can be, through the same guard, and a
         clean first answer from the model fills it (standards item 9). Files go to the model, the history keeps one
         line for each, and they are dropped when the stream ends, whatever the outcome."""
-        shown, held, offer = "", "", False
+        shown, held = "", ""
         try:
             final = None
             history = self.store.history(sid)
@@ -181,8 +184,6 @@ class ChatService:
                         final = item
                         break
                     held += item
-                    if CONTACT in held:
-                        offer, held = True, held.replace(CONTACT, "")
                     cut = max(held.rfind(" "), held.rfind("\n"))
                     if cut < 0:
                         continue
@@ -197,7 +198,7 @@ class ChatService:
             if final is None:
                 yield {"type": "done", "status": "offline", "offer_contact": True}
                 return
-            rest = final.text[len(shown) :] if final.text.startswith(shown) else held.replace(CONTACT, "")
+            rest = final.text[len(shown) :] if final.text.startswith(shown) else held
             text = (shown + rest).strip()
             if reason := self.guard(text):
                 yield self._blocked(reason)
@@ -207,10 +208,9 @@ class ChatService:
             if self.store.session_exists(sid):  # the visitor may have erased it while the model was answering
                 lines = " ".join(f"[attachment-{n}: {f.summary}]" for n, f in enumerate(files, 1))
                 self.store.append_turn(sid, f"{message}\n{lines}" if lines else message, text)
-            offer = offer or final.offer_contact
             if question and not cached:
-                self.cache.put(lang, question, ModelReply(text, offer))
-            yield {"type": "done", "status": "ok", "offer_contact": offer}
+                self.cache.put(lang, question, ModelReply(text, final.offer_contact))
+            yield {"type": "done", "status": "ok", "offer_contact": final.offer_contact}
         finally:
             self.store.release_lock(sid)
             if ids:
@@ -220,6 +220,10 @@ class ChatService:
         log.warning("reply blocked by the output guard: %s", reason)  # the reason only, never the text
         self.alert(f"output guard: {reason}")
         return {"type": "done", "status": "blocked", "offer_contact": True}
+
+
+def _over(counts: tuple[int, int], hour: int, day: int) -> bool:
+    return counts[0] > hour or counts[1] > day
 
 
 def _same_question(message: str) -> str:

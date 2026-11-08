@@ -68,6 +68,25 @@ def test_the_answer_streams_piece_by_piece_and_ends_with_the_final_reply(r):
     assert "And his stack?" in job["prompt"] and '"page_language": "pt"' in job["prompt"]
 
 
+def test_the_contact_line_never_streams_out_even_split_across_pieces(r):
+    queue = make(r)
+    worker_answers(queue, "By email.\n[[contact]]", chunks=["By ", "email.\n[[con", "tact]]"])
+    pieces, final = ask(queue)
+    assert "".join(pieces).strip() == "By email." and "[" not in "".join(pieces)
+    assert final == ModelReply("By email.", True)
+
+
+def test_a_full_queue_is_offline_at_once_and_adds_nothing(r):
+    queue = make(r, timeout=5)
+    r.set("chat:worker:seen", 1, ex=60)
+    for n in range(10):
+        r.rpush("chat:jobs", f'{{"id": "{n}"}}')
+    started = time.monotonic()
+    with pytest.raises(ModelUnavailable):
+        ask(queue)
+    assert time.monotonic() - started < 1 and r.llen("chat:jobs") == 10
+
+
 def test_worker_failure_is_offline_without_waiting_for_the_timeout(r):
     queue = make(r, timeout=5)
     worker_answers(queue, "")

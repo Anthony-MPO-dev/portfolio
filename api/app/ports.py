@@ -81,6 +81,10 @@ class SessionStore(Protocol):
         """Count one message for this client and return (messages this hour, messages today)."""
         ...
 
+    def hit_uploads(self, client_key: str) -> tuple[int, int]:
+        """Count one upload for this client, apart from its messages; return (this hour, today)."""
+        ...
+
     def hit_global(self) -> int:
         """Count one message for the whole site and return the total for today."""
         ...
@@ -94,7 +98,7 @@ class SessionStore(Protocol):
     def history(self, sid: str) -> list[Turn]: ...
 
     def attachments_off(self) -> bool:
-        """The operator's attachment switch (chat:attachments:off): uploads are refused until it's gone."""
+        """The operator's attachment switch (chat:attachments:off): files are refused, new and already uploaded."""
         ...
 
     def attachment_count(self, sid: str) -> int:

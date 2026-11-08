@@ -242,12 +242,12 @@ def test_a_worker_that_drops_mid_answer_ends_the_stream_offline_and_saves_nothin
     assert store.turns(result.session_id) == 0
 
 
-def test_the_contact_line_never_reaches_the_page_and_offers_the_form():
-    model = FakeModel(ModelReply("Anthony replies by email.", True), pieces=["Anthony replies ", "by email.\n", "[[contact]]"])
+def test_the_final_reply_decides_whether_the_page_offers_the_form():
+    # the contact line is the model adapter's to strip (tests/test_worker_queue.py); the service never sees it
+    model = FakeModel(ModelReply("Anthony replies by email.", True), pieces=["Anthony replies ", "by email."])
     chat, _, _ = make(model)
     _, events = stream_events(chat)
-    shown = "".join(e["text"] for e in events if e["type"] == "delta")
-    assert "[[contact]]" not in shown and shown.strip() == "Anthony replies by email."
+    assert "".join(e["text"] for e in events if e["type"] == "delta") == "Anthony replies by email."
     assert events[-1] == {"type": "done", "status": "ok", "offer_contact": True}
 
 

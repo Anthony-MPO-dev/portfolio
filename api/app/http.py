@@ -116,6 +116,12 @@ def create_app(
         ip = client_ip(request.client.host if request.client else "", request.headers)
         return hmac.new(ip_key, ip.encode(), hashlib.sha256).hexdigest()[:32]
 
+    def remember(response: Response, sid: str | None, sent: str | None) -> Response:
+        """A session the server just created goes back in the cookie."""
+        if sid and sid != sent:
+            response.set_cookie(COOKIE, sid, **COOKIE_FLAGS)
+        return response
+
     browser = [Depends(same_origin), body_type("application/json")]
     upload = [Depends(same_origin), body_type("application/octet-stream")]
 
@@ -137,9 +143,7 @@ def create_app(
                 {"status": result.status, "reply": result.reply, "offer_contact": result.offer_contact},
                 CODES[result.status],
             )
-        if result.session_id and result.session_id != sid:
-            response.set_cookie(COOKIE, result.session_id, **COOKIE_FLAGS)
-        return response
+        return remember(response, result.session_id, sid)
 
     @app.post("/api/attachments", dependencies=upload)
     async def post_attachment(request: Request) -> Response:
@@ -158,9 +162,7 @@ def create_app(
         result = await run_in_threadpool(chat.attach, session_id=sid, client_key=client_key(request), data=bytes(data))
         body = {"status": result.status} | ({"id": result.id, "summary": result.summary} if result.status == "ok" else {})
         response = JSONResponse(body | ({"reason": result.reason} if result.reason else {}), CODES[result.status])
-        if result.session_id and result.session_id != sid:
-            response.set_cookie(COOKIE, result.session_id, **COOKIE_FLAGS)
-        return response
+        return remember(response, result.session_id, sid)
 
     @app.delete("/api/chat", status_code=204, dependencies=browser)
     def delete_chat(request: Request) -> Response:

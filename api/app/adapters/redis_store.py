@@ -6,6 +6,7 @@ decisions. Every key it writes has an expiry, so nothing about a visitor stays f
 - chat:h:{sid}            last 20 messages as JSON, 2 h sliding
 - chat:lock:{sid}         one answer at a time, 90 s (longer than the model timeout)
 - chat:rl:{key}:h|d:{t}   messages per client per hour and per day (the key is an HMAC of the IP, never the IP)
+- chat:ru:{key}:h|d:{t}   uploads per client per hour and per day, apart from the messages
 - chat:g:{day}            messages for the whole site today
 - chat:form:{key}:{day}   valid contact forms per client today
 - chat:c:{v}:{lang}:{hash}  a clean answer to a first question, 24 h (v: prompt version; hash: SHA-256 of the
@@ -111,15 +112,20 @@ class RedisStore:
         self.redis.delete(*(f"chat:a:{sid}:{aid}" for aid in ids))
 
     def delete_session(self, sid: str) -> None:
-        self.redis.delete(f"chat:m:{sid}", f"chat:h:{sid}", f"chat:lock:{sid}")
+        files = list(self.redis.scan_iter(f"chat:a:{sid}:*", count=100))  # uploaded and not yet sent
+        self.redis.delete(f"chat:m:{sid}", f"chat:h:{sid}", f"chat:lock:{sid}", f"chat:ac:{sid}", *files)
 
     # counters
 
     def hit_ip(self, client_key: str) -> tuple[int, int]:
+        return self._hour_and_day(f"chat:rl:{client_key}")
+
+    def hit_uploads(self, client_key: str) -> tuple[int, int]:
+        return self._hour_and_day(f"chat:ru:{client_key}")
+
+    def _hour_and_day(self, prefix: str) -> tuple[int, int]:
         t = self.now()
-        hour, day = self._count(
-            (f"chat:rl:{client_key}:h:{t:%Y%m%d%H}", 2 * HOUR), (f"chat:rl:{client_key}:d:{t:%Y%m%d}", 2 * DAY)
-        )
+        hour, day = self._count((f"{prefix}:h:{t:%Y%m%d%H}", 2 * HOUR), (f"{prefix}:d:{t:%Y%m%d}", 2 * DAY))
         return hour, day
 
     def hit_global(self) -> int:

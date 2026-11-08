@@ -3,15 +3,17 @@
 Responsibility: long-poll the API over one kept-alive HTTPS connection with a secret token (only outbound
 connections: no port open at home, no Redis exposed), run `claude -p` hardened for each job, stream the answer's text
 to the API as it is written (in batches of about 0.2 s), and hand the final text back.
-Hardening (pesquisa-seguranca-chat-portfolio.md, section 3): --restricted and --safe-mode, no tools at all, dontAsk,
-no MCP, hooks, commands or saved session, an empty working folder, the job's own system prompt, and an environment
-with only what claude needs (the worker token never reaches it; CLAUDE.md, memory, @-attachments and claude.ai
-connectors switched off). The visitor's text, and any attachment image, goes through stdin as one stream-json
-message, never the command line. Checks on every run, before a word goes out: the first event must be a clean init
-(no tool, no MCP server, skill or command, only built-in plugins); after it, any tool_use (whole or streamed) or
-permission denial stops the run. A miss drops the answer, logs an ALERT and hands the API the alert label. Any other
-failure hands back an empty answer, which the API shows as "offline". Nothing about the visitor is logged here, only
-the job id and how it went. Standard library only, so it runs with any Python 3.12+. It lives outside app/ so the
+Hardening (pesquisa-seguranca-chat-portfolio.md, section 3): --restricted and --safe-mode, no tools at all (--tools ""
+and --disallowedTools "*", two independent locks), one turn, dontAsk, no MCP, hooks, commands or saved session, an
+empty working folder, the job's own system prompt, and an environment with only what claude needs (the worker token
+never reaches it; CLAUDE.md, memory, @-attachments and claude.ai connectors switched off). The visitor's text, and
+any attachment image, goes through stdin as one stream-json message, never the command line. Checks on every run,
+before a word goes out: the first event must be a clean init (no tool, no MCP server, skill or command, only built-in
+plugins); after it, any tool block (tool_use, server_tool_use, mcp_tool_use; whole or streamed) or permission denial
+stops the run. A miss drops the answer, logs an ALERT and hands the API the alert label. Any other failure hands
+back an empty answer, which the API shows as "offline". Nothing about the visitor is logged here: one
+line per run with the job id, sizes, cost and time. Three failed runs in a row (claude down, logged out or out of
+quota) send Anthony one alert. Standard library only, so it runs with any Python 3.12+. It lives outside app/ so the
 API image never ships it.
 Public API: command, child_env, stdin_message, unsafe_init, unsafe_event, delta_text, answer, Unsafe, Chunks, serve,
 Api, stream_claude, pick_claude, find_claude, log, main. Run: `python -m worker.pc_worker` from api/, with
@@ -40,7 +42,8 @@ Runner = Callable[[list[str], str, str, float], Iterator[str]]  # yields claude'
 
 def command(claude: str, job: dict, model: str) -> list[str]:
     return [
-        claude, "-p", "--restricted", "--safe-mode", "--tools", "", "--strict-mcp-config",
+        claude, "-p", "--restricted", "--safe-mode", "--tools", "", "--disallowedTools", "*", "--max-turns", "1",
+        "--strict-mcp-config",
         "--disable-slash-commands", "--no-session-persistence", "--permission-mode", "dontAsk",
         "--permission-prompts", "none", "--settings", json.dumps({"disableAllHooks": True}), "--max-budget-usd", "0.25",
         "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
@@ -91,14 +94,18 @@ def unsafe_event(event: dict) -> str | None:
     """No tool_use, whole or streamed, and no permission denial, anywhere after init."""
     message = event.get("message")
     for block in message.get("content") or [] if isinstance(message, dict) else []:
-        if isinstance(block, dict) and block.get("type") == "tool_use":
+        if isinstance(block, dict) and _is_tool(block):
             return "tool_use in the stream"
     inner = event.get("event") if event.get("type") == "stream_event" else None
-    if isinstance(inner, dict) and (inner.get("content_block") or {}).get("type") == "tool_use":
+    if isinstance(inner, dict) and _is_tool(inner.get("content_block") or {}):
         return "tool_use in the stream"
     if event.get("type") == "result" and event.get("permission_denials"):
         return "permission denial"
     return None
+
+
+def _is_tool(block: dict) -> bool:
+    return str(block.get("type")).endswith("tool_use")  # tool_use, server_tool_use, mcp_tool_use...
 
 
 def delta_text(event: dict) -> str:
@@ -141,8 +148,7 @@ def answer(job: dict, run: Runner, *, emit: Callable[[str], None] = lambda text:
             else:
                 reason = unsafe_event(event)
             if reason:
-                log(f"ALERT job {str(job.get('id'))[:8]}: {reason}; answer dropped")
-                raise Unsafe(reason)
+                raise _unsafe(job, reason)
             if text := delta_text(event):
                 emit(text)
             if event.get("type") == "result":
@@ -150,11 +156,20 @@ def answer(job: dict, run: Runner, *, emit: Callable[[str], None] = lambda text:
     except (OSError, ValueError, subprocess.SubprocessError):
         return ""
     if not seen_init:
-        log(f"ALERT job {str(job.get('id'))[:8]}: no init event; answer dropped")
-        raise Unsafe("no init event")
+        raise _unsafe(job, "no init event")
+    if result:  # sizes, cost and time only, never the text
+        images = len(job.get("images") or [])
+        log(f"job {str(job.get('id'))[:8]}: {'error' if result.get('is_error') else 'done'}, prompt "
+            f"{len(job['prompt'])} chars, {images} image{'' if images == 1 else 's'}, "
+            f"${float(result.get('total_cost_usd') or 0):.4f}, {result.get('duration_ms')} ms")  # fmt: skip
     if not result or result.get("is_error"):
         return ""
     return str(result.get("result") or "")
+
+
+def _unsafe(job: dict, reason: str) -> Unsafe:
+    log(f"ALERT job {str(job.get('id'))[:8]}: {reason}; answer dropped")
+    return Unsafe(reason)
 
 
 class Chunks:
@@ -179,9 +194,12 @@ class Chunks:
         self.buffer, self.last = "", self.clock()
 
 
+FAILURES_ALERT = 3
+
+
 def serve(api, handle: Callable[[dict, Callable[[str], None]], str], stop: threading.Event | None = None,
           sleep=time.sleep) -> None:  # fmt: skip
-    backoff = 1
+    backoff, failures = 1, 0
     while not (stop and stop.is_set()):
         try:
             job = api.next_job()
@@ -192,6 +210,9 @@ def serve(api, handle: Callable[[dict, Callable[[str], None]], str], stop: threa
                     chunks.flush()
                 except Unsafe as error:
                     raw, alert = "", str(error)  # whatever was still held is dropped, never sent
+                failures = 0 if raw or alert else failures + 1
+                if failures == FAILURES_ALERT:  # once per streak: claude is down, logged out or out of quota
+                    alert = f"{FAILURES_ALERT} runs in a row failed (timeout or error)"
                 api.finish(job["id"], raw, alert)
                 log(f"job {job['id'][:8]}: {'ok' if raw else 'failed'} in {time.monotonic() - started:.1f}s")
             backoff = 1

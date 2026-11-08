@@ -3,17 +3,16 @@
 Responsibility: put the public facts and the bot's rules in one system prompt that never changes between requests
 (so it can be cached), with the untrusted-content policy and an optional canary; render the conversation as one
 escaped JSON object inside <conversation>, so visitor text can't close a tag or end a JSON string; and read the
-model's plain-text answer, which streams as it is written: a last line CONTACT asks the page for the contact form
-(an old-style {reply, offer_contact} JSON answer is still understood).
-Public API: system_prompt, transcript, parse_reply, CONTACT.
+model's plain-text answer, which streams as it is written: a last line CONTACT asks the page for the contact form,
+and the line is taken out of the streamed pieces and of the final reply, so it never reaches the visitor.
+Public API: system_prompt, transcript, parse_reply, without_contact, CONTACT.
 Used by: app.adapters.worker_queue (the transcript and the reply) and app.main (the system prompt).
 Depends on: app.ports (ModelReply, ModelUnavailable, Turn).
 Tests: tests/test_prompt.py.
 """
 
 import json
-import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
 
 from app.ports import Attachment, ModelReply, ModelUnavailable, Turn
 
@@ -47,9 +46,6 @@ HTML or Markdown. The only links you may give are anthonymuniz.dev, github.com/A
 linkedin.com/in/anthony-mpo-dev.
 </untrusted_content_policy>"""
 
-FENCE = re.compile(r"^```(?:json)?\s*|\s*```$")
-
-
 def _escape(text: str) -> str:
     return text.replace("<", "&lt;").replace(">", "&gt;")
 
@@ -81,22 +77,23 @@ def transcript(history: list[Turn], message: str, page_lang: str, attachments: S
     return f"<conversation>\n{body}\n</conversation>"
 
 
-def _as_object(text: str) -> dict:
-    text = FENCE.sub("", text.strip())
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        data = None
-    return data if isinstance(data, dict) else {"reply": text}  # a plain-text answer is still an answer
-
-
 def parse_reply(raw: str) -> ModelReply:
-    offer = CONTACT in raw
-    data = _as_object(raw.replace(CONTACT, ""))
-    reply = str(data.get("reply") or "").strip()
-    if reply.startswith("{"):  # the model sometimes nests its whole JSON answer inside "reply"
-        inner = _as_object(reply)
-        reply, data = str(inner.get("reply") or "").strip(), {**data, **inner}
+    reply = raw.replace(CONTACT, "").strip()
     if not reply:
         raise ModelUnavailable("empty reply")
-    return ModelReply(reply, offer or data.get("offer_contact") is True)
+    return ModelReply(reply, CONTACT in raw)
+
+
+def without_contact(pieces: Iterable[str | ModelReply]) -> Iterator[str | ModelReply]:
+    """The streamed text without the contact line, holding back an end that may be the start of one; the final
+    ModelReply passes as it is (parse_reply already took the line out)."""
+    held = ""
+    for piece in pieces:
+        if isinstance(piece, ModelReply):
+            yield piece
+            continue
+        held = (held + piece).replace(CONTACT, "")
+        keep = next((n for n in range(len(CONTACT) - 1, 0, -1) if held.endswith(CONTACT[:n])), 0)
+        if ready := held[: len(held) - keep]:
+            yield ready
+        held = held[len(held) - keep :]

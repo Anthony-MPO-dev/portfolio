@@ -63,6 +63,7 @@ def test_claude_runs_with_no_tools_mcp_hooks_or_commands_and_streams_partial_mes
     assert {"-p", "--restricted", "--safe-mode", "--strict-mcp-config", "--no-session-persistence",
             "--disable-slash-commands", "--verbose", "--include-partial-messages"} <= set(cmd)  # fmt: skip
     assert (pairs["--tools"], pairs["--permission-mode"]) == ("", "dontAsk")
+    assert (pairs["--disallowedTools"], pairs["--max-turns"]) == ("*", "1")  # a second lock, and one turn only
     assert "--allowedTools" not in cmd and "--json-schema" not in cmd  # no tool at all, not even an answer tool
     assert json.loads(pairs["--settings"]) == {"disableAllHooks": True}
     assert (pairs["--input-format"], pairs["--output-format"]) == ("stream-json", "stream-json")
@@ -143,11 +144,24 @@ def test_a_tool_use_or_a_permission_denial_is_refused(capsys):
     tool_start = {"type": "stream_event", "event": {"type": "content_block_start", "index": 1,
                   "content_block": {"type": "tool_use", "name": "Bash"}}}  # fmt: skip
     status = {"type": "system", "subtype": "status", "message": "a status line, not a dict"}
+    server_tool = {"type": "assistant", "message": {"content": [{"type": "server_tool_use", "name": "web_search"}]}}
+    mcp_start = {"type": "stream_event", "event": {"type": "content_block_start", "index": 1,
+                 "content_block": {"type": "mcp_tool_use", "name": "crm"}}}  # fmt: skip
     for out in (stream(status, tool_use, result="Done."), stream(tool_start, result="Done."),
-                stream(result="Done.", permission_denials=[{"tool_name": "Bash"}])):  # fmt: skip
+                stream(result="Done.", permission_denials=[{"tool_name": "Bash"}]),
+                stream(server_tool, result="Done."), stream(mcp_start, result="Done.")):  # fmt: skip
         with pytest.raises(Unsafe):
             run_answer(out)
-    assert capsys.readouterr().out.count("ALERT") == 3
+    assert capsys.readouterr().out.count("ALERT") == 5
+
+
+def test_each_run_logs_its_size_cost_and_time_never_its_text(capsys):
+    job = {**JOB, "images": ["aGk="]}
+    answer(job, Runner(stdout=stream(delta("Hi."), result="Hi.", total_cost_usd=0.0123, duration_ms=812)),
+           claude="c", model="haiku", workdir=WORKDIR)  # fmt: skip
+    line = capsys.readouterr().out
+    assert "job job-1" in line and "1 image" in line and "$0.0123" in line and "812 ms" in line
+    assert f"{len(JOB['prompt'])} chars" in line and "Hi." not in line and JOB["prompt"] not in line
 
 
 def test_job_past_its_deadline_is_not_run():
@@ -222,6 +236,16 @@ def test_loop_streams_and_finishes_jobs_and_survives_network_errors():
 
     serve(api, handle, stop=stop, sleep=sleeps.append)
     assert (api.chunks, api.finished, sleeps) == ([("job-1", "the answer")], [("job-1", "the answer")], [1, 2])
+
+
+def test_three_failed_runs_in_a_row_alert_anthony_once_and_a_good_run_resets_the_count():
+    stop = threading.Event()
+    jobs = [{**JOB, "id": f"job-{n}"} for n in range(1, 8)]
+    api = FakeApi(jobs, stop)
+    outcomes = iter(["", "ok", "", "", "", "", ""])
+    serve(api, lambda job, emit: next(outcomes), stop=stop, sleep=lambda s: None)
+    alerts = [f for f in api.finished if len(f) == 3]
+    assert alerts == [("job-5", "", "3 runs in a row failed (timeout or error)")]
 
 
 def test_an_unsafe_run_hands_back_an_empty_answer_with_the_alert_and_no_held_text():
