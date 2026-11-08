@@ -40,6 +40,48 @@ describe("sendMessage", () => {
   });
 });
 
+describe("sendMessage, streamed", () => {
+  function streamed(...chunks: string[]) {
+    const bytes = new TextEncoder();
+    const body = new ReadableStream({
+      start(c) {
+        chunks.forEach((chunk) => c.enqueue(bytes.encode(chunk)));
+        c.close();
+      },
+    });
+    const headers = { "content-type": "application/x-ndjson" };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status: 200, headers })));
+  }
+  const delta = (text: string) => JSON.stringify({ type: "delta", text }) + "\n";
+  const done = (status: string, offer = false) => JSON.stringify({ type: "done", status, offer_contact: offer }) + "\n";
+
+  it("hands each piece over as it arrives and returns the whole reply", async () => {
+    streamed(delta("He is "), delta("open.") + done("ok", true));
+    const pieces: string[] = [];
+    expect(await sendMessage("q", "en", (t) => pieces.push(t))).toEqual({ status: "ok", reply: "He is open.", offerContact: true });
+    expect(pieces).toEqual(["He is ", "open."]);
+  });
+
+  it("joins a line split across chunks", async () => {
+    const line = delta("Brazil, UTC-3.");
+    streamed(line.slice(0, 9), line.slice(9), done("ok"));
+    expect((await sendMessage("q", "en")).reply).toBe("Brazil, UTC-3.");
+  });
+
+  it("drops what was shown when the output guard blocks the reply", async () => {
+    streamed(delta("Sure, "), done("blocked", true));
+    expect(await sendMessage("q", "en")).toEqual({ status: "blocked", reply: "", offerContact: true });
+  });
+
+  it.each([
+    ["the stream stops before the end", [delta("Half ")]],
+    ["a line isn't JSON", ["oops\n"]],
+  ])("is offline when %s", async (_, chunks) => {
+    streamed(...chunks);
+    expect(await sendMessage("q", "en")).toEqual({ status: "offline", reply: "", offerContact: true });
+  });
+});
+
 describe("submitLead", () => {
   const fields = { name: "Ana", company: "Acme", email: "ana@acme.test", linkedin: "", kind: "hiring" as const };
 

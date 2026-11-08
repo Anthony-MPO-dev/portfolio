@@ -18,6 +18,7 @@ export function Chat({ lang }: { lang: Lang }) {
   const input = useRef<HTMLTextAreaElement>(null);
   const log = useRef<HTMLDivElement>(null);
   const opened = useRef(false);
+  const inflight = useRef<AbortController | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle("chat-open", open);
@@ -28,13 +29,15 @@ export function Chat({ lang }: { lang: Lang }) {
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
-  }, [state.entries.length, state.pending, state.contact.step]);
+  }, [state.entries.length, state.pending, state.partial, state.contact.step]);
 
   async function send(text: string) {
     if (!text.trim() || state.pending) return;
     dispatch({ type: "send", text });
     setDraft("");
-    dispatch({ type: "answer", result: await sendMessage(text.trim(), lang) });
+    inflight.current = new AbortController();
+    const onDelta = (piece: string) => dispatch({ type: "delta", text: piece });
+    dispatch({ type: "answer", result: await sendMessage(text.trim(), lang, onDelta, inflight.current.signal) });
   }
 
   function onKey(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -76,6 +79,7 @@ export function Chat({ lang }: { lang: Lang }) {
                   type="button"
                   className="chat-btn"
                   onClick={() => {
+                    inflight.current?.abort();
                     dispatch({ type: "clear" });
                     clearConversation();
                   }}
@@ -89,7 +93,7 @@ export function Chat({ lang }: { lang: Lang }) {
             </div>
           </header>
 
-          <div className="chat-log" ref={log} aria-live="polite">
+          <div className="chat-log" ref={log} aria-live="polite" aria-busy={state.pending}>
             {state.entries.length === 0 && (
               <div className="chat-intro">
                 <h2>{copy.intro}</h2>
@@ -105,7 +109,8 @@ export function Chat({ lang }: { lang: Lang }) {
             {state.entries.map((entry) => (
               <Message key={entry.id} entry={entry} />
             ))}
-            {state.pending && (
+            {state.partial && <Message entry={{ id: -1, from: "bot", text: state.partial }} />}
+            {state.pending && !state.partial && (
               <p className="chat-typing" role="status" aria-label={copy.typing}>
                 <span />
                 <span />

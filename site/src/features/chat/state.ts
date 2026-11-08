@@ -10,15 +10,17 @@ export type Contact =
   | { step: "none" | "offered" | "email" }
   | { step: "form"; error: boolean }
   | { step: "sent"; whatsapp?: string };
-export type State = { entries: Entry[]; pending: boolean; contact: Contact };
+// partial: the answer as it streams in; it becomes an entry only when the answer ends "ok".
+export type State = { entries: Entry[]; pending: boolean; partial: string; contact: Contact };
 export type Action =
   | { type: "send"; text: string }
+  | { type: "delta"; text: string }
   | { type: "answer"; result: ChatResult }
   | { type: "openForm" }
   | { type: "leadDone"; result: LeadResult }
   | { type: "clear" };
 
-export const initial: State = { entries: [], pending: false, contact: { step: "none" } };
+export const initial: State = { entries: [], pending: false, partial: "", contact: { step: "none" } };
 const OFFER_ON: readonly Notice[] = ["offline", "rate_limited", "conversation_limit", "blocked"];
 
 export function reduce(state: State, action: Action): State {
@@ -29,12 +31,15 @@ export function reduce(state: State, action: Action): State {
       if (!text || state.pending) return state;
       return { ...state, pending: true, entries: [...state.entries, { id, from: "you", text }] };
     }
+    case "delta":
+      return state.pending ? { ...state, partial: state.partial + action.text } : state;
     case "answer": {
+      if (!state.pending) return state; // the visitor cleared the conversation while it was answering
       const { status, reply, offerContact } = action.result;
       const entry: Entry = status === "ok" ? { id, from: "bot", text: reply } : { id, from: "notice", notice: status };
       const offer = status === "ok" ? offerContact : OFFER_ON.includes(status);
       const contact: Contact = offer && state.contact.step === "none" ? { step: "offered" } : state.contact;
-      return { entries: [...state.entries, entry], pending: false, contact };
+      return { entries: [...state.entries, entry], pending: false, partial: "", contact };
     }
     case "openForm":
       return { ...state, contact: { step: "form", error: false } };

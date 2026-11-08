@@ -83,6 +83,30 @@ describe("contact", () => {
   });
 });
 
+describe("streaming", () => {
+  const piece = (text: string) => ({ type: "delta", text }) as const;
+
+  it("shows the answer as it is written, then keeps the whole reply", () => {
+    let s = reduce(reduce(sent(), piece("He is ")), piece("open."));
+    expect(s.partial).toBe("He is open.");
+    s = reduce(s, ok("He is open."));
+    expect(texts(s)).toEqual(["you:Is he open to remote roles?", "bot:He is open."]);
+    expect(s.partial).toBe("");
+  });
+
+  it("drops the written part when the reply ends blocked", () => {
+    const s = reduce(reduce(sent(), piece("Sure, ")), failed("blocked"));
+    expect(texts(s)).toEqual(["you:Is he open to remote roles?", "notice:blocked"]);
+    expect(s.partial).toBe("");
+  });
+
+  it("ignores pieces and answers that arrive after the conversation was cleared", () => {
+    const cleared = reduce(reduce(sent(), piece("late ")), { type: "clear" });
+    expect(reduce(cleared, piece("more"))).toBe(cleared);
+    expect(reduce(cleared, ok("late more"))).toBe(cleared);
+  });
+});
+
 it("clearing starts over", () => {
   expect(reduce(reduce(sent(), ok("Yes.", true)), { type: "clear" })).toEqual(initial);
 });
