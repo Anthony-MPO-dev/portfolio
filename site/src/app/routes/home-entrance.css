@@ -1,0 +1,105 @@
+/* The page types itself in, as if an agent were writing it for the reader: the headline appears word by word behind a
+   caret, and each block below comes out of grey skeleton lines that a caret wipes away. The hero plays on load
+   from CSS alone, so it never flashes. The sections below wait for JS (html.reveal-ready) and play once when useReveal
+   marks them .is-visible, so a page without JS shows everything. Labels are left alone: the matrix decode types them.
+   Only transform and opacity move. */
+
+/* stagger index of each block (a direct child) inside a section */
+.typed > * { --i: 0; }
+.typed > :nth-child(2) { --i: 1; }
+.typed > :nth-child(3) { --i: 2; }
+.typed > :nth-child(4) { --i: 3; }
+.typed > :nth-child(5) { --i: 4; }
+.typed > :nth-child(6) { --i: 5; }
+.typed > :nth-child(7) { --i: 6; }
+.typed > :nth-child(n + 8) { --i: 7; }
+
+/* the headline, word by word, with the caret on the word being typed and blinking after the last one */
+.hero .w,
+.hero .w > span {
+  display: inline-block;
+}
+.hero .w > span {
+  position: relative;
+  /* a 40 ms linear fade, not a 1 ms steps(1) jump: the timeline can end at progress 0.9999999, which steps(1) floors
+     back to hidden (seen on the last words in Chrome) */
+  animation: type-show 40ms linear both calc(200ms + var(--i) * 85ms);
+}
+.hero .w > span::after {
+  content: "";
+  position: absolute;
+  top: 0.06em;
+  bottom: 0.06em;
+  right: -0.12em;
+  width: 0.07em;
+  background: var(--accent);
+  opacity: 0;
+  animation: type-caret 85ms steps(1) calc(200ms + var(--i) * 85ms);
+}
+.hero .w:last-of-type > span::after {
+  animation: type-blink 1s steps(1) infinite calc(200ms + var(--i) * 85ms);
+}
+
+/* every other block: a skeleton (one grey bar per line, over the page colour) that shrinks to the right as a caret
+   sweeps across it */
+.hero > :not(h1, .label, .rain),
+.reveal-ready .typed:not(.hero) > :not(.label) {
+  position: relative;
+}
+.hero > :not(h1, .label, .rain)::before,
+.hero > :not(h1, .label, .rain)::after,
+.reveal-ready .typed:not(.hero) > :not(.label)::before,
+.reveal-ready .typed:not(.hero) > :not(.label)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.hero > :not(h1, .label, .rain)::after,
+.reveal-ready .typed:not(.hero) > :not(.label)::after {
+  background:
+    repeating-linear-gradient(var(--bg) 0 0.22lh, var(--line) 0.22lh 0.78lh, var(--bg) 0.78lh 1lh),
+    var(--bg);
+  transform-origin: right;
+}
+.hero > :not(h1, .label, .rain)::before,
+.reveal-ready .typed:not(.hero) > :not(.label)::before {
+  z-index: 4;
+  /* the caret is the right border of a block-wide box that slides from -100% to 0: ending at 0 instead of starting
+     at 0 and ending at +100% keeps the box out of the page's scrollable width (no sideways scroll) */
+  border-right: 3px solid var(--accent);
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.hero > :not(h1, .label, .rain)::after {
+  animation: type-wipe 0.7s ease-in-out both calc(1300ms + var(--i) * 200ms);
+}
+.hero > :not(h1, .label, .rain)::before {
+  animation: type-sweep 0.7s ease-in-out both calc(1300ms + var(--i) * 200ms);
+}
+.reveal-ready .typed.is-visible:not(.hero) > :not(.label)::after {
+  animation: type-wipe 0.7s ease-in-out both calc(250ms + var(--i) * 180ms);
+}
+.reveal-ready .typed.is-visible:not(.hero) > :not(.label)::before {
+  animation: type-sweep 0.7s ease-in-out both calc(250ms + var(--i) * 180ms);
+}
+
+@keyframes type-show { from { opacity: 0; } }
+@keyframes type-caret { from { opacity: 1; } to { opacity: 1; } }
+@keyframes type-blink { 50% { opacity: 0; } 0%, 100% { opacity: 1; } }
+@keyframes type-wipe { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes type-sweep {
+  0% { opacity: 1; transform: translateX(-100%); }
+  99% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(0); }
+}
+
+/* reduced motion: global.css stops every animation; the skeleton and caret go too, so the text simply shows */
+@media (prefers-reduced-motion: reduce) {
+  .typed > *::before,
+  .typed > *::after,
+  .hero .w > span::after {
+    display: none;
+  }
+}

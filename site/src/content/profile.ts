@@ -6,6 +6,7 @@ export const profile = {
   name: "Anthony Muniz",
   role: "AI & Backend Engineer",
   status: "Open to remote roles",
+  based: "Based in Brazil, UTC-3",
   headline: "I make LLM agents work with real customers, and I measure it.",
   lede: "Most AI agents look great in a demo and fall apart with real customers. I'm the engineer who finds out why and fixes it, with numbers to prove the fix worked.",
   open: "I'm open to remote backend and AI engineering roles with US and European teams. I also take on small freelance projects through my company, Insight AI & Automation.",
@@ -17,6 +18,7 @@ export const profile = {
 export const figures = [
   {
     fig: "3x",
+    fire: true, // the clickable figure that jumps 1x, 2x, 3x and catches fire (features/numbers)
     text: "faster chat replies on the support agent. A 45-second wait meant for split messages ran on every message. Now it's 15 seconds mid-conversation.",
   },
   {

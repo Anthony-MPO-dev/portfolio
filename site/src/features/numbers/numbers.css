@@ -1,0 +1,205 @@
+/* Big numbers: the count-up digits and the "3x" that jumps, sparks and catches fire. Fire is fire: its colours stay
+   warm whatever the page's accent. */
+.num-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.count {
+  font-variant-numeric: tabular-nums;
+}
+.count > [aria-hidden] {
+  display: inline-block;
+  text-align: right;
+}
+.big > .count,
+.big > .count > span {
+  font-weight: inherit; /* not the light grey of the "of" in "13 of 23" */
+  color: inherit;
+}
+
+.fire {
+  --spark: #ffb020;
+  --flame: #ff5a1f;
+  --core: #ffe08a;
+  position: relative;
+  display: inline-block;
+  justify-self: start; /* as wide as the figure, not its grid column: the fire and sparks sit on the glyphs */
+  width: max-content;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.fire:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 10px;
+}
+.fire-num {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  transform-origin: 50% 100%;
+}
+.fire[data-run] .fire-num {
+  animation: fire-jump 0.32s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.fire[data-lit] .fire-num {
+  animation-duration: 0.45s;
+}
+
+/* sparks spray from the foot of the last character, like off a grinder */
+.fire-sparks {
+  position: absolute;
+  right: 0.06em;
+  bottom: 0.1em;
+  z-index: 2;
+  pointer-events: none;
+}
+.fire-sparks i {
+  position: absolute;
+  width: 0.07em;
+  height: 0.012em;
+  min-height: 2px;
+  border-radius: 2px;
+  background: var(--spark);
+  box-shadow: 0 0 6px var(--flame);
+  transform-origin: 0 50%;
+  opacity: 0;
+  animation: fire-spark 0.65s cubic-bezier(0.2, 0.6, 0.4, 1) both var(--t);
+}
+
+/* Real-looking fire, after the "CSS only fire" idea (simeydotme on CodePen): a grey heat that is strongest at the
+   base, two layers of noise rising through it (multiplied), a blur, then an SVG filter (count-up.tsx) that drops the
+   weak heat and paints the rest red, orange, yellow and white, with real transparency, so it burns on the light page
+   as on the dark one. The noise is an SVG drawn here (no image to fetch) and the layers move by transform only. The
+   fire burns about two seconds behind the figure and dies down. */
+.fire-flame {
+  position: absolute;
+  left: -0.4em;
+  right: -0.4em;
+  bottom: 0.06em;
+  height: calc(1.25em + 64px); /* the fixed part makes it tall on a phone too; the tips may lick past the line above */
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 50% 100%;
+  background: radial-gradient(ellipse 45% 105% at 50% 100%, #fff 0%, #ccc 40%, #000 85%);
+  clip-path: inset(0 0 0.04em); /* the blur leaves a red seam on the bottom edge; cut it */
+}
+.fire-flame i {
+  --tile: 2.6em; /* one loop moves the noise up by exactly one tile, so it never jumps */
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4.6em;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.08' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='2.4 0 0 0 -.45 2.4 0 0 0 -.45 2.4 0 0 0 -.45 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") 0 0 / 1em var(--tile);
+  mix-blend-mode: multiply;
+}
+.fire-flame i + i {
+  --tile: 2em;
+  background-size: 0.8em var(--tile);
+  background-position: 0.3em 0;
+}
+.fire-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.fire[data-lit] .fire-flame {
+  animation: fire-burn 2.6s ease-out both 0.05s;
+}
+.fire[data-lit] .fire-flame i {
+  animation: fire-rise 0.9s linear 3; /* 2.7 s, just past the 2.65 s burn, then the loop stops */
+}
+.fire[data-lit] .fire-flame i + i {
+  animation-duration: 0.6s;
+  animation-iteration-count: 5;
+}
+
+.fire-hint {
+  position: absolute;
+  left: calc(100% + 14px); /* beside the figure, never over the text under it */
+  bottom: 0.12em;
+  white-space: nowrap;
+  font: 500 12px/1 var(--mono);
+  letter-spacing: 0;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.fire[data-run] .fire-hint {
+  opacity: 1;
+  transition-delay: 1.6s;
+}
+.fire:hover .fire-hint,
+.fire:focus-visible .fire-hint {
+  opacity: 1;
+  transition-delay: 0s;
+}
+
+@keyframes fire-jump {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  40% {
+    transform: translateY(-14%) scale(0.95, 1.06);
+  }
+  75% {
+    transform: translateY(2%) scale(1.05, 0.95);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes fire-spark {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateX(0) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateX(var(--d)) scaleX(0.3);
+  }
+}
+@keyframes fire-burn {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+  12% {
+    opacity: 1;
+    transform: scaleY(1.05);
+  }
+  70% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(0.5);
+  }
+}
+@keyframes fire-rise {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-1 * var(--tile)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fire-flame,
+  .fire-sparks,
+  .fire-hint {
+    display: none;
+  }
+}

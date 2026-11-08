@@ -13,17 +13,24 @@
   color: var(--accent);
 }
 
+/* The whole first part (label, headline, lede, byline) fits the first screen of any device: the headline is sized by
+   the width (11.5vw) or by what the height leaves for its four lines, whichever is smaller. svh is the height with
+   the phone's toolbars showing; vh is the fallback for older browsers. */
 .hero {
-  padding: clamp(40px, 10vh, 110px) var(--gutter) 80px;
+  position: relative;
+  isolation: isolate;
+  padding: clamp(16px, 6vh, 110px) var(--gutter) 80px;
+  padding-top: clamp(16px, 6svh, 110px);
 }
 .hero h1 {
-  font-size: clamp(48px, 11.5vw, 176px);
+  font-size: clamp(28px, min(11.5vw, (86vh - 260px) / 3.6), 176px);
+  font-size: clamp(28px, min(11.5vw, (86svh - 260px) / 3.6), 176px);
   font-weight: 800;
   font-stretch: 72%;
   line-height: 0.9;
   letter-spacing: -0.02em;
   text-transform: uppercase;
-  margin: 0 0 36px;
+  margin: 0 0 clamp(16px, 4svh, 36px);
 }
 .hero-lede {
   font-size: clamp(18px, 2vw, 24px);
@@ -119,7 +126,6 @@
 .services-cta {
   font-size: clamp(20px, 2.6vw, 30px);
   font-weight: 700;
-  text-decoration-color: var(--accent);
   text-decoration-thickness: 0.1em;
   text-underline-offset: 0.18em;
 }
@@ -134,7 +140,6 @@
   font-weight: 800;
   font-stretch: 68%;
   line-height: 1;
-  text-decoration-color: var(--accent);
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.12em;
   overflow-wrap: anywhere;
@@ -146,9 +151,61 @@
   font-weight: 600;
   margin: 32px 0 24px;
 }
+/* Links: an arrow in the accent says "link", the underline only shows on hover (a coloured line under the words read
+   like a spelling mark). The arrows are inline spans because the entrance owns ::before and ::after of each block. */
+.services-cta,
+.contact-mail,
+.contact-links a {
+  text-decoration-line: none;
+}
+:is(.services-cta, .contact-mail, .contact-links a):hover {
+  text-decoration-line: underline;
+  text-decoration-skip-ink: none;
+}
+.arrow,
+.contact-links a::after {
+  color: var(--accent);
+}
+.contact-links a::after {
+  content: " \2192";
+}
+.contact-mail .arrow {
+  margin-left: 0.15em;
+  font-size: 0.6em;
+  vertical-align: 0.5em;
+}
 .contact-open {
   color: var(--muted);
   font-size: 18px;
   line-height: 1.5;
   max-width: 56ch;
+}
+
+/* The byline signs the lede: a small photo, the name, role and place. The black fill keeps the box while the image
+   loads. */
+.byline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: clamp(16px, 4svh, 36px);
+}
+.byline-photo {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  background: #0b0b0b;
+}
+.byline p {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 16px;
+}
+.byline span {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
 }

@@ -1,7 +1,4 @@
 /* Credit pipeline scene: caption beside the drawing on wide screens, above it on phones. */
-.pipeline {
-  height: 320vh;
-}
 .pipeline-stage {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);

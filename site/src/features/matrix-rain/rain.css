@@ -1,0 +1,38 @@
+/* The character rain: behind its parent's content (z-index -1), fading toward the text on the left so the headline
+   stays easy to read. Each column only moves (transform), so the GPU does the work. */
+.rain {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 var(--gutter);
+  pointer-events: none;
+  opacity: var(--rain-opacity);
+  mask-image: linear-gradient(to right, rgb(0 0 0 / 0.35), #000 70%);
+}
+.rain span {
+  font: 500 15px/1.15 var(--mono);
+  color: var(--accent-fill);
+  white-space: pre;
+  will-change: transform;
+  animation: rain-fall var(--d) linear var(--delay) infinite;
+  mask-image: linear-gradient(to bottom, transparent, #000 80%);
+}
+.rain-off span {
+  animation-play-state: paused;
+}
+@keyframes rain-fall {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(var(--fall));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rain {
+    display: none;
+  }
+}

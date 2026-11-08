@@ -1,3 +1,4 @@
+import { CountUp } from "@/features/numbers/count-up";
 import { step } from "@/lib/step";
 import "./support-agent.css";
 
@@ -31,7 +32,7 @@ export function SearchFixScene() {
           })}
         </svg>
         <p className="big">
-          13 <span>of</span> 23
+          <CountUp text="13" /> <span>of</span> 23
         </p>
         <p className="note">
           test questions now find a document the agent used to miss. The right one ranks 1st or 2nd instead of 3rd.

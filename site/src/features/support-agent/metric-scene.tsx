@@ -6,7 +6,7 @@ const SWING = "M0 120 L50 150 L100 168 L150 70 L200 34 L250 128 L300 150 L360 96
 
 export function MetricScene() {
   return (
-    <section className="scene scene-short" aria-label="The metric that lied">
+    <section className="scene" aria-label="The metric that lied">
       <div className="stage">
         <h2 className="label">The metric that lied</h2>
         <svg

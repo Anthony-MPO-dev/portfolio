@@ -10,7 +10,7 @@
   stroke-width: 1.5;
 }
 .agent-grid .agent-hit {
-  fill: var(--accent);
+  fill: var(--accent-fill);
   stroke: none;
 }
 .agent-axis {

@@ -1,4 +1,4 @@
 import type { CSSProperties } from "react";
 
-// Position of an element in a scroll scene: the CSS turns it into a slice of the scroll range (or a delay).
+// An element's turn in its scene: the CSS turns it into a delay of i x 140 ms.
 export const step = (i: number) => ({ "--i": i }) as CSSProperties;

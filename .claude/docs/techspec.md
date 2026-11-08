@@ -37,21 +37,28 @@ No paid model APIs (author's rule, 2026-11-08): the only engine is the isolated 
 
 React Router v7 in framework mode, prerendered to static HTML (`ssr: false`, `prerender: true`) and served by nginx.
 Folders follow bulletproof-react: `app` (routes), `features`, `components`, `content`, `hooks`, `lib`, `styles`.
-Identity: direction C (Archivo, big numbers, #fafaf7 / #0b0b0b / #e0322b), with technical labels in IBM Plex Mono.
+Identity: direction C (Archivo, big numbers, #fafaf7 / #0b0b0b) with a light "Matrix" touch chosen by the author on 08/11: green
+accent (#047a46 on light, #3dfc8a on dark, neon #3dfc8a for filled shapes), labels as a terminal prompt in IBM Plex Mono,
+and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for errors.
 
 | Module | Responsibility |
 |---|---|
 | `app/root.tsx` | HTML shell, fonts, and the boot script that applies the saved theme before paint |
 | `app/routes.ts` | Route list: the home page (the `/pt/` pages come with the approved Portuguese texts) |
-| `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags, header, hero, scenes, figures, work, Services, contact |
-| `features/support-agent/*` | Scroll scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles |
-| `features/credit-pipeline/*` | Scroll scene of the credit pipeline drawing itself, about 1 hour down to as fast as 5 minutes |
+| `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags, header, hero (signed with the author's photo, `assets/portrait-*`), scenes, figures, work, Services, contact. Links carry an arrow; the underline shows on hover |
+| `app/routes/home-entrance.css` | The typed entrance: the headline word by word behind a caret, each block of a `.typed` section out of skeleton lines; the hero on load from CSS, the rest when useReveal marks it |
+| `features/support-agent/*` | Scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles |
+| `features/credit-pipeline/*` | Scene of the credit pipeline drawing itself, about 1 hour down to as fast as 5 minutes |
+| `features/numbers/*` | `CountUp` (a figure counts up from zero once it comes into view) and `FireFigure` (the clickable 3x: jumps 1x, 2x, 3x, sparks, burns about 2.6 s). `count.ts` splits a figure into its parts. Tests: `count.test.ts` |
+| `features/matrix-rain/*` | `MatrixRain`: the character rain behind the top, built once on the client, moved only by CSS transform, paused off screen, absent with reduced motion. `columns.ts` sizes the columns. Tests: `columns.test.ts` |
 | `features/chat/chat.tsx` + `chat.css` | The chat: launcher in the corner, panel (a full page over the site on phones), transcript with line breaks kept, fixed notices, composer (500 characters; the clip picks up to 3 images, PDF, XLSX or CSV files, each uploaded on its own request, the first one alone while there is no session yet, with a line per file: reading, its summary, or why it was refused). `app/root.tsx` loads it lazily, and only in a build with `VITE_CHAT=1` |
 | `features/chat/state.ts` | Pure reducer of the conversation: messages (with the names of the files sent), the files picked for the next message, waiting, the answer as it streams in (kept apart until it ends `ok`), notices by status, and where the contact form stands. Tests: `state.test.ts` |
 | `features/chat/api.ts` | Client of `/api/chat` (POST, DELETE), `/api/attachments` (one file as raw bytes; over 10 MB is refused before sending) and `/api/lead`; reads the streamed answer (NDJSON) piece by piece; every failure becomes a status the page knows (offline, unavailable). Tests: `api.test.ts` (`npm test`, vitest) |
 | `features/chat/lead-form.tsx` + `copy.ts` | Contact form (name, company, email, optional LinkedIn, Hiring or Project, honeypot) and the panel's fixed English text |
 | `components/theme-toggle.tsx` + `.css` | Light or dark switch, remembered in `localStorage`; global.css picks its label |
 | `content/profile.ts` | Public facts for the page's lists (profile, figures, work, Services), a hand copy of `knowledge/facts.md` and the approved LinkedIn texts. Each scene keeps its own caption next to its drawing |
-| `hooks/use-reveal.ts` | IntersectionObserver fallback for browsers without scroll-driven animations |
-| `lib/step.ts` | `step(i)`: an element's slice of its scene's scroll range |
-| `styles/global.css` | Colour tokens for both themes, shared type, and the scene machinery (`view-timeline: --scene`; with reduced motion nothing moves or pins) |
+| `hooks/use-decode.ts` | Section labels decode once as they come into view (0.7 s, text nodes changed in place); nothing with reduced motion |
+| `hooks/use-reveal.ts` | Marks each `.scene` and `.typed` section `.is-visible` once it is 35% into the screen, so its CSS plays once, in full, on a timer |
+| `lib/scramble.ts` | One frame of a decode: the real text from the left, random digits and capitals for the rest. Tests: `scramble.test.ts` |
+| `lib/step.ts` | `step(i)`: an element's turn in its scene (a delay of i x 140 ms) |
+| `styles/global.css` | Colour tokens for both themes, shared type, and the scene machinery (one screen per scene, played once on entry; with reduced motion nothing moves) |
