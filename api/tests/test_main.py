@@ -78,3 +78,12 @@ def test_both_alerts_share_one_pooled_poster(env, monkeypatch):
     monkeypatch.setattr("app.main.N8nSecurityAlert", lambda url, r, post: posters.append(post) or (lambda reason: None))
     build(env, FACTS)
     assert len(posters) == 2 and posters[0] is posters[1]
+
+
+def test_the_answer_cache_follows_the_prompt_and_not_the_canary(env, monkeypatch):
+    versions = []
+    monkeypatch.setattr("app.main.RedisAnswerCache", lambda r, version: versions.append(version))
+    build(env, FACTS)
+    build(env, FACTS)  # a new canary on each start, but the same facts and rules: the cache survives a restart
+    build(env, FACTS + "\n- a new fact")
+    assert versions[0] == versions[1] != versions[2]

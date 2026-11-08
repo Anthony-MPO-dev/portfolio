@@ -7,7 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.adapters.redis_store import RedisStore
+from app.adapters.redis_store import RedisAnswerCache, RedisStore
+from app.ports import ModelReply
 
 
 class Clock:
@@ -139,3 +140,17 @@ def test_the_chat_off_key_switches_the_chat_off(store, r):
     assert store.switched_off() is False
     r.set("chat:off", 1)
     assert store.switched_off() is True
+
+
+def test_the_answer_cache_keeps_a_clean_answer_for_a_day_under_a_hash_of_the_question(r):
+    cache = RedisAnswerCache(r, version="v1")
+    cache.put("en", "is he open to remote roles", ModelReply("Yes.", offer_contact=True))
+    assert cache.get("en", "is he open to remote roles") == ModelReply("Yes.", offer_contact=True)
+    (key,) = r.keys("chat:c:*")
+    assert "remote" not in key and 0 < r.ttl(key) <= 86400
+
+
+def test_the_answer_cache_misses_on_another_language_or_prompt_version(r):
+    RedisAnswerCache(r, version="v1").put("en", "q", ModelReply("A", offer_contact=False))
+    assert RedisAnswerCache(r, version="v1").get("pt", "q") is None
+    assert RedisAnswerCache(r, version="v2").get("en", "q") is None

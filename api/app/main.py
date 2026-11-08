@@ -17,6 +17,7 @@ Depends on: every adapter, app.http, the use cases.
 Tests: tests/test_main.py.
 """
 
+import hashlib
 import logging
 import os
 import secrets
@@ -33,7 +34,7 @@ from fastapi import FastAPI
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert
 from app.adapters.postgres import Db, PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
-from app.adapters.redis_store import RedisStore
+from app.adapters.redis_store import RedisAnswerCache, RedisStore
 from app.adapters.security_alert import N8nSecurityAlert
 from app.adapters.worker_queue import WorkerQueue
 from app.http import create_app
@@ -83,6 +84,8 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         new_session_id=lambda: secrets.token_urlsafe(32),
         guard=partial(check, canary=canary),
         alert=alert,
+        # keyed by the prompt without the canary: new facts or rules start a fresh cache, a restart doesn't
+        cache=RedisAnswerCache(r, version=hashlib.sha256(system_prompt(facts).encode()).hexdigest()[:12]),
     )
     sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"], post=post))
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])

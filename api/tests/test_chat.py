@@ -4,18 +4,20 @@ import pytest
 
 from app.ports import ModelReply
 from app.services.chat import ChatResult, ChatService, Limits
-from tests.fakes import FakeModel, FakeQuestionLog, FakeStore
+from tests.fakes import FakeCache, FakeModel, FakeQuestionLog, FakeStore
 
 IP = "client-a"
 
 
-def make(model: FakeModel | None = None, limits: Limits = Limits(), log: FakeQuestionLog | None = None, guard=None, alert=None):
+def make(model: FakeModel | None = None, limits: Limits = Limits(), log: FakeQuestionLog | None = None, guard=None, alert=None,
+         cache=None):  # fmt: skip
     model = model or FakeModel()
     store = FakeStore()
     ids = (f"sid-{n}" for n in range(1, 1000))
     chat = ChatService(
         model=model, store=store, log=log or FakeQuestionLog(), new_session_id=lambda: next(ids), limits=limits,
         **({"guard": guard} if guard else {}), **({"alert": alert} if alert else {}),
+        **({"cache": cache} if cache is not None else {}),
     )  # fmt: skip
     return chat, model, store
 
@@ -256,3 +258,56 @@ def test_the_session_stays_locked_while_the_answer_streams_and_is_freed_at_the_e
     assert ask(chat, "again", sid=first.session_id).status == "busy"
     list(first.events)
     assert ask(chat, "again", sid=first.session_id).status == "ok"
+
+
+# Standards item 9: a conversation's first question asked again is answered from the cache, without the model.
+
+
+def test_a_first_question_asked_again_comes_from_the_cache_without_the_model():
+    chat, model, _ = make(FakeModel(ModelReply("Yes, remote roles in the US and Europe.", offer_contact=False)), cache=FakeCache())
+    ask(chat, "Is he open to remote roles?")
+    again = ask(chat, "  is he open to   REMOTE roles ", ip="client-b")
+    assert (again.status, again.reply, len(model.calls)) == ("ok", "Yes, remote roles in the US and Europe.", 1)
+
+
+def test_a_cached_answer_keeps_the_contact_offer_and_joins_the_conversation():
+    chat, model, store = make(FakeModel(ModelReply("Use the form below.", offer_contact=True)), cache=FakeCache())
+    ask(chat, "How do I hire him?")
+    again = ask(chat, "How do I hire him?", ip="client-b")
+    assert again.offer_contact is True
+    assert store.histories[again.session_id] == [
+        {"role": "user", "content": "How do I hire him?"},
+        {"role": "assistant", "content": "Use the form below."},
+    ]
+
+
+def test_follow_up_questions_neither_use_nor_fill_the_cache():
+    cache = FakeCache()
+    chat, model, _ = make(cache=cache)
+    first = ask(chat, "hello")
+    ask(chat, "Who is Anthony?", sid=first.session_id)
+    ask(chat, "hello", sid=first.session_id)
+    assert len(model.calls) == 3
+    assert list(cache.answers) == [("en", "hello")]
+
+
+def test_the_cache_is_per_page_language():
+    chat, model, _ = make(cache=FakeCache())
+    ask(chat, "Anthony?", lang="en")
+    ask(chat, "Anthony?", lang="pt", ip="client-b")
+    assert len(model.calls) == 2
+
+
+def test_blocked_and_offline_answers_are_not_cached():
+    cache = FakeCache()
+    chat, _, _ = make(FakeModel(ModelReply("leak", offer_contact=False)), guard=lambda text: "canary", cache=cache)
+    ask(chat, "q")
+    offline, _, _ = make(FakeModel(unavailable=True), cache=cache)
+    ask(offline, "q2")
+    assert cache.answers == {}
+
+
+def test_a_cached_answer_still_goes_through_the_output_guard():
+    cache = FakeCache({("en", "q"): ModelReply("old text with a leak", offer_contact=False)})
+    chat, model, _ = make(guard=lambda text: "leak" if "leak" in text else None, cache=cache)
+    assert (ask(chat, "q").status, len(model.calls)) == ("blocked", 0)

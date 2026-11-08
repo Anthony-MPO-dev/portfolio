@@ -1,11 +1,11 @@
 """Ports of the chat API: the boundaries the use cases talk to.
 
-Responsibility: define the model, session-store, lead, form-counter and question-log contracts, and the data
-that crosses them.
-Public API: Turn, ModelReply, ModelUnavailable, ChatModel, SessionStore, Lead, LeadUnavailable, LeadSink,
-FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs.
-Used by: app.services.chat, app.services.lead, app.http (WorkerJobs). Adapters implement them (local worker
-model, Anthropic API model, Redis store and counters, Postgres plus n8n lead sink, Postgres question log).
+Responsibility: define the model, session-store, answer-cache, lead, form-counter and question-log contracts, and
+the data that crosses them.
+Public API: Turn, ModelReply, ModelUnavailable, ChatModel, SessionStore, AnswerCache, Lead, LeadUnavailable,
+LeadSink, FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs.
+Used by: app.services.chat, app.services.lead, app.http (WorkerJobs). Adapters implement them (the worker queue
+model, Redis store, answer cache and counters, Postgres plus n8n lead sink, Postgres question log).
 Depends on: nothing.
 Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fakes.py.
 """
@@ -35,6 +35,15 @@ class ChatModel(Protocol):
         """Answer `message` given the earlier turns: yield text pieces as they are written, then the final
         ModelReply. Raises ModelUnavailable when it can't, even mid-stream."""
         ...
+
+
+class AnswerCache(Protocol):
+    """Clean answers to a conversation's first question, by page language and normalized question. The adapter
+    keys them by prompt version too, so new facts never meet an old answer."""
+
+    def get(self, lang: str, question: str) -> ModelReply | None: ...
+
+    def put(self, lang: str, question: str, reply: ModelReply) -> None: ...
 
 
 class SessionStore(Protocol):

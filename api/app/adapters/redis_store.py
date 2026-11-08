@@ -1,28 +1,31 @@
 """Redis session store and counters.
 
-Responsibility: implement SessionStore and FormCounter on Redis with the keys from the phase 2 decisions. Every key
-it writes has an expiry, so nothing about a visitor stays forever:
+Responsibility: implement SessionStore, FormCounter and AnswerCache on Redis with the keys from the phase 2
+decisions. Every key it writes has an expiry, so nothing about a visitor stays forever:
 - chat:m:{sid}            turn counter, 24 h absolute (proof that the server created the id)
 - chat:h:{sid}            last 20 messages as JSON, 2 h sliding
 - chat:lock:{sid}         one answer at a time, 90 s (longer than the model timeout)
 - chat:rl:{key}:h|d:{t}   messages per client per hour and per day (the key is an HMAC of the IP, never the IP)
 - chat:g:{day}            messages for the whole site today
 - chat:form:{key}:{day}   valid contact forms per client today
+- chat:c:{v}:{lang}:{hash}  a clean answer to a first question, 24 h (v: prompt version; hash: SHA-256 of the
+                          normalized question, so the key never holds the visitor's words)
 - chat:off                the operator's off switch, set by hand (no TTL)
 Windows are fixed and in UTC.
-Public API: RedisStore.
+Public API: RedisStore, RedisAnswerCache.
 Used by: the API composition (app.main).
-Depends on: redis-py (any client with decode_responses or bytes), app.ports.Turn.
+Depends on: redis-py (any client with decode_responses or bytes), app.ports (Turn, ModelReply).
 Tests: tests/test_redis_store.py (fakeredis; a real local Redis when REDIS_TEST_URL is set).
 """
 
+import hashlib
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
 
 from redis import Redis
 
-from app.ports import Turn
+from app.ports import ModelReply, Turn
 
 HOUR = 3600
 DAY = 86400
@@ -30,6 +33,7 @@ HISTORY_SIZE = 20  # messages
 IDLE_TTL = 2 * HOUR
 SESSION_TTL = DAY
 LOCK_TTL = 90  # longer than the model timeout
+CACHE_TTL = DAY
 
 
 class RedisStore:
@@ -94,3 +98,19 @@ class RedisStore:
         for key, ttl in windows:
             pipe.incr(key).expire(key, ttl)
         return pipe.execute()[::2]
+
+
+class RedisAnswerCache:
+    def __init__(self, redis: Redis, version: str):
+        self.redis, self.version = redis, version
+
+    def get(self, lang: str, question: str) -> ModelReply | None:
+        raw = self.redis.get(self._key(lang, question))
+        return ModelReply(**json.loads(raw)) if raw else None
+
+    def put(self, lang: str, question: str, reply: ModelReply) -> None:
+        value = json.dumps({"text": reply.text, "offer_contact": reply.offer_contact}, ensure_ascii=False)
+        self.redis.set(self._key(lang, question), value, ex=CACHE_TTL)
+
+    def _key(self, lang: str, question: str) -> str:
+        return f"chat:c:{self.version}:{lang}:{hashlib.sha256(question.encode()).hexdigest()}"

@@ -10,7 +10,7 @@ conversation erased while the model was answering is not saved again.
 Fixed notices (offline, limits) are the page's job: this module returns a status, never notice text.
 Public API: ChatService.answer, ChatService.forget, Limits, ChatResult.
 Used by: the /api/chat route.
-Depends on: app.ports (ChatModel, SessionStore, QuestionLog), app.lang, app.redact.
+Depends on: app.ports (ChatModel, SessionStore, QuestionLog, AnswerCache), app.lang, app.redact.
 Tests: tests/test_chat.py.
 """
 
@@ -21,7 +21,15 @@ from typing import Literal
 
 from app.lang import page_lang as supported_lang
 from app.adapters.prompt import CONTACT
-from app.ports import ChatModel, ModelReply, ModelUnavailable, QuestionLog, QuestionLogUnavailable, SessionStore
+from app.ports import (
+    AnswerCache,
+    ChatModel,
+    ModelReply,
+    ModelUnavailable,
+    QuestionLog,
+    QuestionLogUnavailable,
+    SessionStore,
+)
 from app.redact import redact
 
 log = logging.getLogger(__name__)
@@ -58,6 +66,7 @@ class ChatService:
         limits: Limits = Limits(),
         guard: Callable[[str], str | None] = lambda reply: None,
         alert: Callable[[str], None] = lambda reason: None,
+        cache: AnswerCache | None = None,
     ):
         self.model = model
         self.store = store
@@ -66,6 +75,7 @@ class ChatService:
         self.limits = limits
         self.guard = guard
         self.alert = alert
+        self.cache = cache
 
     def answer(self, *, session_id: str | None, client_key: str, message: str, page_lang: str) -> ChatResult:
         message = message.strip()
@@ -117,12 +127,18 @@ class ChatService:
         """The answer as events: {"type": "delta", "text"} pieces, then one {"type": "done", "status",
         "offer_contact"}. Only whole words go out (the word still being written is held back), and the guard checks
         everything shown so far before each piece: a hit ends the stream as "blocked" and the page drops what it
-        showed. The contact line never reaches the page. The turn is saved only when the answer completed clean."""
+        showed. The contact line never reaches the page. The turn is saved only when the answer completed clean.
+        A conversation's first question is answered from the cache when it can be, through the same guard, and a
+        clean first answer from the model fills it (standards item 9)."""
         shown, held, offer = "", "", False
         try:
             final = None
+            history = self.store.history(sid)
+            question = _same_question(message) if self.cache and not history else None
+            cached = self.cache.get(lang, question) if question else None
+            source = iter([cached.text, cached]) if cached else self.model.stream(history, message, lang)
             try:
-                for item in self.model.stream(self.store.history(sid), message, lang):
+                for item in source:
                     if isinstance(item, ModelReply):
                         final = item
                         break
@@ -152,7 +168,10 @@ class ChatService:
                 yield {"type": "delta", "text": rest.rstrip()}
             if self.store.session_exists(sid):  # the visitor may have erased it while the model was answering
                 self.store.append_turn(sid, message, text)
-            yield {"type": "done", "status": "ok", "offer_contact": offer or final.offer_contact}
+            offer = offer or final.offer_contact
+            if question and not cached:
+                self.cache.put(lang, question, ModelReply(text, offer))
+            yield {"type": "done", "status": "ok", "offer_contact": offer}
         finally:
             self.store.release_lock(sid)
 
@@ -160,3 +179,8 @@ class ChatService:
         log.warning("reply blocked by the output guard: %s", reason)  # the reason only, never the text
         self.alert(f"output guard: {reason}")
         return {"type": "done", "status": "blocked", "offer_contact": True}
+
+
+def _same_question(message: str) -> str:
+    """What makes two first questions the same: case, spacing and the closing punctuation don't count."""
+    return " ".join(message.split()).rstrip("?!. ").casefold()

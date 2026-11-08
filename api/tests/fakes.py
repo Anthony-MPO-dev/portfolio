@@ -133,3 +133,16 @@ class FakeStore:
             [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
         )
         self.turn_counts[sid] = self.turn_counts.get(sid, 0) + 1
+
+
+class FakeCache:
+    """Same contract as the Redis answer cache: answers by (page language, normalized question)."""
+
+    def __init__(self, answers: dict | None = None):
+        self.answers: dict[tuple[str, str], ModelReply] = dict(answers or {})
+
+    def get(self, lang: str, question: str) -> ModelReply | None:
+        return self.answers.get((lang, question))
+
+    def put(self, lang: str, question: str, reply: ModelReply) -> None:
+        self.answers[(lang, question)] = reply
