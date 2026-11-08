@@ -39,24 +39,14 @@ def test_short_secrets_are_refused(env, key):
         build({**env, key: "short"}, FACTS)
 
 
-def test_unknown_engine_is_refused(env):
+def test_engine_that_is_not_built_yet_is_refused(env):
     with pytest.raises(ConfigError, match="MODEL_ENGINE"):
-        build({**env, "MODEL_ENGINE": "openai"}, FACTS)
+        build({**env, "MODEL_ENGINE": "anthropic"}, FACTS)
 
 
-def test_anthropic_engine_needs_its_key_but_not_the_worker_token(env):
-    env = {k: v for k, v in env.items() if k != "WORKER_TOKEN"} | {"MODEL_ENGINE": "anthropic"}
-    with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
-        build(env, FACTS)
-    paths = {route.path for route in build({**env, "ANTHROPIC_API_KEY": "sk-test"}, FACTS).routes}
-    assert "/api/chat" in paths and not any(p.startswith("/api/worker") for p in paths)
-
-
-@pytest.mark.parametrize("engine, adapter", [("worker", "WorkerQueue"), ("anthropic", "AnthropicModel")])
-def test_each_process_plants_its_own_canary_in_the_system_prompt(env, monkeypatch, engine, adapter):
+def test_each_process_plants_its_own_canary_in_the_system_prompt(env, monkeypatch):
     seen = []
-    monkeypatch.setattr(f"app.main.{adapter}", lambda client, system, **_: seen.append(system))
-    env = env | {"MODEL_ENGINE": engine, "ANTHROPIC_API_KEY": "sk-test"}
+    monkeypatch.setattr("app.main.WorkerQueue", lambda r, system, timeout: seen.append(system))
     build(env, FACTS)
     build(env, FACTS)
     codes = [s.split("Internal reference code: ")[1].split(".")[0] for s in seen]

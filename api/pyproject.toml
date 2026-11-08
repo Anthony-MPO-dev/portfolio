@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Chat API for anthonymuniz.dev"
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=2.6.0",
     "fastapi>=0.162.0",
     "psycopg[binary]>=3.3.8",
     "redis>=8.1",
