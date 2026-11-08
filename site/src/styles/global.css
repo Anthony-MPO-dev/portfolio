@@ -10,7 +10,7 @@
   --muted: #66655f;
   --line: #e2e1da;
   --accent: #e0322b;
-  --sans: "Archivo", system-ui, sans-serif;
+  --sans: "Archivo Variable", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --gutter: clamp(16px, 4vw, 48px);
   color-scheme: light;

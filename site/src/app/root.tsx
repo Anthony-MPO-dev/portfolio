@@ -1,5 +1,9 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+// Fonts are served from the site (hashed, immutable assets), with swap: no third-party request before the text shows.
+import "@fontsource-variable/archivo/wdth.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import archivoLatin from "@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url";
 import "@/styles/global.css";
 
 // HTML shell of every prerendered page: fonts, and the boot script that applies the saved theme before paint.
@@ -9,12 +13,8 @@ const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t===
 
 export function links() {
   return [
-    { rel: "preconnect", href: "https://fonts.googleapis.com" },
-    { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-    {
-      rel: "stylesheet",
-      href: "https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@500&display=swap",
-    },
+    // the headline font, fetched with the HTML instead of after the CSS
+    { rel: "preload", href: archivoLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
   ];
 }
 
