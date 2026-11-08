@@ -5,22 +5,24 @@
 // submitLead, clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
 
 export type Lang = "en" | "pt";
-export type ChatStatus = "ok" | "invalid" | "rate_limited" | "busy" | "conversation_limit" | "offline" | "blocked";
+const CHAT = ["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline", "blocked"] as const;
+const LEAD = ["ok", "invalid", "rate_limited", "unavailable"] as const;
+const REFUSALS = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline"] as const;
+export type ChatStatus = (typeof CHAT)[number];
 export type ChatResult = { status: ChatStatus; reply: string; offerContact: boolean };
-export type LeadStatus = "ok" | "invalid" | "rate_limited" | "unavailable";
+export type LeadStatus = (typeof LEAD)[number];
 export type LeadResult = { status: LeadStatus; whatsapp?: string };
-export type FileRefusal =
-  | "type" | "too_big" | "unreadable" | "no_text" | "busy" | "too_many" | "rate_limited" | "offline";
+export type FileRefusal = (typeof REFUSALS)[number];
 export type UploadResult = { status: "ok"; id: string; summary: string } | { status: "refused"; reason: FileRefusal };
 export type LeadFields = { name: string; company: string; email: string; linkedin: string; kind: "hiring" | "project" };
 
-const CHAT: readonly string[] = ["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline", "blocked"];
-const LEAD: readonly string[] = ["ok", "invalid", "rate_limited", "unavailable"];
 const OFFLINE: ChatResult = { status: "offline", reply: "", offerContact: true };
-const REFUSALS: readonly string[] = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline"];
 const MAX_FILE = 10 * 1024 * 1024; // the API's limit; each type has a smaller one there
 
 type Data = Record<string, unknown>;
+
+const isOne = <T extends string>(list: readonly T[], value: unknown): value is T =>
+  (list as readonly unknown[]).includes(value);
 
 function post(url: string, body: unknown, signal?: AbortSignal): Promise<Response> {
   return fetch(url, {
@@ -65,8 +67,8 @@ export async function sendMessage(
 }
 
 function chatResult(data: Data | null, streamed?: string): ChatResult {
-  if (!data || !CHAT.includes(data.status as string)) return OFFLINE;
-  const status = data.status as ChatStatus;
+  if (!data || !isOne(CHAT, data.status)) return OFFLINE;
+  const status = data.status;
   const reply = streamed === undefined ? String(data.reply ?? "") : status === "ok" ? streamed : "";
   return { status, reply, offerContact: data.offer_contact === true };
 }
@@ -84,7 +86,7 @@ export async function uploadFile(file: Blob): Promise<UploadResult> {
     const data = (await response.json()) as Data;
     if (data.status === "ok" && typeof data.id === "string") return { status: "ok", id: data.id, summary: String(data.summary ?? "") };
     const reason = String(data.status === "rejected" ? data.reason : data.status);
-    return { status: "refused", reason: REFUSALS.includes(reason) ? (reason as FileRefusal) : "unreadable" };
+    return { status: "refused", reason: isOne(REFUSALS, reason) ? reason : "unreadable" };
   } catch (error) {
     return { status: "refused", reason: error instanceof SyntaxError ? "unreadable" : "offline" };
   }
@@ -94,8 +96,8 @@ export async function submitLead(fields: LeadFields, honeypot: string, pageLang:
   const data: Data | null = await post("/api/lead", { ...fields, website: honeypot, page_lang: pageLang })
     .then((r) => r.json())
     .catch(() => null);
-  if (!data || !LEAD.includes(data.status as string)) return { status: "unavailable" };
-  return typeof data.whatsapp === "string" ? { status: "ok", whatsapp: data.whatsapp } : { status: data.status as LeadStatus };
+  if (!data || !isOne(LEAD, data.status)) return { status: "unavailable" };
+  return typeof data.whatsapp === "string" ? { status: "ok", whatsapp: data.whatsapp } : { status: data.status };
 }
 
 export async function clearConversation(): Promise<void> {

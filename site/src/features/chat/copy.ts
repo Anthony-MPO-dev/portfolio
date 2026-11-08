@@ -22,7 +22,7 @@ export const copy = {
       no_text: "This PDF has no text. Send a picture of the page instead.",
       busy: "Busy right now. Try this file again in a minute.",
       too_many: "This conversation already has 10 files. Clear it to send more.",
-      rate_limited: "You've hit the hourly limit. Try again later.",
+      rate_limited: "You've hit the file limit of 20 an hour or 60 a day. Try again later.",
       offline: "Files are off right now. You can still ask in text.",
     } satisfies Record<FileRefusal, string>,
   },
@@ -32,7 +32,7 @@ export const copy = {
   bot: "Assistant",
   typing: "The assistant is typing",
   privacy:
-    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data.",
+    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask.",
   notices: {
     offline: "Offline right now. You can still reach Anthony below.",
     rate_limited: "You've hit the limit of 20 messages an hour or 60 a day. Try again later, or reach Anthony below.",

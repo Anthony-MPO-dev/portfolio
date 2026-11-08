@@ -39,15 +39,20 @@ export function Chat({ lang }: { lang: Lang }) {
   }, [state.entries.length, state.pending, state.partial, state.contact.step]);
 
   async function send(text: string) {
-    if (!text.trim() || state.pending || uploading) return;
+    // a ref, not state.pending: a double tap sees the first send at once, so only one request goes out
+    if (!text.trim() || inflight.current || uploading) return;
     const files = state.files.flatMap((f) => (f.state === "ready" ? [f.id] : []));
     dispatch({ type: "send", text });
     setDraft("");
-    inflight.current = new AbortController();
+    const controller = (inflight.current = new AbortController());
     const onDelta = (piece: string) => dispatch({ type: "delta", text: piece });
-    const result = await sendMessage(text.trim(), lang, { files, onDelta, signal: inflight.current.signal });
-    hasSession.current = true;
-    dispatch({ type: "answer", result });
+    try {
+      const result = await sendMessage(text.trim(), lang, { files, onDelta, signal: controller.signal });
+      hasSession.current = true;
+      dispatch({ type: "answer", result });
+    } finally {
+      inflight.current = null; // a cleared conversation's request still holds it until it has settled
+    }
   }
 
   // Each file uploads on its own request, so they are converted side by side. Without a session yet, the first one
@@ -148,7 +153,7 @@ export function Chat({ lang }: { lang: Lang }) {
                 <span />
               </p>
             )}
-            <Contact state={state} lang={lang} dispatch={dispatch} />
+            <ContactPanel state={state} lang={lang} dispatch={dispatch} />
           </div>
 
           <form
@@ -235,7 +240,7 @@ function Message({ entry }: { entry: Entry }) {
   );
 }
 
-function Contact({ state, lang, dispatch }: { state: State; lang: Lang; dispatch: (a: Action) => void }) {
+function ContactPanel({ state, lang, dispatch }: { state: State; lang: Lang; dispatch: (a: Action) => void }) {
   const c = state.contact;
   switch (c.step) {
     case "none":
