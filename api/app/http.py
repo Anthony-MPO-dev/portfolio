@@ -13,6 +13,7 @@ Tests: tests/test_http.py.
 """
 
 import hashlib
+from collections.abc import Callable
 import hmac
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Response
@@ -55,6 +56,7 @@ class LeadIn(BaseModel):
 
 class AnswerIn(BaseModel):
     answer: str = Field(max_length=20_000)
+    alert: str | None = Field(None, pattern=r"^[A-Za-z0-9 _:,./-]{1,80}$")  # a short label from the worker's checks
 
 
 def create_app(
@@ -65,6 +67,7 @@ def create_app(
     worker_token: str,
     ip_key: bytes,
     origin: str,
+    alert: Callable[[str], None] = lambda reason: None,
 ) -> FastAPI:
     """`worker` is the local-worker engine's job queue; None (another engine) leaves the worker routes out."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -140,6 +143,8 @@ def create_app(
         @app.post("/api/worker/jobs/{job_id}", status_code=204, dependencies=[Depends(worker_auth)])
         def finish_job(body: AnswerIn, job_id: str = Path(pattern="^[0-9a-f]{32}$")) -> Response:
             worker.finish(job_id, body.answer)
+            if body.alert:
+                alert(f"worker: {body.alert}")
             return Response(status_code=204)
 
     @app.get("/api/health")

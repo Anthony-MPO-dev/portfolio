@@ -2,7 +2,7 @@
 
 Responsibility: read the settings, refuse to start when a secret is missing or too short (there are no default
 secrets), pick the model engine, plant a fresh canary in the system prompt on every start, and hand the use cases
-their adapters, with the output guard bound to that canary. Engines: "worker" (the isolated chat worker, the
+their adapters, with the output guard bound to that canary and its hits (and the worker's) alerted to Anthony. Engines: "worker" (the isolated chat worker, the
 only one). No paid model APIs, by the author's rule of 2026-11-08: the chat runs on his own Claude Code.
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
@@ -34,6 +34,7 @@ from app.adapters.lead_alert import N8nAlert, SaveThenAlert
 from app.adapters.postgres import PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisStore
+from app.adapters.security_alert import N8nSecurityAlert
 from app.adapters.worker_queue import WorkerQueue
 from app.http import create_app
 from app.output_guard import check
@@ -64,6 +65,7 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
 
     r = redis.Redis.from_url(env["REDIS_URL"], decode_responses=True)
     store = RedisStore(r)
+    alert = N8nSecurityAlert(env["LEAD_WEBHOOK_URL"], r)  # guard and worker hits, to Anthony's Telegram
     canary = secrets.token_hex(12)  # new on every start: it shows up in a reply only if the prompt leaked
     queue = WorkerQueue(r, system_prompt(facts, canary=canary), timeout=int(env.get("MODEL_TIMEOUT", "45")))
     db = env["DATABASE_URL"]
@@ -73,6 +75,7 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         PostgresQuestionLog(db),
         new_session_id=lambda: secrets.token_urlsafe(32),
         guard=partial(check, canary=canary),
+        alert=alert,
     )
     sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"]))
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])
@@ -83,6 +86,7 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         worker_token=env["WORKER_TOKEN"],
         ip_key=env["IP_HMAC_KEY"].encode(),
         origin=env.get("SITE_ORIGIN", "https://anthonymuniz.dev"),
+        alert=alert,
     )
 
 

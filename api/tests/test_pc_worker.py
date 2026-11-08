@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from worker.pc_worker import answer, child_env, command, pick_claude, serve
+from worker.pc_worker import Unsafe, answer, child_env, command, pick_claude, serve
 
 WORKDIR = "portfolio-worker-empty"  # only handed to the runner, never touched
 JOB = {
@@ -113,7 +113,8 @@ def test_any_failure_hands_back_an_empty_answer():
 )
 def test_an_init_with_any_tool_server_skill_or_installed_plugin_is_refused(init, capsys):
     run = Runner(stdout=stream(init=init, result="Sure."))
-    assert answer(JOB, run, claude="c", model="haiku", workdir=WORKDIR) == ""
+    with pytest.raises(Unsafe):
+        answer(JOB, run, claude="c", model="haiku", workdir=WORKDIR)
     assert "ALERT" in capsys.readouterr().out
 
 
@@ -124,13 +125,15 @@ def test_the_structured_output_tool_is_the_only_one_allowed():
     out = stream(status, call, init=init, structured_output={"reply": "Hi.", "offer_contact": False})
     assert json.loads(answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR))["reply"] == "Hi."
     out = stream(call, init={**init, "tools": ["StructuredOutput", "Read"]}, structured_output={"reply": "Hi."})
-    assert answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR) == ""
+    with pytest.raises(Unsafe, match="tools"):
+        answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR)
 
 
 def test_a_tool_use_or_a_permission_denial_is_refused(capsys):
     tool_use = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {}}]}}
     for out in (stream(tool_use, result="Done."), stream(result="Done.", permission_denials=[{"tool_name": "Bash"}])):
-        assert answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR) == ""
+        with pytest.raises(Unsafe):
+            answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR)
     assert capsys.readouterr().out.count("ALERT") == 2
 
 
@@ -156,8 +159,8 @@ class FakeApi:
             raise item
         return item
 
-    def finish(self, job_id, raw):
-        self.finished.append((job_id, raw))
+    def finish(self, job_id, raw, alert=None):
+        self.finished.append((job_id, raw) if alert is None else (job_id, raw, alert))
 
 
 def test_loop_answers_jobs_and_survives_network_errors():
@@ -189,3 +192,14 @@ def test_npm_shim_is_skipped_for_the_newest_native_exe(shim):
 
 def test_no_usable_claude_gives_none():
     assert pick_claude(None, "C:/npm/claude.cmd", []) is None
+
+
+def test_an_unsafe_run_hands_back_an_empty_answer_with_the_alert():
+    stop = threading.Event()
+    api = FakeApi([JOB], stop)
+
+    def handle(job):
+        raise Unsafe("tool_use: Read")
+
+    serve(api, handle, stop=stop, sleep=lambda s: None)
+    assert api.finished == [("job-1", "", "tool_use: Read")]

@@ -93,6 +93,10 @@ def unsafe(events: list[dict]) -> str | None:
     return None
 
 
+class Unsafe(Exception):
+    """The run wasn't clean (a tool, an MCP server, a denial...): the answer is dropped and Anthony is alerted."""
+
+
 def answer(job: dict, run: Runner, *, claude: str, model: str, workdir: str) -> str:
     timeout = job["deadline"] - time.time()
     if timeout <= 1:
@@ -107,7 +111,7 @@ def answer(job: dict, run: Runner, *, claude: str, model: str, workdir: str) -> 
         return ""
     if reason := unsafe(events):
         log(f"ALERT job {str(job.get('id'))[:8]}: {reason}; answer dropped")
-        return ""
+        raise Unsafe(reason)
     if isinstance(result.get("structured_output"), dict):
         return json.dumps(result["structured_output"], ensure_ascii=False)
     return str(result.get("result") or "")
@@ -120,8 +124,11 @@ def serve(api, handle: Callable[[dict], str], stop: threading.Event | None = Non
             job = api.next_job()
             if job:
                 started = time.monotonic()
-                raw = handle(job)
-                api.finish(job["id"], raw)
+                try:
+                    raw, alert = handle(job), None
+                except Unsafe as error:
+                    raw, alert = "", str(error)
+                api.finish(job["id"], raw, alert)
                 log(f"job {job['id'][:8]}: {'ok' if raw else 'failed'} in {time.monotonic() - started:.1f}s")
             backoff = 1
         except (OSError, ValueError) as error:  # network down, API restarting, wrong token
@@ -153,8 +160,9 @@ class Api:
         with self._open(f"/api/worker/next?wait={self.wait}", timeout=self.wait + 15) as response:
             return json.load(response) if response.status == 200 else None
 
-    def finish(self, job_id: str, raw: str) -> None:
-        self._open(f"/api/worker/jobs/{job_id}", {"answer": raw}).close()
+    def finish(self, job_id: str, raw: str, alert: str | None = None) -> None:
+        body = {"answer": raw} if alert is None else {"answer": raw, "alert": alert}
+        self._open(f"/api/worker/jobs/{job_id}", body).close()
 
 
 def run_claude(cmd: list[str], prompt: str, cwd: str, timeout: float) -> tuple[int, str]:

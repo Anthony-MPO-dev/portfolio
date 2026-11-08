@@ -29,6 +29,7 @@ class FakeWorker:
 
 class World:
     def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None):
+        self.alerts = []
         self.model = model or FakeModel()
         self.store = FakeStore()
         self.sink = FakeLeadSink()
@@ -37,7 +38,9 @@ class World:
         chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits, guard or (lambda r: None))
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
         worker = self.worker if engine == "worker" else None
-        app = create_app(chat=chat, lead=lead, worker=worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN)
+        app = create_app(
+            chat=chat, lead=lead, worker=worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN, alert=self.alerts.append
+        )
         self.client = TestClient(app, base_url=ORIGIN, client=(peer, 50000))
 
     def chat(self, message="hi", headers=SAME_SITE, **body):
@@ -180,3 +183,19 @@ def test_api_answers_are_never_cached_and_there_are_no_public_docs():
 
 def test_health_check_says_how_the_callers_address_was_read_never_the_address():
     assert World().client.get("/api/health").json() == {"ok": True, "ip": "unknown"}
+
+
+def test_a_worker_alert_reaches_anthony_and_the_job_still_ends():
+    world = World()
+    auth = {"Authorization": f"Bearer {TOKEN}"}
+    done = world.client.post(f"/api/worker/jobs/{'b' * 32}", json={"answer": "", "alert": "tool_use: Read"}, headers=auth)
+    assert (done.status_code, world.worker.finished, world.alerts) == (204, [("b" * 32, "")], ["worker: tool_use: Read"])
+
+
+def test_a_worker_alert_with_markup_or_too_long_is_refused():
+    world = World()
+    auth = {"Authorization": f"Bearer {TOKEN}"}
+    for alert in ("<b>hi</b>", "x" * 200):
+        response = world.client.post(f"/api/worker/jobs/{'b' * 32}", json={"answer": "", "alert": alert}, headers=auth)
+        assert response.status_code == 422
+    assert world.alerts == []

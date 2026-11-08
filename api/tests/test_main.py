@@ -51,3 +51,10 @@ def test_each_process_plants_its_own_canary_in_the_system_prompt(env, monkeypatc
     build(env, FACTS)
     codes = [s.split("Internal reference code: ")[1].split(".")[0] for s in seen]
     assert len(codes) == 2 and codes[0] != codes[1] and len(codes[0]) >= 16
+
+
+def test_security_alerts_go_to_the_lead_webhook(env, monkeypatch):
+    made = []
+    monkeypatch.setattr("app.main.N8nSecurityAlert", lambda url, r: made.append(url) or (lambda reason: None))
+    build(env, FACTS)
+    assert made == [env["LEAD_WEBHOOK_URL"]]

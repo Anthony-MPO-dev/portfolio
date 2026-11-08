@@ -53,6 +53,7 @@ class ChatService:
         new_session_id: Callable[[], str],
         limits: Limits = Limits(),
         guard: Callable[[str], str | None] = lambda reply: None,
+        alert: Callable[[str], None] = lambda reason: None,
     ):
         self.model = model
         self.store = store
@@ -60,6 +61,7 @@ class ChatService:
         self.new_session_id = new_session_id
         self.limits = limits
         self.guard = guard
+        self.alert = alert
 
     def answer(self, *, session_id: str | None, client_key: str, message: str, page_lang: str) -> ChatResult:
         message = message.strip()
@@ -107,6 +109,7 @@ class ChatService:
             return ChatResult("offline", sid, offer_contact=True)
         if reason := self.guard(reply.text):
             log.warning("reply blocked by the output guard: %s", reason)  # the reason only, never the text
+            self.alert(f"output guard: {reason}")
             return ChatResult("blocked", sid, offer_contact=True)
         if self.store.session_exists(sid):  # the visitor may have erased it while the model was answering
             self.store.append_turn(sid, message, reply.text)
