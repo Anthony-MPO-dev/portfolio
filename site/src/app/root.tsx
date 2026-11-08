@@ -15,6 +15,8 @@ export function links() {
   return [
     // the headline font, fetched with the HTML instead of after the CSS
     { rel: "preload", href: archivoLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
+    // no icon yet (the author picks one): an empty one stops the browser's request for /favicon.ico and its 404
+    { rel: "icon", href: "data:," },
   ];
 }
 
