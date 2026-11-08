@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { profile } from "@/content/profile";
-import { clearConversation, sendMessage, type Lang } from "./api";
+import { clearConversation, sendMessage, uploadFile, type Lang } from "./api";
 import { copy } from "./copy";
 import { LeadForm } from "./lead-form";
 import { initial, reduce, type Action, type Entry, type State } from "./state";
@@ -9,6 +9,8 @@ import "./chat.css";
 // Chat: a launcher in the corner that opens the panel (a full page over the site on phones). Replies keep their
 // line breaks. Mounted by app/root.tsx only when the build sets VITE_CHAT=1. Tests: state.test.ts, api.test.ts.
 const MAX = 500;
+const FILES = 3; // per message, as the API allows
+const ACCEPT = "image/png,image/jpeg,image/webp,application/pdf,.xlsx,.csv";
 
 export function Chat({ lang }: { lang: Lang }) {
   const [open, setOpen] = useState(false);
@@ -19,6 +21,11 @@ export function Chat({ lang }: { lang: Lang }) {
   const log = useRef<HTMLDivElement>(null);
   const opened = useRef(false);
   const inflight = useRef<AbortController | null>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const fileKey = useRef(0);
+  const hasSession = useRef(false); // the API has set the session cookie (it's HttpOnly, so the page can't see it)
+  const uploading = state.files.some((f) => f.state === "uploading");
+  const room = FILES - state.files.filter((f) => f.state !== "refused").length;
 
   useEffect(() => {
     document.documentElement.classList.toggle("chat-open", open);
@@ -32,12 +39,35 @@ export function Chat({ lang }: { lang: Lang }) {
   }, [state.entries.length, state.pending, state.partial, state.contact.step]);
 
   async function send(text: string) {
-    if (!text.trim() || state.pending) return;
+    if (!text.trim() || state.pending || uploading) return;
+    const files = state.files.flatMap((f) => (f.state === "ready" ? [f.id] : []));
     dispatch({ type: "send", text });
     setDraft("");
     inflight.current = new AbortController();
     const onDelta = (piece: string) => dispatch({ type: "delta", text: piece });
-    dispatch({ type: "answer", result: await sendMessage(text.trim(), lang, onDelta, inflight.current.signal) });
+    const result = await sendMessage(text.trim(), lang, { files, onDelta, signal: inflight.current.signal });
+    hasSession.current = true;
+    dispatch({ type: "answer", result });
+  }
+
+  // Each file uploads on its own request, so they are converted side by side. Without a session yet, the first one
+  // goes alone: its answer sets the session cookie, or each upload would start a session of its own.
+  async function pick(list: FileList | null) {
+    const jobs = Array.from(list ?? [])
+      .slice(0, room)
+      .map((file) => {
+        const key = ++fileKey.current;
+        dispatch({ type: "fileStart", key, name: file.name });
+        return { key, file };
+      });
+    if (picker.current) picker.current.value = "";
+    const run = async ({ key, file }: { key: number; file: File }) => {
+      const result = await uploadFile(file);
+      hasSession.current = true;
+      dispatch({ type: "fileDone", key, result });
+    };
+    if (!hasSession.current && jobs.length) await run(jobs.shift()!);
+    await Promise.all(jobs.map(run));
   }
 
   function onKey(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -80,6 +110,7 @@ export function Chat({ lang }: { lang: Lang }) {
                   className="chat-btn"
                   onClick={() => {
                     inflight.current?.abort();
+                    hasSession.current = false; // the API forgets the session; the next request starts a new one
                     dispatch({ type: "clear" });
                     clearConversation();
                   }}
@@ -127,6 +158,25 @@ export function Chat({ lang }: { lang: Lang }) {
               send(draft);
             }}
           >
+            {state.files.length > 0 && (
+              <ul className="chat-files">
+                {state.files.map((f) => (
+                  <li key={f.key} className={`chat-file ${f.state}`}>
+                    <span className="chat-file-name">{f.name}</span>
+                    <span className="chat-file-note">
+                      {f.state === "uploading" ? copy.files.reading : f.state === "ready" ? f.summary : copy.files.refused[f.reason]}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`${copy.files.remove} ${f.name}`}
+                      onClick={() => dispatch({ type: "fileRemove", key: f.key })}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <textarea
               ref={input}
               rows={1}
@@ -139,7 +189,15 @@ export function Chat({ lang }: { lang: Lang }) {
               onKeyDown={onKey}
             />
             <div className="chat-bar">
-              <button type="button" className="chat-attach" disabled aria-label={copy.attach} title={copy.attach}>
+              <input ref={picker} type="file" accept={ACCEPT} multiple hidden onChange={(e) => pick(e.target.files)} />
+              <button
+                type="button"
+                className="chat-attach"
+                disabled={state.pending || room < 1}
+                aria-label={copy.files.attach}
+                title={copy.files.attach}
+                onClick={() => picker.current?.click()}
+              >
                 <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                   <path
                     d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3l8-8"
@@ -154,7 +212,7 @@ export function Chat({ lang }: { lang: Lang }) {
                   {draft.length}/{MAX}
                 </span>
               )}
-              <button type="submit" className="chat-send" disabled={!draft.trim() || state.pending}>
+              <button type="submit" className="chat-send" disabled={!draft.trim() || state.pending || uploading}>
                 {copy.send}
               </button>
             </div>
@@ -172,6 +230,7 @@ function Message({ entry }: { entry: Entry }) {
     <div className={`chat-msg ${entry.from}`}>
       <p className="chat-who">{entry.from === "you" ? copy.you : copy.bot}</p>
       <p className="chat-text">{entry.text}</p>
+      {entry.files && <p className="chat-sent-files">{entry.files.join(", ")}</p>}
     </div>
   );
 }

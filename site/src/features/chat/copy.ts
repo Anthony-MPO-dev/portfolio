@@ -1,5 +1,6 @@
 // Fixed English text of the chat panel: labels, notices and the contact form. The Portuguese copy comes with the
 // /pt/ pages, after the author approves it. Used by: features/chat/chat.tsx, lead-form.tsx.
+import type { FileRefusal } from "./api";
 import type { Notice } from "./state";
 
 export const copy = {
@@ -10,19 +11,34 @@ export const copy = {
   suggestions: ["Is he open to remote roles in the US or Europe?", "What has he built with RAG and ChromaDB?", "What does Insight AI & Automation build for companies?"],
   placeholder: "Ask about his Python, RAG or n8n work",
   send: "Send",
-  attach: "Attach a file (coming soon)",
+  files: {
+    attach: "Attach an image, a PDF or a spreadsheet (up to 3)",
+    reading: "Reading the file",
+    remove: "Remove",
+    refused: {
+      type: "Only images, PDF, XLSX and CSV files work here.",
+      too_big: "Too big. Images can be up to 5 MB, and PDF or XLSX files up to 10 MB.",
+      unreadable: "I couldn't read this file.",
+      no_text: "This PDF has no text. Send a picture of the page instead.",
+      busy: "Busy right now. Try this file again in a minute.",
+      too_many: "This conversation already has 10 files. Clear it to send more.",
+      rate_limited: "You've hit the hourly limit. Try again later.",
+      offline: "Files are off right now. You can still ask in text.",
+    } satisfies Record<FileRefusal, string>,
+  },
   clear: "Clear",
   close: "Close",
   you: "You",
   bot: "Assistant",
   typing: "The assistant is typing",
-  privacy: "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored.",
+  privacy:
+    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data.",
   notices: {
     offline: "Offline right now. You can still reach Anthony below.",
     rate_limited: "You've hit the limit of 20 messages an hour or 60 a day. Try again later, or reach Anthony below.",
     busy: "One moment, still answering your last message.",
     conversation_limit: "This conversation has used all 20 exchanges. Clear it to start over, or reach Anthony below.",
-    invalid: "Messages can be up to 500 characters.",
+    invalid: "Messages can be up to 500 characters. A file waits 30 minutes at most, so attach it again if it expired.",
     blocked: "I can only help with questions about Anthony's work. You can also reach him below.",
   } satisfies Record<Notice, string>,
   talk: "Talk to Anthony",

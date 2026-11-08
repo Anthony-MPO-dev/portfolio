@@ -107,6 +107,36 @@ describe("streaming", () => {
   });
 });
 
+describe("files", () => {
+  const start = (s: State, key: number, name = `f${key}.pdf`) => reduce(s, { type: "fileStart", key, name });
+  const ready = (key: number, id = `id${key}`) =>
+    ({ type: "fileDone", key, result: { status: "ok", id, summary: "pdf, 3 pages" } }) as const;
+
+  it("shows each file while it uploads, then ready with its summary or refused with the reason", () => {
+    let s = start(start(initial, 1), 2);
+    expect(s.files.map((f) => f.state)).toEqual(["uploading", "uploading"]);
+    s = reduce(reduce(s, ready(1)), { type: "fileDone", key: 2, result: { status: "refused", reason: "type" } });
+    expect(s.files).toEqual([
+      { key: 1, name: "f1.pdf", state: "ready", id: "id1", summary: "pdf, 3 pages" },
+      { key: 2, name: "f2.pdf", state: "refused", reason: "type" },
+    ]);
+    expect(reduce(s, { type: "fileRemove", key: 1 }).files.map((f) => f.key)).toEqual([2]);
+  });
+
+  it("waits for every upload before sending", () => {
+    const s = reduce(start(initial, 1), { type: "send", text: "What is this?" });
+    expect(s.entries).toEqual([]);
+  });
+
+  it("sends the ready files' names with the message and clears the list", () => {
+    let s = reduce(start(start(initial, 1), 2, "x.exe"), ready(1));
+    s = reduce(s, { type: "fileDone", key: 2, result: { status: "refused", reason: "type" } });
+    s = reduce(s, { type: "send", text: "What is this?" });
+    expect(s.entries).toEqual([{ id: 0, from: "you", text: "What is this?", files: ["f1.pdf"] }]);
+    expect(s.files).toEqual([]);
+  });
+});
+
 it("clearing starts over", () => {
   expect(reduce(reduce(sent(), ok("Yes.", true)), { type: "clear" })).toEqual(initial);
 });

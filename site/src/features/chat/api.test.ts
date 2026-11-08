@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearConversation, sendMessage, submitLead } from "./api";
+import { clearConversation, sendMessage, submitLead, uploadFile } from "./api";
 
 function respond(status: number, body: unknown) {
   const fetch = vi.fn(async () => new Response(status === 204 ? null : typeof body === "string" ? body : JSON.stringify(body), { status }));
@@ -58,7 +58,7 @@ describe("sendMessage, streamed", () => {
   it("hands each piece over as it arrives and returns the whole reply", async () => {
     streamed(delta("He is "), delta("open.") + done("ok", true));
     const pieces: string[] = [];
-    expect(await sendMessage("q", "en", (t) => pieces.push(t))).toEqual({ status: "ok", reply: "He is open.", offerContact: true });
+    expect(await sendMessage("q", "en", { onDelta: (t) => pieces.push(t) })).toEqual({ status: "ok", reply: "He is open.", offerContact: true });
     expect(pieces).toEqual(["He is ", "open."]);
   });
 
@@ -79,6 +79,41 @@ describe("sendMessage, streamed", () => {
   ])("is offline when %s", async (_, chunks) => {
     streamed(...chunks);
     expect(await sendMessage("q", "en")).toEqual({ status: "offline", reply: "", offerContact: true });
+  });
+});
+
+describe("files", () => {
+  it("names the uploaded files in the message", async () => {
+    const fetch = respond(200, { status: "ok", reply: "Read.", offer_contact: false });
+    await sendMessage("What is this?", "en", { files: ["ab12", "cd34"] });
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ message: "What is this?", page_lang: "en", attachments: ["ab12", "cd34"] });
+  });
+
+  it("uploads one file as raw bytes and reads its id and summary", async () => {
+    const fetch = respond(200, { status: "ok", id: "ab12", summary: "pdf, 3 pages" });
+    expect(await uploadFile(new Blob(["%PDF"]))).toEqual({ status: "ok", id: "ab12", summary: "pdf, 3 pages" });
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/attachments");
+    expect(new Headers(init.headers).get("content-type")).toBe("application/octet-stream");
+  });
+
+  it.each([
+    [422, { status: "rejected", reason: "no_text" }, "no_text"],
+    [429, { status: "too_many" }, "too_many"],
+    [422, { status: "rejected", reason: "weird" }, "unreadable"],
+    [502, "bad gateway", "unreadable"],
+  ])("says why a file was refused (%s)", async (code, body, reason) => {
+    respond(code, body);
+    expect(await uploadFile(new Blob(["x"]))).toEqual({ status: "refused", reason });
+  });
+
+  it("refuses a file over 10 MB without sending it, and is offline when the network fails", async () => {
+    const fetch = respond(200, {});
+    expect(await uploadFile(new Blob([new Uint8Array(10 * 1024 * 1024 + 1)]))).toEqual({ status: "refused", reason: "too_big" });
+    expect(fetch).not.toHaveBeenCalled();
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("down"))));
+    expect(await uploadFile(new Blob(["x"]))).toEqual({ status: "refused", reason: "offline" });
   });
 });
 

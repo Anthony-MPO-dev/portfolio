@@ -1,18 +1,24 @@
-// Chat API client: the three browser calls (/api/chat POST and DELETE, /api/lead), same origin, JSON in, JSON or NDJSON (a streamed answer) out.
+// Chat API client: the browser calls (/api/chat POST and DELETE, /api/attachments, /api/lead), same origin, JSON or
+// one file's raw bytes in, JSON or NDJSON (a streamed answer) out.
 // Responsibility: turn every failure (network, non-JSON page, unknown status) into a status the page knows, so the
-// visitor sees a fixed notice and the contact, never an error. Public API: sendMessage, submitLead,
-// clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
+// visitor sees a fixed notice and the contact, never an error. Public API: sendMessage, uploadFile,
+// submitLead, clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
 
 export type Lang = "en" | "pt";
 export type ChatStatus = "ok" | "invalid" | "rate_limited" | "busy" | "conversation_limit" | "offline" | "blocked";
 export type ChatResult = { status: ChatStatus; reply: string; offerContact: boolean };
 export type LeadStatus = "ok" | "invalid" | "rate_limited" | "unavailable";
 export type LeadResult = { status: LeadStatus; whatsapp?: string };
+export type FileRefusal =
+  | "type" | "too_big" | "unreadable" | "no_text" | "busy" | "too_many" | "rate_limited" | "offline";
+export type UploadResult = { status: "ok"; id: string; summary: string } | { status: "refused"; reason: FileRefusal };
 export type LeadFields = { name: string; company: string; email: string; linkedin: string; kind: "hiring" | "project" };
 
 const CHAT: readonly string[] = ["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline", "blocked"];
 const LEAD: readonly string[] = ["ok", "invalid", "rate_limited", "unavailable"];
 const OFFLINE: ChatResult = { status: "offline", reply: "", offerContact: true };
+const REFUSALS: readonly string[] = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline"];
+const MAX_FILE = 10 * 1024 * 1024; // the API's limit; each type has a smaller one there
 
 type Data = Record<string, unknown>;
 
@@ -32,11 +38,11 @@ function post(url: string, body: unknown, signal?: AbortSignal): Promise<Respons
 export async function sendMessage(
   message: string,
   pageLang: Lang,
-  onDelta: (text: string) => void = () => {},
-  signal?: AbortSignal,
+  { files = [], onDelta = () => {}, signal }: { files?: string[]; onDelta?: (text: string) => void; signal?: AbortSignal } = {},
 ): Promise<ChatResult> {
   try {
-    const response = await post("/api/chat", { message, page_lang: pageLang }, signal);
+    const body = { message, page_lang: pageLang, ...(files.length ? { attachments: files } : {}) };
+    const response = await post("/api/chat", body, signal);
     if (!response.headers.get("content-type")?.includes("ndjson")) return chatResult(await response.json());
     const lines = response.body!.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = "";
@@ -63,6 +69,25 @@ function chatResult(data: Data | null, streamed?: string): ChatResult {
   const status = data.status as ChatStatus;
   const reply = streamed === undefined ? String(data.reply ?? "") : status === "ok" ? streamed : "";
   return { status, reply, offerContact: data.offer_contact === true };
+}
+
+// One file as raw bytes; the API converts it and keeps the result for this conversation until the answer ends.
+export async function uploadFile(file: Blob): Promise<UploadResult> {
+  if (file.size > MAX_FILE) return { status: "refused", reason: "too_big" };
+  try {
+    const response = await fetch("/api/attachments", {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: file,
+      credentials: "same-origin",
+    });
+    const data = (await response.json()) as Data;
+    if (data.status === "ok" && typeof data.id === "string") return { status: "ok", id: data.id, summary: String(data.summary ?? "") };
+    const reason = String(data.status === "rejected" ? data.reason : data.status);
+    return { status: "refused", reason: REFUSALS.includes(reason) ? (reason as FileRefusal) : "unreadable" };
+  } catch (error) {
+    return { status: "refused", reason: error instanceof SyntaxError ? "unreadable" : "offline" };
+  }
 }
 
 export async function submitLead(fields: LeadFields, honeypot: string, pageLang: Lang): Promise<LeadResult> {
