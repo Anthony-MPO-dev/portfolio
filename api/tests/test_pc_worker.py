@@ -1,5 +1,5 @@
-"""Chat worker: runs `claude -p` with no tools, MCP, hooks, commands or CLAUDE.md, checks that it really had none,
-and hands the answer back."""
+"""Chat worker: runs `claude -p` with no tools, MCP, hooks, commands or CLAUDE.md, checks that it really had none
+before a single word goes out, streams the answer to the API as it is written, and hands the final text back."""
 
 import json
 import subprocess
@@ -8,35 +8,41 @@ import time
 
 import pytest
 
-from worker.pc_worker import Unsafe, answer, child_env, command, pick_claude, serve
+from worker.pc_worker import Api, Chunks, Unsafe, answer, child_env, command, pick_claude, serve
 
 WORKDIR = "portfolio-worker-empty"  # only handed to the runner, never touched
 JOB = {
     "id": "job-1",
     "system": "SYSTEM PROMPT",
-    "prompt": "<visitor_message>hi</visitor_message>",
-    "schema": {"type": "object"},
+    "prompt": "<conversation>{}</conversation>",
     "deadline": time.time() + 60,
 }
 
 
 class Runner:
-    """Stands in for subprocess: records the call and returns a scripted (returncode, stdout), or raises."""
+    """Stands in for the claude process: records the call and yields scripted stdout lines, then fails like the
+    real one would (a non-zero exit at the end), or raises at once."""
 
     def __init__(self, returncode=0, stdout="", error: Exception | None = None):
-        self.result = (returncode, stdout)
-        self.error = error
+        self.returncode, self.stdout, self.error = returncode, stdout, error
         self.calls = []
 
     def __call__(self, cmd, prompt, cwd, timeout):
         self.calls.append({"cmd": cmd, "prompt": prompt, "cwd": cwd, "timeout": timeout})
         if self.error:
             raise self.error
-        return self.result
+        yield from self.stdout.splitlines()
+        if self.returncode:
+            raise subprocess.CalledProcessError(self.returncode, cmd)
 
 
 CLEAN_INIT = {"type": "system", "subtype": "init", "tools": [], "mcp_servers": [], "skills": [], "slash_commands": [],
-              "plugins": [{"name": "cc-plugin-privacy", "path": "builtin"}]}
+              "plugins": [{"name": "cc-plugin-privacy", "path": "builtin"}]}  # fmt: skip
+
+
+def delta(text):
+    return {"type": "stream_event", "event": {"type": "content_block_delta", "index": 0,
+            "delta": {"type": "text_delta", "text": text}}}  # fmt: skip
 
 
 def stream(*events, init=CLEAN_INIT, **result):
@@ -45,17 +51,23 @@ def stream(*events, init=CLEAN_INIT, **result):
     return "\n".join(json.dumps(e) for e in ([init] if init else []) + list(events) + [result_event])
 
 
-def test_claude_runs_with_no_tools_mcp_hooks_or_commands_and_streams_json():
+def run_answer(stdout=None, runner=None):
+    sent = []
+    raw = answer(JOB, runner or Runner(stdout=stdout), emit=sent.append, claude="c", model="haiku", workdir=WORKDIR)
+    return raw, sent
+
+
+def test_claude_runs_with_no_tools_mcp_hooks_or_commands_and_streams_partial_messages():
     cmd = command("claude.exe", JOB, model="haiku")
     pairs = dict(zip(cmd, cmd[1:]))
     assert {"-p", "--restricted", "--safe-mode", "--strict-mcp-config", "--no-session-persistence",
-            "--disable-slash-commands", "--verbose"} <= set(cmd)  # fmt: skip
-    # dontAsk denies every tool not allowed by name; the answer tool is the only one (a deny-all "*" would beat it)
-    assert (pairs["--tools"], pairs["--allowedTools"], pairs["--permission-mode"]) == ("", "StructuredOutput", "dontAsk")
+            "--disable-slash-commands", "--verbose", "--include-partial-messages"} <= set(cmd)  # fmt: skip
+    assert (pairs["--tools"], pairs["--permission-mode"]) == ("", "dontAsk")
+    assert "--allowedTools" not in cmd and "--json-schema" not in cmd  # no tool at all, not even an answer tool
     assert json.loads(pairs["--settings"]) == {"disableAllHooks": True}
     assert (pairs["--input-format"], pairs["--output-format"]) == ("stream-json", "stream-json")
     assert (pairs["--model"], pairs["--system-prompt"]) == ("haiku", "SYSTEM PROMPT")
-    assert json.loads(pairs["--json-schema"]) == JOB["schema"] and JOB["prompt"] not in " ".join(cmd)
+    assert JOB["prompt"] not in " ".join(cmd)
 
 
 def test_claude_gets_only_the_environment_it_needs():
@@ -70,77 +82,86 @@ def test_claude_gets_only_the_environment_it_needs():
 
 
 def test_visitor_prompt_goes_through_stdin_as_one_stream_json_message_in_an_empty_folder():
-    run = Runner(stdout=stream(structured_output={"reply": "Hi.", "offer_contact": False}))
-    answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR)
-    call = run.calls[0]
+    runner = Runner(stdout=stream(result="Hi."))
+    run_answer(runner=runner)
+    call = runner.calls[0]
     message = json.loads(call["prompt"])
     assert message == {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": JOB["prompt"]}]}}
     assert call["cwd"] == WORKDIR and 0 < call["timeout"] <= 60
 
 
-def test_structured_output_is_handed_back_as_json():
-    run = Runner(stdout=stream(structured_output={"reply": "Hi.", "offer_contact": True}))
-    raw = answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR)
-    assert json.loads(raw) == {"reply": "Hi.", "offer_contact": True}
+def test_images_go_in_the_same_message_as_png_blocks():
+    runner = Runner(stdout=stream(result="A red square."))
+    answer({**JOB, "images": ["iVBORw0KGgo="]}, runner, claude="c", model="haiku", workdir=WORKDIR)
+    content = json.loads(runner.calls[0]["prompt"])["message"]["content"]
+    assert content[1] == {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "iVBORw0KGgo="}}
 
 
-def test_plain_result_is_handed_back_when_there_is_no_structured_output():
-    run = Runner(stdout=stream(result="He has 3+ years of Python."))
-    assert answer(JOB, run, claude="claude.exe", model="haiku", workdir=WORKDIR) == "He has 3+ years of Python."
+def test_text_streams_out_as_it_is_written_and_the_final_text_comes_back():
+    raw, sent = run_answer(stream(delta("He has "), delta("3+ years."), result="He has 3+ years."))
+    assert (raw, sent) == ("He has 3+ years.", ["He has ", "3+ years."])
 
 
 def test_any_failure_hands_back_an_empty_answer():
     failures = [
-        Runner(returncode=1, stdout="boom"),
+        Runner(returncode=1, stdout=stream(result="half")),
         Runner(stdout="not json"),
         Runner(stdout=stream(is_error=True, result="quota")),
         Runner(error=subprocess.TimeoutExpired("claude", 1)),
         Runner(error=OSError("claude.exe not found")),
     ]
-    assert [answer(JOB, run, claude="c", model="haiku", workdir=WORKDIR) for run in failures] == [""] * 5
+    assert [run_answer(runner=r)[0] for r in failures] == [""] * 5
 
 
 @pytest.mark.parametrize(
     "init",
     [
-        None,  # nothing to check means nothing to trust
         {**CLEAN_INIT, "tools": ["Read"]},
+        {**CLEAN_INIT, "tools": ["StructuredOutput"]},  # no tool at all now, not even this one
         {**CLEAN_INIT, "mcp_servers": [{"name": "crm", "status": "connected"}]},
         {**CLEAN_INIT, "skills": ["deploy"]},
         {**CLEAN_INIT, "slash_commands": ["config"]},
         {**CLEAN_INIT, "plugins": [{"name": "my-plugin", "path": "C:/Users/a/.claude/plugins/my-plugin"}]},
     ],
 )
-def test_an_init_with_any_tool_server_skill_or_installed_plugin_is_refused(init, capsys):
-    run = Runner(stdout=stream(init=init, result="Sure."))
+def test_an_unclean_init_stops_the_run_before_a_word_goes_out(init, capsys):
     with pytest.raises(Unsafe):
-        answer(JOB, run, claude="c", model="haiku", workdir=WORKDIR)
+        run_answer(stream(delta("Sure."), init=init, result="Sure."))
     assert "ALERT" in capsys.readouterr().out
 
 
-def test_the_structured_output_tool_is_the_only_one_allowed():
-    init = {**CLEAN_INIT, "tools": ["StructuredOutput"]}
-    call = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "StructuredOutput", "input": {}}]}}
-    status = {"type": "system", "subtype": "status", "message": "a status line, not a dict"}
-    out = stream(status, call, init=init, structured_output={"reply": "Hi.", "offer_contact": False})
-    assert json.loads(answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR))["reply"] == "Hi."
-    out = stream(call, init={**init, "tools": ["StructuredOutput", "Read"]}, structured_output={"reply": "Hi."})
-    with pytest.raises(Unsafe, match="tools"):
-        answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR)
+def test_text_before_the_init_event_is_never_trusted():
+    sent = []
+    with pytest.raises(Unsafe, match="no init"):
+        answer(JOB, Runner(stdout=stream(delta("early"), init=None, result="x")), emit=sent.append,
+               claude="c", model="haiku", workdir=WORKDIR)  # fmt: skip
+    assert sent == []
 
 
 def test_a_tool_use_or_a_permission_denial_is_refused(capsys):
     tool_use = {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Read", "input": {}}]}}
-    for out in (stream(tool_use, result="Done."), stream(result="Done.", permission_denials=[{"tool_name": "Bash"}])):
+    tool_start = {"type": "stream_event", "event": {"type": "content_block_start", "index": 1,
+                  "content_block": {"type": "tool_use", "name": "Bash"}}}  # fmt: skip
+    status = {"type": "system", "subtype": "status", "message": "a status line, not a dict"}
+    for out in (stream(status, tool_use, result="Done."), stream(tool_start, result="Done."),
+                stream(result="Done.", permission_denials=[{"tool_name": "Bash"}])):  # fmt: skip
         with pytest.raises(Unsafe):
-            answer(JOB, Runner(stdout=out), claude="c", model="haiku", workdir=WORKDIR)
-    assert capsys.readouterr().out.count("ALERT") == 2
+            run_answer(out)
+    assert capsys.readouterr().out.count("ALERT") == 3
 
 
 def test_job_past_its_deadline_is_not_run():
-    run = Runner(stdout=stream(result="late"))
-    raw = answer({**JOB, "deadline": time.time() - 1}, run, claude="c", model="haiku", workdir=WORKDIR)
-    assert (raw, run.calls) == ("", [])
+    runner = Runner(stdout=stream(result="late"))
+    raw = answer({**JOB, "deadline": time.time() - 1}, runner, claude="c", model="haiku", workdir=WORKDIR)
+    assert (raw, runner.calls) == ("", [])
+
+
+class Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
 
 
 class FakeApi:
@@ -149,7 +170,7 @@ class FakeApi:
     def __init__(self, polls, stop: threading.Event):
         self.polls = list(polls)
         self.stop = stop
-        self.finished = []
+        self.finished, self.chunks = [], []
 
     def next_job(self):
         item = self.polls.pop(0)
@@ -159,15 +180,116 @@ class FakeApi:
             raise item
         return item
 
+    def chunk(self, job_id, text):
+        self.chunks.append((job_id, text))
+
     def finish(self, job_id, raw, alert=None):
         self.finished.append((job_id, raw) if alert is None else (job_id, raw, alert))
 
 
-def test_loop_answers_jobs_and_survives_network_errors():
+def test_chunks_go_out_in_batches_and_the_rest_on_flush():
+    api, clock = FakeApi([], threading.Event()), Clock()
+    chunks = Chunks(api, "job-1", every=0.2, clock=clock)
+    chunks("He ")
+    clock.now = 0.1
+    chunks("has ")
+    clock.now = 0.3
+    chunks("3+ ")
+    chunks("years.")
+    chunks.flush()
+    assert api.chunks == [("job-1", "He has 3+ "), ("job-1", "years.")]
+
+
+def test_a_chunk_that_fails_to_send_never_stops_the_answer():
+    class Down(FakeApi):
+        def chunk(self, job_id, text):
+            raise OSError("network down")
+
+    api = Down([], threading.Event())
+    chunks = Chunks(api, "job-1", every=0, clock=Clock())
+    chunks("Hi.")
+    chunks(" More.")  # no exception: the final answer still goes out with finish
+    chunks.flush()
+
+
+def test_loop_streams_and_finishes_jobs_and_survives_network_errors():
     stop, sleeps = threading.Event(), []
     api = FakeApi([None, OSError("network down"), OSError("still down"), JOB], stop)
-    serve(api, lambda job: "the answer", stop=stop, sleep=sleeps.append)
-    assert (api.finished, sleeps) == ([("job-1", "the answer")], [1, 2])
+
+    def handle(job, emit):
+        emit("the answer")
+        return "the answer"
+
+    serve(api, handle, stop=stop, sleep=sleeps.append)
+    assert (api.chunks, api.finished, sleeps) == ([("job-1", "the answer")], [("job-1", "the answer")], [1, 2])
+
+
+def test_an_unsafe_run_hands_back_an_empty_answer_with_the_alert_and_no_held_text():
+    stop = threading.Event()
+    api = FakeApi([JOB], stop)
+
+    def handle(job, emit):
+        emit("held in the batch")
+        raise Unsafe("tool_use in the stream")
+
+    serve(api, handle, stop=stop, sleep=lambda s: None)
+    assert (api.chunks, api.finished) == ([], [("job-1", "", "tool_use in the stream")])
+
+
+class FakeConnection:
+    def __init__(self, responses):
+        self.responses, self.requests, self.closed = responses, [], False
+
+    def request(self, method, path, body=None, headers=None):
+        self.requests.append((method, path, body, headers))
+        outcome = self.responses.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        self.pending = outcome
+
+    def getresponse(self):
+        status, body = self.pending
+        return type("Response", (), {"status": status, "read": lambda self: body})()
+
+    def close(self):
+        self.closed = True
+
+
+def test_the_api_client_keeps_one_connection_for_every_call():
+    made = []
+
+    def connect(host, timeout):
+        made.append(FakeConnection([(204, b""), (204, b""), (204, b"")]))
+        return made[-1]
+
+    api = Api("https://anthonymuniz.dev", "t0ken", connect=connect)
+    assert api.next_job() is None
+    api.chunk("a" * 32, "Hi")
+    api.finish("a" * 32, "Hi.")
+    method, path, body, headers = made[0].requests[1]
+    assert len(made) == 1 and (method, path) == ("POST", f"/api/worker/jobs/{'a' * 32}/chunks")
+    assert json.loads(body) == {"text": "Hi"} and headers["Authorization"] == "Bearer t0ken"
+
+
+def test_a_dropped_connection_is_reopened_once_for_a_poll_but_a_chunk_is_never_resent():
+    made = []
+    scripts = [[ConnectionResetError("closed by the server")], [(200, b'{"id": "x"}'), BrokenPipeError("gone")]]
+
+    def connect(host, timeout):
+        made.append(FakeConnection(scripts.pop(0)))
+        return made[-1]
+
+    api = Api("https://anthonymuniz.dev", "t", connect=connect)
+    assert api.next_job() == {"id": "x"}
+    with pytest.raises(OSError):
+        api.chunk("a" * 32, "Hi")
+    assert len(made) == 2 and made[0].closed and made[1].closed  # the chunk was tried once, on the kept connection
+
+
+def test_an_error_status_is_an_oserror():
+    api = Api("https://anthonymuniz.dev", "wrong", connect=lambda host, timeout: FakeConnection([(401, b"")]))
+    with pytest.raises(OSError, match="401"):
+        api.next_job()
 
 
 IDE_EXES = [
@@ -192,14 +314,3 @@ def test_npm_shim_is_skipped_for_the_newest_native_exe(shim):
 
 def test_no_usable_claude_gives_none():
     assert pick_claude(None, "C:/npm/claude.cmd", []) is None
-
-
-def test_an_unsafe_run_hands_back_an_empty_answer_with_the_alert():
-    stop = threading.Event()
-    api = FakeApi([JOB], stop)
-
-    def handle(job):
-        raise Unsafe("tool_use: Read")
-
-    serve(api, handle, stop=stop, sleep=lambda s: None)
-    assert api.finished == [("job-1", "", "tool_use: Read")]

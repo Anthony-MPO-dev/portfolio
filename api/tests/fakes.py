@@ -1,5 +1,6 @@
 """In-memory fakes for the system boundaries: the model and the session store (Redis in production)."""
 
+import re
 from collections import Counter
 from dataclasses import dataclass
 
@@ -51,21 +52,30 @@ class ModelCall:
 
 
 class FakeModel:
-    """Returns a scripted reply (or "reply N"), or raises ModelUnavailable like a worker that is offline."""
+    """Streams a scripted reply (or "reply N") in pieces, or raises ModelUnavailable like a worker that is offline;
+    `pieces` scripts the exact chunks and `fail_after` drops the worker after that many."""
 
-    def __init__(self, reply: ModelReply | None = None, unavailable: bool = False, during=None):
+    def __init__(self, reply: ModelReply | None = None, unavailable: bool = False, during=None, pieces=None,
+                 fail_after: int | None = None):  # fmt: skip
         self.scripted = reply
         self.unavailable = unavailable
         self.during = during  # called while "answering", to simulate what happens meanwhile
+        self.pieces, self.fail_after = pieces, fail_after
         self.calls: list[ModelCall] = []
 
-    def reply(self, history: list[Turn], message: str, page_lang: str) -> ModelReply:
+    def stream(self, history: list[Turn], message: str, page_lang: str):
         self.calls.append(ModelCall(list(history), message, page_lang))
         if self.during:
             self.during()
         if self.unavailable:
             raise ModelUnavailable()
-        return self.scripted or ModelReply(f"reply {len(self.calls)}", offer_contact=False)
+        final = self.scripted or ModelReply(f"reply {len(self.calls)}", offer_contact=False)
+        pieces = self.pieces if self.pieces is not None else re.findall(r"\S+\s*", final.text)
+        for n, piece in enumerate(pieces):
+            if self.fail_after is not None and n == self.fail_after:
+                raise ModelUnavailable("worker dropped mid-answer")
+            yield piece
+        yield final
 
 
 class FakeStore:

@@ -3,7 +3,7 @@
 import pytest
 
 from app.ports import ModelReply
-from app.services.chat import ChatService, Limits
+from app.services.chat import ChatResult, ChatService, Limits
 from tests.fakes import FakeModel, FakeQuestionLog, FakeStore
 
 IP = "client-a"
@@ -21,7 +21,18 @@ def make(model: FakeModel | None = None, limits: Limits = Limits(), log: FakeQue
 
 
 def ask(chat: ChatService, message: str, sid: str | None = None, ip: str = IP, lang: str = "en"):
-    return chat.answer(session_id=sid, client_key=ip, message=message, page_lang=lang)
+    """Send a message and read any streamed answer to the end, as the page would."""
+    result = chat.answer(session_id=sid, client_key=ip, message=message, page_lang=lang)
+    if result.events is None:
+        return result
+    pieces, done = [], None
+    for event in result.events:
+        if event["type"] == "delta":
+            pieces.append(event["text"])
+        else:
+            done = event
+    text = "".join(pieces).strip()
+    return ChatResult(done["status"], result.session_id, text if done["status"] == "ok" else None, done["offer_contact"])
 
 
 def test_new_visitor_gets_a_session_and_the_model_reply():
@@ -193,3 +204,55 @@ def test_the_off_switch_answers_offline_before_anything_is_counted_or_asked():
     result = ask(chat, "hello")
     assert (result.status, result.offer_contact) == ("offline", True)
     assert model.calls == [] and store.ip_hour[IP] == 0
+
+
+def stream_events(chat, message="hi", sid=None):
+    result = chat.answer(session_id=sid, client_key=IP, message=message, page_lang="en")
+    return result, list(result.events)
+
+
+def test_only_whole_words_go_out_while_the_answer_is_written():
+    model = FakeModel(ModelReply("He has 3+ years.", False), pieces=["He h", "as 3+ ye", "ars."])
+    chat, _, store = make(model)
+    result, events = stream_events(chat)
+    assert events == [
+        {"type": "delta", "text": "He "},
+        {"type": "delta", "text": "has 3+ "},
+        {"type": "delta", "text": "years."},
+        {"type": "done", "status": "ok", "offer_contact": False},
+    ]
+    assert store.history(result.session_id)[-1] == {"role": "assistant", "content": "He has 3+ years."}
+
+
+def test_the_guard_stops_the_stream_before_a_bad_word_shows_and_nothing_is_saved():
+    model = FakeModel(ModelReply("See https://evil.example/x now.", False), pieces=["See ", "https://evil.example/x ", "now."])
+    alerts = []
+    chat, _, store = make(model, guard=lambda text: "link" if "evil" in text else None, alert=alerts.append)
+    result, events = stream_events(chat)
+    assert events == [{"type": "delta", "text": "See "}, {"type": "done", "status": "blocked", "offer_contact": True}]
+    assert store.turns(result.session_id) == 0 and alerts == ["output guard: link"]
+
+
+def test_a_worker_that_drops_mid_answer_ends_the_stream_offline_and_saves_nothing():
+    chat, _, store = make(FakeModel(ModelReply("One two three.", False), fail_after=1))
+    result, events = stream_events(chat)
+    assert events[-1] == {"type": "done", "status": "offline", "offer_contact": True}
+    assert store.turns(result.session_id) == 0
+
+
+def test_the_contact_line_never_reaches_the_page_and_offers_the_form():
+    model = FakeModel(ModelReply("Anthony replies by email.", True), pieces=["Anthony replies ", "by email.\n", "[[contact]]"])
+    chat, _, _ = make(model)
+    _, events = stream_events(chat)
+    shown = "".join(e["text"] for e in events if e["type"] == "delta")
+    assert "[[contact]]" not in shown and shown.strip() == "Anthony replies by email."
+    assert events[-1] == {"type": "done", "status": "ok", "offer_contact": True}
+
+
+def test_the_session_stays_locked_while_the_answer_streams_and_is_freed_at_the_end():
+    chat, _, store = make(FakeModel(ModelReply("One two three.", False)))
+    first = chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en")
+    next(first.events)  # the first word is out, the rest still coming
+    assert ask(chat, "again", sid=first.session_id).status == "busy"
+    list(first.events)
+    assert ask(chat, "again", sid=first.session_id).status == "ok"

@@ -13,11 +13,12 @@ Tests: tests/test_http.py.
 """
 
 import hashlib
+import json
 from collections.abc import Callable
 import hmac
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.client_ip import client_ip, ip_source
@@ -52,6 +53,10 @@ class LeadIn(BaseModel):
     kind: str = Field("", max_length=20)
     page_lang: str = Field("en", max_length=10)
     website: str = Field("", max_length=300)  # honeypot: hidden from people, filled by bots
+
+
+class ChunkIn(BaseModel):
+    text: str = Field(max_length=5_000)
 
 
 class AnswerIn(BaseModel):
@@ -103,10 +108,14 @@ def create_app(
         result = chat.answer(
             session_id=sid, client_key=client_key(request), message=body.message, page_lang=body.page_lang
         )
-        response = JSONResponse(
-            {"status": result.status, "reply": result.reply, "offer_contact": result.offer_contact},
-            CODES[result.status],
-        )
+        if result.events is not None:  # the answer streams: one JSON event per line, as it is written
+            lines = (json.dumps(event, ensure_ascii=False) + "\n" for event in result.events)
+            response = StreamingResponse(lines, media_type="application/x-ndjson", headers={"X-Accel-Buffering": "no"})
+        else:
+            response = JSONResponse(
+                {"status": result.status, "reply": result.reply, "offer_contact": result.offer_contact},
+                CODES[result.status],
+            )
         if result.session_id and result.session_id != sid:
             response.set_cookie(COOKIE, result.session_id, **COOKIE_FLAGS)
         return response
@@ -139,6 +148,11 @@ def create_app(
         def next_job(wait: int = Query(20, ge=1, le=25)) -> Response:
             job = worker.next_job(wait)
             return JSONResponse(job) if job else Response(status_code=204)
+
+        @app.post("/api/worker/jobs/{job_id}/chunks", status_code=204, dependencies=[Depends(worker_auth)])
+        def stream_job(body: ChunkIn, job_id: str = Path(pattern="^[0-9a-f]{32}$")) -> Response:
+            worker.chunk(job_id, body.text)
+            return Response(status_code=204)
 
         @app.post("/api/worker/jobs/{job_id}", status_code=204, dependencies=[Depends(worker_auth)])
         def finish_job(body: AnswerIn, job_id: str = Path(pattern="^[0-9a-f]{32}$")) -> Response:

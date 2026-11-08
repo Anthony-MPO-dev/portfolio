@@ -19,10 +19,10 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.prompt import REPLY_SCHEMA, parse_reply, system_prompt, transcript
+from app.adapters.prompt import parse_reply, system_prompt, transcript
 from app.ports import ModelUnavailable
 from golden.grading import forbidden_terms, grade, load_cases, mask
-from worker.pc_worker import answer, find_claude, run_claude
+from worker.pc_worker import answer, find_claude, stream_claude
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES = load_cases((ROOT / "evals" / "golden_set.yaml").read_text(encoding="utf-8"))
@@ -38,10 +38,9 @@ def test_case(case, tmp_path):
     job = {
         "system": system_prompt(FACTS, canary=canary),
         "prompt": transcript([], case.q, case.page_lang),
-        "schema": REPLY_SCHEMA,
         "deadline": time.time() + 120,
     }
-    raw = answer(job, run_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path))
+    raw = answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path))  # streamed, as in production
     try:
         reply = parse_reply(raw)
     except ModelUnavailable:

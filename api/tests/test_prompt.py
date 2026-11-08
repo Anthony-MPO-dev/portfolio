@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from app.adapters.prompt import parse_reply, system_prompt, transcript
+from app.adapters.prompt import CONTACT, parse_reply, system_prompt, transcript
 from app.ports import ModelReply, ModelUnavailable
 
 FACTS = "# Anthony Muniz: public facts\n- 3+ years of professional Python experience."
@@ -54,23 +54,24 @@ def test_a_canary_is_planted_only_when_given():
 @pytest.mark.parametrize(
     ("raw", "reply", "offer"),
     [
-        ('{"reply": "He is open to roles.", "offer_contact": true}', "He is open to roles.", True),
-        ('```json\n{"reply": "Hi.", "offer_contact": false}\n```', "Hi.", False),
-        ('{"reply": "Hi.", "offer_contact": "yes"}', "Hi.", False),
+        ("He is open to remote roles.\n[[contact]]", "He is open to remote roles.", True),
         ("He has 3+ years of Python.", "He has 3+ years of Python.", False),
+        ("I can only help with Anthony. [[contact]]\n", "I can only help with Anthony.", True),
+        ('{"reply": "He is open to roles.", "offer_contact": true}', "He is open to roles.", True),  # old habit
+        ('```json\n{"reply": "Hi.", "offer_contact": false}\n```', "Hi.", False),
     ],
 )
-def test_reply_is_read_from_json_or_kept_as_plain_text(raw, reply, offer):
+def test_reply_is_plain_text_and_a_last_contact_line_offers_the_form(raw, reply, offer):
     parsed = parse_reply(raw)
     assert (parsed.text, parsed.offer_contact) == (reply, offer)
 
 
-@pytest.mark.parametrize("raw", ["", "   ", '{"reply": "", "offer_contact": true}', '{"offer_contact": true}'])
+@pytest.mark.parametrize("raw", ["", "   ", "[[contact]]", '{"reply": "", "offer_contact": true}'])
 def test_empty_reply_counts_as_the_model_being_unavailable(raw):
     with pytest.raises(ModelUnavailable):
         parse_reply(raw)
 
 
-def test_reply_the_model_wrapped_in_json_twice_is_unwrapped():
-    raw = json.dumps({"reply": json.dumps({"reply": "Only about Anthony.", "offer_contact": True}), "offer_contact": True})
-    assert parse_reply(raw) == ModelReply("Only about Anthony.", True)
+def test_the_rules_ask_for_plain_text_and_the_contact_line_never_json():
+    prompt = system_prompt("facts")
+    assert CONTACT in prompt and "JSON object: {" not in prompt and "offer_contact" not in prompt

@@ -1,5 +1,6 @@
 """HTTP layer: routes translate requests into the use cases, set the session cookie and guard the worker routes."""
 
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -18,13 +19,22 @@ LEAD = {"name": "Jane", "company": "Acme", "email": "jane@acme.com", "kind": "hi
 class FakeWorker:
     def __init__(self, jobs=()):
         self.jobs = list(jobs)
-        self.finished = []
+        self.finished, self.chunks = [], []
 
     def next_job(self, wait):
         return self.jobs.pop(0) if self.jobs else None
 
+    def chunk(self, job_id, text):
+        self.chunks.append((job_id, text))
+
     def finish(self, job_id, raw):
         self.finished.append((job_id, raw))
+
+
+def events(response):
+    """The NDJSON lines of a streamed answer."""
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    return [json.loads(line) for line in response.text.splitlines() if line]
 
 
 class World:
@@ -51,7 +61,12 @@ def test_new_visitor_gets_the_reply_and_a_strict_session_cookie():
     world = World(FakeModel(ModelReply("Hi there.", offer_contact=True)))
     response = world.chat()
     cookie = response.headers["set-cookie"].lower()
-    assert response.json() == {"status": "ok", "reply": "Hi there.", "offer_contact": True}
+    assert events(response) == [
+        {"type": "delta", "text": "Hi "},
+        {"type": "delta", "text": "there."},
+        {"type": "done", "status": "ok", "offer_contact": True},
+    ]
+    assert response.headers["x-accel-buffering"] == "no" and "no-store" in response.headers["cache-control"]
     assert cookie.startswith("__host-chat_sid=sid-1;")
     assert all(flag in cookie for flag in ("secure", "httponly", "samesite=strict", "path=/"))
     assert "max-age" not in cookie and "expires" not in cookie
@@ -87,12 +102,12 @@ def test_limits_come_back_as_429_with_the_status():
 
 def test_offline_is_a_normal_answer_with_the_contact_offer():
     response = World(FakeModel(unavailable=True)).chat()
-    assert (response.status_code, response.json()) == (200, {"status": "offline", "reply": None, "offer_contact": True})
+    assert (response.status_code, events(response)) == (200, [{"type": "done", "status": "offline", "offer_contact": True}])
 
 
 def test_a_blocked_reply_is_a_normal_answer_without_the_text():
     response = World(FakeModel(ModelReply("leak", offer_contact=False)), guard=lambda reply: "secret").chat()
-    assert (response.status_code, response.json()) == (200, {"status": "blocked", "reply": None, "offer_contact": True})
+    assert (response.status_code, events(response)) == (200, [{"type": "done", "status": "blocked", "offer_contact": True}])
 
 
 def test_the_visitor_ip_is_never_stored_as_is():
@@ -199,3 +214,11 @@ def test_a_worker_alert_with_markup_or_too_long_is_refused():
         response = world.client.post(f"/api/worker/jobs/{'b' * 32}", json={"answer": "", "alert": alert}, headers=auth)
         assert response.status_code == 422
     assert world.alerts == []
+
+
+def test_the_worker_streams_pieces_of_the_answer():
+    world = World()
+    auth = {"Authorization": f"Bearer {TOKEN}"}
+    done = world.client.post(f"/api/worker/jobs/{'c' * 32}/chunks", json={"text": "He has "}, headers=auth)
+    refused = world.client.post(f"/api/worker/jobs/{'c' * 32}/chunks", json={"text": "x"})
+    assert (done.status_code, refused.status_code, world.worker.chunks) == (204, 401, [("c" * 32, "He has ")])

@@ -10,6 +10,7 @@ Depends on: nothing.
 Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fakes.py.
 """
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Literal, Protocol, TypedDict
 
@@ -30,8 +31,9 @@ class ModelUnavailable(Exception):
 
 
 class ChatModel(Protocol):
-    def reply(self, history: list[Turn], message: str, page_lang: str) -> ModelReply:
-        """Answer `message` given the earlier turns. Raises ModelUnavailable when it can't."""
+    def stream(self, history: list[Turn], message: str, page_lang: str) -> Iterator[str | ModelReply]:
+        """Answer `message` given the earlier turns: yield text pieces as they are written, then the final
+        ModelReply. Raises ModelUnavailable when it can't, even mid-stream."""
         ...
 
 
@@ -117,13 +119,14 @@ class Job(TypedDict):
     id: str
     system: str
     prompt: str
-    schema: dict
     deadline: float  # Unix time; past it, nobody is waiting
 
 
 class WorkerJobs(Protocol):
-    """The worker's side of the local-worker engine, behind the two worker routes."""
+    """The worker's side of the local-worker engine, behind the three worker routes."""
 
     def next_job(self, wait: int) -> Job | None: ...
+
+    def chunk(self, job_id: str, text: str) -> None: ...
 
     def finish(self, job_id: str, raw: str) -> None: ...
