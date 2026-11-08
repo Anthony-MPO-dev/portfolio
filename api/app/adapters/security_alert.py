@@ -6,7 +6,7 @@ chat:*, so a burst of attacks is one message), and never break the chat: a faile
 a short label, never visitor text.
 Public API: N8nSecurityAlert (callable with the reason), WINDOW.
 Used by: app.main (ChatService on a guard hit, the worker route on a worker alert).
-Depends on: redis-py, app.adapters.lead_alert._post.
+Depends on: redis-py, a poster (app.http_post.Poster in production).
 Tests: tests/test_security_alert.py.
 """
 
@@ -16,14 +16,13 @@ from collections.abc import Callable
 
 import redis
 
-from app.adapters.lead_alert import _post
 
 log = logging.getLogger(__name__)
 WINDOW = 600  # seconds: one message per reason per window
 
 
 class N8nSecurityAlert:
-    def __init__(self, url: str, r: redis.Redis, post: Callable[[str, bytes], None] = _post):
+    def __init__(self, url: str, r: redis.Redis, post: Callable[[str, bytes], None]):
         self.url, self.redis, self.post = url, r, post
 
     def __call__(self, reason: str) -> None:

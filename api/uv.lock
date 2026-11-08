@@ -378,10 +378,11 @@ dependencies = [
     { name = "fastapi" },
     { name = "openpyxl" },
     { name = "pillow" },
-    { name = "psycopg", extra = ["binary"] },
+    { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pypdf" },
     { name = "pyseccomp", marker = "sys_platform == 'linux'" },
     { name = "redis" },
+    { name = "urllib3" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -399,10 +400,11 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.162.0" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pillow", specifier = ">=13.0.0" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.8" },
+    { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.3.8" },
     { name = "pypdf", specifier = ">=7.0.0" },
     { name = "pyseccomp", marker = "sys_platform == 'linux'", specifier = ">=0.1.2" },
     { name = "redis", specifier = ">=8.1" },
+    { name = "urllib3", specifier = ">=2.8.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.54.0" },
 ]
 
@@ -430,6 +432,9 @@ wheels = [
 [package.optional-dependencies]
 binary = [
     { name = "psycopg-binary", marker = "implementation_name != 'pypy'" },
+]
+pool = [
+    { name = "psycopg-pool" },
 ]
 
 [[package]]
@@ -481,6 +486,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/48/4b/a6ead08df35feb2f5e10897e33c1ba26809f85365a7c2a0efa244acf9008/psycopg_binary-3.3.8-cp315-cp315-musllinux_1_2_riscv64.whl", hash = "sha256:6bde86fb307fe1698fbbfeaa96130d4825f265afbeff217b959c1905b86f924d", size = 4032823, upload-time = "2026-11-04T09:44:15.209Z" },
     { url = "https://files.pythonhosted.org/packages/68/8a/7ff05b083c676024beb549863a19d59b205931010ec7f3a12aadf5de9901/psycopg_binary-3.3.8-cp315-cp315-musllinux_1_2_x86_64.whl", hash = "sha256:c2154bd84cf20148d9a59e3ade04f0f754462b96cfac91d54d76ef33af7946e5", size = 4341050, upload-time = "2026-11-04T09:44:21.257Z" },
     { url = "https://files.pythonhosted.org/packages/59/a7/58ab2cf0a6da11d5c2b00d524f5d5b114e2e6359e629d34360cf57a22e20/psycopg_binary-3.3.8-cp315-cp315-win_amd64.whl", hash = "sha256:0332e83c2e78b1c8c00c1095688f9b332bdde9d5e9d61b8ce1cdcaf716a19b9e", size = 3716321, upload-time = "2026-11-04T09:44:24.631Z" },
+]
+
+[[package]]
+name = "psycopg-pool"
+version = "3.3.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/74/5e/c0664b968b102ff68b811d999c728546c48d5c1eec03e3bbaf88c0cb4472/psycopg_pool-3.3.3.tar.gz", hash = "sha256:df87b5d9d0ad7db37f6cdad4fa8ce113d250f5997f6db38e9a99192fb67f9e1d", size = 32006, upload-time = "2026-09-22T15:53:24.947Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5d/b4/452c6607a0f479465cd8a9b0d9956919fcb150050c1f83f9f11e6b8ee8dc/psycopg_pool-3.3.3-py3-none-any.whl", hash = "sha256:9b9cd6a4fcec47a410f7e82d408540e7f77b478509e91b44c1a5457a13e5ff37", size = 40304, upload-time = "2026-09-22T15:53:23.712Z" },
 ]
 
 [[package]]
@@ -773,6 +790,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7a/29/6a1391d31cd00ff9e927215a224a880e1e84e826b64ba80a499e51c074d8/tzdata-2026.6.tar.gz", hash = "sha256:85d2cd9c09f81f0bb29db27759fc83af4f1e620efb814f8c5bf8b4cc4feece6d", size = 201017, upload-time = "2026-10-28T09:57:09.137Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0a/66/9a06c2227fedfd4919f0eaaa8b94377d9730882a7e4f95823c9a331ab5e1/tzdata-2026.6-py2.py3-none-any.whl", hash = "sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec", size = 348210, upload-time = "2026-10-28T09:57:07.276Z" },
+]
+
+[[package]]
+name = "urllib3"
+version = "2.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz", hash = "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63", size = 458972, upload-time = "2026-09-15T19:29:36.253Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl", hash = "sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3", size = 135717, upload-time = "2026-09-15T19:29:34.577Z" },
 ]
 
 [[package]]

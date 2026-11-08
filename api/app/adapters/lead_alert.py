@@ -5,13 +5,12 @@ it; if the alert then fails, the lead stays saved, the visitor still gets an ans
 N8nAlert posts the lead as JSON to the webhook URL from configuration (Anthony's personal n8n, never a work one).
 Public API: SaveThenAlert, N8nAlert.
 Used by: the API composition (app.main).
-Depends on: app.ports (Lead, LeadSink, LeadUnavailable), the standard library urllib.
+Depends on: app.ports (Lead, LeadSink, LeadUnavailable), a poster (app.http_post.Poster in production: pooled, with a timeout and a breaker).
 Tests: tests/test_lead_alert.py.
 """
 
 import json
 import logging
-import urllib.request
 from collections.abc import Callable
 from dataclasses import asdict
 
@@ -20,15 +19,8 @@ from app.ports import Lead, LeadSink, LeadUnavailable
 log = logging.getLogger(__name__)
 
 
-def _post(url: str, body: bytes) -> None:
-    request = urllib.request.Request(
-        url, data=body, method="POST", headers={"Content-Type": "application/json", "User-Agent": "portfolio-api/1"}
-    )
-    urllib.request.urlopen(request, timeout=10).close()
-
-
 class N8nAlert:
-    def __init__(self, url: str, post: Callable[[str, bytes], None] = _post):
+    def __init__(self, url: str, post: Callable[[str, bytes], None]):
         self.url = url
         self.post = post
 

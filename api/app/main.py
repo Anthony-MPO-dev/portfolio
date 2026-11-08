@@ -31,12 +31,13 @@ import redis
 from fastapi import FastAPI
 
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert
-from app.adapters.postgres import PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
+from app.adapters.postgres import Db, PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisStore
 from app.adapters.security_alert import N8nSecurityAlert
 from app.adapters.worker_queue import WorkerQueue
 from app.http import create_app
+from app.http_post import Poster
 from app.output_guard import check
 from app.services.chat import ChatService
 from app.services.lead import LeadService
@@ -63,12 +64,18 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
     if engine != "worker":
         raise ConfigError(f"MODEL_ENGINE={engine!r} is not available; use 'worker'")
 
-    r = redis.Redis.from_url(env["REDIS_URL"], decode_responses=True)
+    timeout = int(env.get("MODEL_TIMEOUT", "45"))
+    # Two pooled clients: quick calls fail within seconds; the queue's blocking waits get their own, longer socket.
+    r = redis.Redis.from_url(env["REDIS_URL"], decode_responses=True, socket_timeout=5, socket_connect_timeout=3)
+    waits = redis.Redis.from_url(
+        env["REDIS_URL"], decode_responses=True, socket_timeout=timeout + 15, socket_connect_timeout=3
+    )
     store = RedisStore(r)
-    alert = N8nSecurityAlert(env["LEAD_WEBHOOK_URL"], r)  # guard and worker hits, to Anthony's Telegram
+    post = Poster()  # one keep-alive pool and one circuit breaker for every webhook call
+    alert = N8nSecurityAlert(env["LEAD_WEBHOOK_URL"], r, post=post)  # guard and worker hits, to Anthony's Telegram
     canary = secrets.token_hex(12)  # new on every start: it shows up in a reply only if the prompt leaked
-    queue = WorkerQueue(r, system_prompt(facts, canary=canary), timeout=int(env.get("MODEL_TIMEOUT", "45")))
-    db = env["DATABASE_URL"]
+    queue = WorkerQueue(waits, system_prompt(facts, canary=canary), timeout=timeout)
+    db = Db(env["DATABASE_URL"])  # pooled; opened by app(), so build stays free of network
     chat = ChatService(
         queue,
         store,
@@ -77,9 +84,9 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         guard=partial(check, canary=canary),
         alert=alert,
     )
-    sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"]))
+    sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"], post=post))
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])
-    return create_app(
+    api = create_app(
         chat=chat,
         lead=lead,
         worker=queue,
@@ -88,11 +95,14 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         origin=env.get("SITE_ORIGIN", "https://anthonymuniz.dev"),
         alert=alert,
     )
+    api.state.db = db
+    return api
 
 
 def app() -> FastAPI:
     api = build(os.environ, Path(os.environ.get("FACTS_PATH") or DEFAULT_FACTS).read_text(encoding="utf-8"))
-    db = os.environ["DATABASE_URL"]
+    db = api.state.db
+    db.open()
     try:
         ensure_schema(db)
     except psycopg.Error:
@@ -101,7 +111,7 @@ def app() -> FastAPI:
     return api
 
 
-def _purge_forever(db: str) -> None:
+def _purge_forever(db: Db) -> None:
     """Retention runs on a clock, not on traffic: delete expired leads and questions now and every 6 hours."""
     while True:
         try:

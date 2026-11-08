@@ -55,6 +55,26 @@ def test_each_process_plants_its_own_canary_in_the_system_prompt(env, monkeypatc
 
 def test_security_alerts_go_to_the_lead_webhook(env, monkeypatch):
     made = []
-    monkeypatch.setattr("app.main.N8nSecurityAlert", lambda url, r: made.append(url) or (lambda reason: None))
+    monkeypatch.setattr("app.main.N8nSecurityAlert", lambda url, r, post: made.append(url) or (lambda reason: None))
     build(env, FACTS)
     assert made == [env["LEAD_WEBHOOK_URL"]]
+
+
+def test_redis_calls_time_out_and_the_queue_waits_on_its_own_connection(env, monkeypatch):
+    import redis as redis_lib
+
+    opened = []
+    real = redis_lib.Redis.from_url
+    monkeypatch.setattr(redis_lib.Redis, "from_url", lambda url, **kw: opened.append(kw) or real(url, **kw))
+    build(env, FACTS)
+    quick, waiting = sorted(opened, key=lambda kw: kw["socket_timeout"])
+    assert quick["socket_timeout"] <= 5 and quick["socket_connect_timeout"] <= 5
+    assert waiting["socket_timeout"] > 45  # longer than the worker's longest wait, or the wait itself would time out
+
+
+def test_both_alerts_share_one_pooled_poster(env, monkeypatch):
+    posters = []
+    monkeypatch.setattr("app.main.N8nAlert", lambda url, post: posters.append(post))
+    monkeypatch.setattr("app.main.N8nSecurityAlert", lambda url, r, post: posters.append(post) or (lambda reason: None))
+    build(env, FACTS)
+    assert len(posters) == 2 and posters[0] is posters[1]
