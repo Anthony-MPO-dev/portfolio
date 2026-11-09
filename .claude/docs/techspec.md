@@ -45,7 +45,8 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 |---|---|
 | `app/root.tsx` | HTML shell, fonts, and the boot script that applies the saved theme before paint |
 | `app/routes.ts` | Route list: the home page (the `/pt/` pages come with the approved Portuguese texts) |
-| `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags, header, hero (signed with the author's photo, `assets/portrait-*`), scenes, figures, work, Services, contact. Links carry an arrow; the underline shows on hover |
+| `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags (with the schema.org Person card for search engines), header, hero (signed with the author's photo, `assets/portrait-*`), scenes, figures, work, Services, contact. Links carry an arrow; the underline shows on hover |
+| `public/robots.txt` + `sitemap.xml` | Copied as is to the site root: crawlers may read everything, and the sitemap lists the pages (add `/pt/` when it exists) |
 | `app/routes/home-entrance.css` | The typed entrance: the headline word by word behind a caret, each block of a `.typed` section out of skeleton lines; the hero on load from CSS, the rest when useReveal marks it |
 | `features/support-agent/*` | Scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles |
 | `features/credit-pipeline/*` | Scene of the credit pipeline drawing itself, about 1 hour down to as fast as 5 minutes |

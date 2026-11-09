@@ -28,6 +28,21 @@ export function meta() {
     { property: "og:type", content: "website" },
     { property: "og:url", content: SITE_URL },
     { tagName: "link", rel: "canonical", href: SITE_URL },
+    // The card search engines read about the author (schema.org Person): only facts already on the page.
+    {
+      "script:ld+json": {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        name: profile.name,
+        jobTitle: profile.role,
+        description: profile.lede,
+        url: SITE_URL,
+        email: `mailto:${profile.email}`,
+        address: { "@type": "PostalAddress", addressCountry: "BR" },
+        sameAs: [profile.linkedin, profile.github],
+        knowsAbout: ["Python", "FastAPI", "LLMs", "RAG", "Agentic AI", "LLM evaluation", "n8n", "Celery", "Redis", "Docker"],
+      },
+    },
   ];
 }
 
