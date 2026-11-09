@@ -1,4 +1,5 @@
 import { type RefObject, useEffect } from "react";
+import { reducedMotion } from "@/lib/entry";
 import { scramble } from "@/lib/scramble";
 
 // Section labels "decode" once as they come into view: their letters scramble for 0.7 s and settle, left to right,
@@ -9,7 +10,7 @@ const FRAME = 33;
 export function useDecode(root: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const el = root.current;
-    if (!el || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!el || reducedMotion()) return;
     const io = new IntersectionObserver(
       (entries) =>
         entries.forEach((entry) => {

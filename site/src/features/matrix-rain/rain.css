@@ -20,6 +20,11 @@
   animation: rain-fall var(--d) linear var(--delay) infinite;
   mask-image: linear-gradient(to bottom, transparent, #000 80%);
 }
+/* Drawn as generated content, not text: the rain is pure decoration, which WCAG 1.4.3 exempts from contrast, but
+   contrast checkers (axe, Lighthouse) still measure every text node, aria-hidden or not. */
+.rain span::before {
+  content: attr(data-t);
+}
 .rain-off span {
   animation-play-state: paused;
 }
