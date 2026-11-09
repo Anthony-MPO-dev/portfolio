@@ -50,9 +50,12 @@
   gap: 8px 48px;
   align-items: end;
 }
-@media (min-width: 900px) {
+/* Wide screens: the sentence sits right next to its number, not across the screen from it. */
+@media (min-width: 1100px) {
   .figures article {
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 36ch);
+    justify-content: start;
+    column-gap: 64px;
   }
 }
 .figure {
@@ -122,6 +125,27 @@
   line-height: 1.45;
   max-width: 48ch;
   margin: 0 0 24px;
+}
+/* Wide screens: the headline on the left, the offer and the link beside it. */
+@media (min-width: 1100px) {
+  .services {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    column-gap: 72px;
+    align-items: start;
+  }
+  .services .label {
+    grid-column: 1 / -1;
+  }
+  .services-lead {
+    grid-column: 1;
+    grid-row: 2 / span 3;
+  }
+  .services-text,
+  .services-cta {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 .services-cta {
   font-size: clamp(20px, 2.6vw, 30px);

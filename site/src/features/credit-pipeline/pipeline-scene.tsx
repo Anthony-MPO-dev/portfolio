@@ -15,7 +15,7 @@ export function PipelineScene() {
           <p className="note">
             Five or more credit bureaus in, one report out. A credit analysis used to take about an hour, and this pipeline gets
             it done in as fast as 5 minutes. Moving the heavy work to RabbitMQ and Celery workers raised capacity from about 10
-            to up to 100 operations a day.
+            to as many as 100 operations a day.
           </p>
         </div>
         <svg

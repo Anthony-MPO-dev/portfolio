@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { onEntry, reducedMotion } from "@/lib/entry";
+import { onEntry, reducedMotion, TYPED_IN_MS } from "@/lib/entry";
 import { parseFigure } from "@/lib/count";
 import "./fire-figure.css";
 
@@ -13,9 +13,6 @@ const SPARKS = Array.from({ length: 18 }, (_, i) => ({
   "--d": `${0.35 + ((i * 13) % 9) * 0.06}em`,
   "--t": `${(i % 6) * 35}ms`,
 })) as React.CSSProperties[];
-// Waits for the block to type itself in: home-entrance.css starts the first block's skeleton at 250 + 180 ms and wipes
-// it in 700 ms, so the figure is clear by about 1 s. Change the two together.
-const TYPED_IN_MS = 1000;
 
 export function FireFigure({ text }: { text: string }) {
   const id = `fire${useId().replace(/\W/g, "")}`; // the filter id, unique per figure and safe inside url(#...)

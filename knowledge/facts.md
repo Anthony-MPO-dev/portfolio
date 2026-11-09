@@ -9,7 +9,7 @@ profile, his CV, or facts he approved for publishing. If something isn't here, t
 - Based in Brazil (UTC-3), works remotely.
 - 3+ years of professional Python experience, writing code since 2017.
 - Languages: Portuguese (native), English (professional working proficiency).
-- Open to remote full-time backend and AI engineering roles with US and European teams.
+- Open to remote full-time AI and backend engineering roles with US and European teams.
 - Also takes on small freelance projects through his own company, Insight AI & Automation: n8n automations and AI
   chatbots.
 - Core stack: Python, FastAPI, LLMs, RAG, Applied AI, Claude Code, LangChain, Agentic AI, Multi-Agent Systems, n8n,
@@ -27,7 +27,7 @@ he moved SharePoint document libraries to AWS S3.
 - He cleaned up the search behind the agent's answers. On 13 of 23 test questions it now finds a document it used to
   miss, and the right one ranks 1st or 2nd instead of 3rd. An audit of the knowledge base found 44 of 307 pages with
   dead links.
-- The team's main dashboard metric swung 4x in three weeks while the bot hadn't changed at all. He replaced it with a
+- The team's main dashboard metric swung 4x in 3 weeks while the bot hadn't changed at all. He replaced it with a
   resolution metric that holds up: no escalation, no reopening within 7 days, no human reply. It showed that 1 in 4
   "bot-resolved" chats actually had a human writing in them.
 - He built an evaluation that caught an LLM judge calling a change a clear win when expert review rated it no better.
@@ -43,7 +43,7 @@ He rebuilt a credit fund's legacy low-code automations as Python and FastAPI ser
 
 - Credit analysis used to take about an hour. His pipeline pulls from 5+ credit bureaus and gets it done in as fast
   as 5 minutes.
-- Capacity went from about 10 to up to 100 credit operations a day once he moved the heavy work to RabbitMQ and Celery
+- Capacity went from about 10 to as many as 100 credit operations a day once he moved the heavy work to RabbitMQ and Celery
   workers. That's what let the team handle seasonal demand peaks.
 - He set up Prometheus, Grafana, Loki and Tempo to trace every processing stage.
 - Tech: Python, FastAPI, RabbitMQ, Celery, Redis, Docker, SQL Server.

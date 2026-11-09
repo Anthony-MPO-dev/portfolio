@@ -9,7 +9,7 @@ const IMPROVED = [0, 2, 3, 5, 7, 8, 10, 13, 14, 16, 19, 20, 22];
 export function SearchFixScene() {
   return (
     <section className="scene" aria-label="The search fix">
-      <div className="stage">
+      <div className="stage agent-stage">
         <h2 className="label">The search fix</h2>
         <svg
           className="agent-svg agent-grid"

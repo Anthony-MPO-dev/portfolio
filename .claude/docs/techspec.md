@@ -48,7 +48,7 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 | `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags (with the schema.org Person card for search engines), header, hero (signed with the author's photo, `assets/portrait-*`), scenes, figures, work, Services, contact. Links carry an arrow; the underline shows on hover |
 | `public/robots.txt` + `sitemap.xml` | Copied as is to the site root: crawlers may read everything, and the sitemap lists the pages (add `/pt/` when it exists) |
 | `app/routes/home-entrance.css` | The typed entrance: the headline word by word behind a caret, each block of a `.typed` section out of skeleton lines; the hero on load from CSS, the rest when useReveal marks it |
-| `features/support-agent/*` | Scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles |
+| `features/support-agent/*` | Scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles; from 1100 px the drawing sits right of the words (`.agent-stage`) |
 | `features/credit-pipeline/*` | Scene of the credit pipeline drawing itself, about 1 hour down to as fast as 5 minutes |
 | `features/matrix-rain/*` | `MatrixRain`: the character rain behind the top, built once on the client, moved only by CSS transform, paused off screen, absent with reduced motion. `columns.ts` sizes the columns. Tests: `columns.test.ts` |
 | `features/chat/chat.tsx` + `chat.css` | The chat: launcher in the corner, panel (a full page over the site on phones), transcript with line breaks kept, fixed notices, composer (500 characters; the clip picks up to 3 images, PDF, XLSX or CSV files, each uploaded on its own request, the first one alone while there is no session yet, with a line per file: reading, its summary, or why it was refused). `app/root.tsx` loads it lazily, and only in a build with `VITE_CHAT=1` |
@@ -56,13 +56,13 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 | `features/chat/api.ts` | Client of `/api/chat` (POST, DELETE), `/api/attachments` (one file as raw bytes; over 10 MB is refused before sending) and `/api/lead`; reads the streamed answer (NDJSON) piece by piece; every failure becomes a status the page knows (offline, unavailable). Tests: `api.test.ts` (`npm test`, vitest) |
 | `features/chat/lead-form.tsx` + `copy.ts` | Contact form (name, company, email, optional LinkedIn, Hiring or Project, honeypot) and the panel's fixed English text |
 | `components/theme-toggle.tsx` + `.css` | Light or dark switch, remembered in `localStorage`; global.css picks its label |
-| `components/count-up.tsx` + `.css` | `CountUp`: a figure counts up from zero once it comes into view (the 13 of 23); the HTML holds the final figure |
+| `components/count-up.tsx` + `.css` | `CountUp`: a figure counts up from zero once it comes into view (the 13 of 23), or down from `from` (the 0.0205, leaning like italics while it falls); the HTML holds the final figure |
 | `components/fire-figure.tsx` + `.css` | `FireFigure`: a multiplier figure (the 3x) as a button that jumps 1x, 2x, 3x, sparks and burns about 2.6 s, on entry and on click; plain text with reduced motion. `home.tsx` gives it any figure written as `Nx` |
 | `content/profile.ts` | Public facts for the page's lists (profile, figures, work, Services), a hand copy of `knowledge/facts.md` and the approved LinkedIn texts. Each scene keeps its own caption next to its drawing |
 | `hooks/use-decode.ts` | Section labels decode once as they come into view (0.7 s, text nodes changed in place); nothing with reduced motion |
 | `hooks/use-reveal.ts` | Marks each `.scene` and `.typed` section `.is-visible` once it is 35% into the screen, so its CSS plays once, in full, on a timer |
-| `lib/count.ts` | Count-up maths: splits a figure into its parts and gives the text at a point of the count. Tests: `count.test.ts` |
-| `lib/entry.ts` | The entry point shared by useReveal and the big numbers (35% into the screen), `onEntry` and `reducedMotion` |
+| `lib/count.ts` | Count maths: splits a figure into its parts and gives the text at a point of the count, up from zero or down from a start value. Tests: `count.test.ts` |
+| `lib/entry.ts` | The entry point shared by useReveal and the big numbers (35% into the screen), `TYPED_IN_MS` (how long a typed block takes to show), `onEntry` and `reducedMotion` |
 | `lib/scramble.ts` | One frame of a decode: the real text from the left, random digits and capitals for the rest. Tests: `scramble.test.ts` |
 | `lib/step.ts` | `step(i)`: an element's turn in its scene (a delay of i x 140 ms) |
 | `styles/global.css` | Colour tokens for both themes, shared type, and the scene machinery (one screen per scene, played once on entry; with reduced motion nothing moves) |

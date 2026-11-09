@@ -44,3 +44,22 @@ describe("figureAt", () => {
     expect(figureAt(parseFigure("~100/day")!, 0)).toBe("~0/day");
   });
 });
+
+describe("figureAt counting down from a start value", () => {
+  const mae = parseFigure("0.0205")!;
+
+  it("starts on the start value and ends exactly on the figure", () => {
+    expect(figureAt(mae, 0, 1)).toBe("1.0000");
+    expect(figureAt(mae, 1, 1)).toBe("0.0205");
+  });
+
+  it("only goes down, and never shows the final figure, or less, before the end", () => {
+    const shown = Array.from({ length: 100 }, (_, i) => Number(figureAt(mae, i / 100, 1)));
+    expect(Math.min(...shown)).toBeGreaterThan(0.0205);
+    expect(shown).toEqual([...shown].sort((a, b) => b - a));
+  });
+
+  it("falls fast first: halfway through, most of the way is behind it", () => {
+    expect(Number(figureAt(mae, 0.5, 1))).toBeLessThan(0.27);
+  });
+});

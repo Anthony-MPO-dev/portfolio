@@ -1,5 +1,6 @@
 import { Fragment, useRef } from "react";
 import portrait from "@/assets/portrait-168.webp";
+import { CountUp } from "@/components/count-up";
 import { FireFigure } from "@/components/fire-figure";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cases, figures, profile, services } from "@/content/profile";
@@ -9,6 +10,7 @@ import { MetricScene } from "@/features/support-agent/metric-scene";
 import { SearchFixScene } from "@/features/support-agent/search-fix-scene";
 import { useDecode } from "@/hooks/use-decode";
 import { useReveal } from "@/hooks/use-reveal";
+import { TYPED_IN_MS } from "@/lib/entry";
 import "./home.css";
 import "./home-entrance.css";
 
@@ -100,7 +102,13 @@ export default function Home() {
         <section className="figures typed" aria-label="Results">
           {figures.map((f) => (
             <article key={f.fig}>
-              {/^\d+x$/.test(f.fig) ? <FireFigure text={f.fig} /> : <p className="figure">{f.fig}</p>}
+              {/^\d+x$/.test(f.fig) ? (
+                <FireFigure text={f.fig} />
+              ) : (
+                <p className="figure">
+                  {f.from === undefined ? f.fig : <CountUp text={f.fig} from={f.from} delay={TYPED_IN_MS} ms={1200} />}
+                </p>
+              )}
               <p>{f.text}</p>
             </article>
           ))}
@@ -122,7 +130,7 @@ export default function Home() {
         </section>
 
         <section className="services typed">
-          <h2 className="label">Services, {services.company}</h2>
+          <h2 className="label">Services: {services.company}</h2>
           <p className="services-lead">{services.lead}</p>
           <p className="services-text">{services.offer}</p>
           <p className="services-text">

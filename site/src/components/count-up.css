@@ -15,3 +15,17 @@
   display: inline-block;
   text-align: right;
 }
+/* Counting down: the digits lean forward like italics while they fall fast, straighten as they slow, tip back a little
+   as they brake, and land upright. The lean follows the count's speed (eased out over --ms). Transform only. */
+.count > .is-falling {
+  transform-origin: 0 100%;
+  animation: count-lean var(--ms) linear both;
+}
+@keyframes count-lean {
+  0% { transform: none; }
+  5% { transform: skewX(-18deg); }
+  30% { transform: skewX(-11deg); }
+  55% { transform: skewX(-4deg); }
+  80% { transform: skewX(5deg); }
+  100% { transform: none; }
+}

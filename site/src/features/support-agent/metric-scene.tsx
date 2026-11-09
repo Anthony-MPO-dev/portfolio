@@ -7,7 +7,7 @@ const SWING = "M0 120 L50 150 L100 168 L150 70 L200 34 L250 128 L300 150 L360 96
 export function MetricScene() {
   return (
     <section className="scene" aria-label="The metric that lied">
-      <div className="stage">
+      <div className="stage agent-stage">
         <h2 className="label">The metric that lied</h2>
         <svg
           className="agent-svg"
@@ -26,7 +26,7 @@ export function MetricScene() {
           </text>
         </svg>
         <p className="note">
-          The dashboard number swung 4x in three weeks while the bot hadn't changed at all. I replaced it with a metric that
+          The dashboard number swung 4x in 3 weeks while the bot hadn't changed at all. I replaced it with a metric that
           counts real resolutions: no escalation, no reopening within 7 days, no human reply.
         </p>
       </div>

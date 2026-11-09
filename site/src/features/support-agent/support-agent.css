@@ -42,3 +42,33 @@
   stroke-width: 5px;
   stroke-linejoin: round;
 }
+
+/* Desktop: the words on the left, the drawing on the right, so the scene fills the screen instead of its left half.
+   Rows are named one by one: the 1fr rows above and below centre the text, and the drawing spans them all. */
+@media (min-width: 1100px) {
+  .agent-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-rows: 1fr repeat(3, auto) 1fr;
+    column-gap: 72px;
+  }
+  .agent-stage > :not(svg) {
+    grid-column: 1;
+  }
+  .agent-stage > .label {
+    grid-row: 2;
+  }
+  .agent-stage > .big {
+    grid-row: 3;
+  }
+  .agent-stage > .note {
+    grid-row: 4;
+  }
+  .agent-stage > svg {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: center;
+    width: 100%;
+    max-height: 72svh;
+  }
+}

@@ -9,7 +9,7 @@ export const profile = {
   based: "Based in Brazil, UTC-3",
   headline: "I make LLM agents work with real customers, and I measure it.",
   lede: "Most AI agents look great in a demo and fall apart with real customers. I'm the engineer who finds out why and fixes it, with numbers to prove the fix worked.",
-  open: "I'm open to remote backend and AI engineering roles with US and European teams. I also take on small freelance projects through my company, Insight AI & Automation.",
+  open: "I'm open to remote AI and backend engineering roles with US and European teams. I also take on small freelance projects through my company, Insight AI & Automation.",
   email: "anthonympodev@gmail.com",
   linkedin: "https://www.linkedin.com/in/anthony-mpo-dev",
   github: "https://github.com/Anthony-MPO-dev",
@@ -22,7 +22,8 @@ export const figures = [
   },
   {
     fig: "0.0205",
-    text: "MAE, the best result of my research, from plain DES on visceral leishmaniasis with HIV. No single model won everywhere.",
+    from: 1, // lower is better, so it counts down from here; a starting point for the animation, not a result
+    text: "MAE, the best result of my research, from plain double exponential smoothing on visceral leishmaniasis with HIV. No single model won everywhere.",
   },
 ];
 
@@ -75,7 +76,7 @@ export const services = {
   offer:
     "Most projects are one of two things: an n8n workflow that moves data between HubSpot, Google Sheets, Gmail and WhatsApp, or an AI chatbot that answers from your own docs and hands off to a human.",
   proof:
-    "I once cut a 1-hour process to 5 minutes, and I run an AI support agent in production with 3x faster replies, so I know where bots break.",
+    "One pipeline I built does in 5 minutes, at its fastest, what used to take an hour. I also run an AI support agent in production with 3x faster replies, so I know where bots break.",
   terms: "Fixed scope, fixed price, async.",
   cta: "Send me the task you'd like to stop doing by hand.",
 };
