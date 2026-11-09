@@ -4,9 +4,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
-RUN npm run build
+RUN npm run build && node scripts/csp.mjs build/client > build/csp.conf
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/build/csp.conf /etc/nginx/csp.conf
 COPY --from=build /app/build/client /usr/share/nginx/html
 EXPOSE 80
