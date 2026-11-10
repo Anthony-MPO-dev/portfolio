@@ -45,7 +45,7 @@ export const cases = [
   },
   {
     id: "logstream",
-    when: "Side project",
+    when: "Side project, 2026",
     title: "LogStream",
     summary:
       "My first Go project. A sidecar agent streams logs over gRPC to a live dashboard, and healthmon blocks new requests to an external API once its error rate crosses a threshold.",

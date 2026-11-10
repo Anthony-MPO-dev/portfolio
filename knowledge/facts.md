@@ -69,7 +69,7 @@ in Mato Grosso, with time series forecasting."
 
 Earlier, from 2021 to 2022, he did in-person tech support and hardware repair.
 
-## Side project: LogStream
+## Side project: LogStream (2026)
 
 Debugging his Python and Celery workers in production meant opening container after container and reading logs line
 by line. He used that problem as an excuse to learn Go and gRPC in practice. It was his first Go project.
