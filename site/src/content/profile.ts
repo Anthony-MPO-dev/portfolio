@@ -69,10 +69,11 @@ export const cases = [
   },
 ];
 
-// Services of Insight AI & Automation: the approved LinkedIn Services page, word for word.
+// Services of Insight AI & Automation: the approved LinkedIn Services page, word for word, except the lead, which
+// names the audience chosen for /services on 11/11 (the LinkedIn text gets the same line by the author's hand).
 export const services = {
   company: "Insight AI & Automation",
-  lead: "I automate the manual work in small businesses.",
+  lead: "I automate manual work for mid-size companies and enterprise teams.",
   offer:
     "Most projects are one of two things: an n8n workflow that moves data between HubSpot, Google Sheets, Gmail and WhatsApp, or an AI chatbot that answers from your own docs and hands off to a human.",
   proof:
