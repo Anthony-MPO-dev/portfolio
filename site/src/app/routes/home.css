@@ -1,18 +1,5 @@
-/* Sections of the home page. Colour tokens, shared type (.label, .note, .big) and the scenes live in global.css. */
-.top {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 10px var(--gutter);
-  font-weight: 600;
-  font-size: 14px;
-  border-bottom: 1px solid var(--ink);
-}
-.top-status {
-  margin-left: auto;
-  color: var(--accent);
-}
-
+/* Sections of the home page. Colour tokens, shared type (.label, .note, .big, .arrow) and the scenes live in global.css;
+   the top bar in components/site-header.css. */
 /* The whole first part (label, headline, lede, byline) fits the first screen of any device: the headline is sized by
    the width (11.5vw) or by what the height leaves for its four lines, whichever is smaller. svh is the height with
    the phone's toolbars showing; vh is the fallback for older browsers. */
@@ -142,7 +129,8 @@
     grid-row: 2 / span 3;
   }
   .services-text,
-  .services-cta {
+  .services-cta,
+  .services-more {
     grid-column: 2;
     justify-self: start;
   }
@@ -152,6 +140,12 @@
   font-weight: 700;
   text-decoration-thickness: 0.1em;
   text-underline-offset: 0.18em;
+}
+/* The way to the /services page, under the e-mail link. */
+.services-more {
+  display: inline-block;
+  margin-top: 20px;
+  font: 500 15px var(--mono);
 }
 
 .contact {
@@ -178,15 +172,15 @@
 /* Links: an arrow in the accent says "link", the underline only shows on hover (a coloured line under the words read
    like a spelling mark). The arrows are inline spans because the entrance owns ::before and ::after of each block. */
 .services-cta,
+.services-more,
 .contact-mail,
 .contact-links a {
   text-decoration-line: none;
 }
-:is(.services-cta, .contact-mail, .contact-links a):hover {
+:is(.services-cta, .services-more, .contact-mail, .contact-links a):hover {
   text-decoration-line: underline;
   text-decoration-skip-ink: none;
 }
-.arrow,
 .contact-links a::after {
   color: var(--accent);
 }

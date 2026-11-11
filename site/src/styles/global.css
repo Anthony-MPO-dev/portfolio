@@ -1,5 +1,5 @@
 /* Site-wide: colour tokens for both themes (--accent for text and lines, passing 4.5:1 on the background; --accent-fill
-   for filled shapes and the rain; --danger for errors), shared type, the theme button's word and the scroll-scene machinery. */
+   for filled shapes and the rain; --danger for errors; --before for the grey parts of a chart that are not the point), shared type, the theme button's word and the scroll-scene machinery. */
 *,
 *::before,
 *::after {
@@ -13,6 +13,7 @@
   --accent: #047a46;
   --accent-fill: #3dfc8a;
   --danger: #d12d25;
+  --before: #b9b8b0;
   --rain-opacity: 0.2;
   --sans: "Archivo Variable", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -28,6 +29,7 @@
     --line: #262626;
     --accent: #3dfc8a;
     --danger: #ff4d43;
+    --before: #5a5953;
     --rain-opacity: 0.32;
     color-scheme: dark;
   }
@@ -39,6 +41,7 @@
   --line: #262626;
   --accent: #3dfc8a;
   --danger: #ff4d43;
+  --before: #5a5953;
   --rain-opacity: 0.32;
   color-scheme: dark;
 }
@@ -100,6 +103,10 @@ svg {
 .big span {
   font-weight: 400;
   color: var(--muted);
+}
+/* The arrow that marks a link. */
+.arrow {
+  color: var(--accent);
 }
 
 /* The theme button names the other theme; CSS picks the word, so it's right before React loads. */

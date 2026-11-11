@@ -44,9 +44,17 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 | Module | Responsibility |
 |---|---|
 | `app/root.tsx` | HTML shell, fonts, and the boot script that applies the saved theme before paint |
-| `app/routes.ts` | Route list: the home page (the `/pt/` pages come with the approved Portuguese texts) |
-| `app/routes/home.tsx` + `home.css` | The one page, composed from the features: meta tags (with the schema.org Person card for search engines), header, hero (signed with the author's photo, `assets/portrait-*`), scenes, figures, work, Services, contact. Links carry an arrow; the underline shows on hover |
-| `public/robots.txt` + `sitemap.xml` | Copied as is to the site root: crawlers may read everything, and the sitemap lists the pages (add `/pt/` when it exists) |
+| `app/routes.ts` | Route list: the home page and `/services` (the `/pt/` pages come with the approved Portuguese texts) |
+| `app/routes/home.tsx` + `home.css` | The home page, composed from the features: meta tags (with the schema.org Person card for search engines), header (`SiteHeader`), hero (signed with the author's photo, `assets/portrait-*`), scenes, figures, work, Services (with a link to `/services`), contact. Links carry an arrow; the underline shows on hover |
+| `app/routes/services.tsx` | The `/services` page of Insight AI & Automation, composed from `features/services`: meta tags, header, the opening, three chapters with market figures and their sources, the four services, the calculator |
+| `features/services/chapters.tsx` | Chapters 01 to 03, one screen each: 100 squares with 25 lit (IBM), one bar split 70/20/10 (BCG), two ROI bars rising (Forrester, vendor-paid, said on the page); each figure links its source; from 1100 px the drawing sits left of the words |
+| `features/services/offer.tsx` | The four services, each with a small drawing of its before turning into its after (`[data-reveal]` per row) and the author's own result |
+| `features/services/calculator.tsx` | The visitor's numbers in (people, weekly hours, share cut, optional cost of an hour with no currency), hours back a year out: a figure that counts to each new total and a 12-month chart that grows again. State lives here, so typing re-renders only this chapter |
+| `features/services/hours.ts` | Calculator maths: hours back over 46 working weeks, full-time people (40 h x 46), the year month by month, the cost of an hour read with a dot or a comma, fields kept in range. Tests: `hours.test.ts` |
+| `features/services/services.css` | Styles of the page; marks play once when their chapter or row is seen, with transform and opacity only |
+| `content/services.ts` | Texts and figures of `/services`: the author's results from `knowledge/facts.md`, market figures from `.claude/docs/research/automation-ai-value.md` with their source links |
+| `components/site-header.tsx` + `.css` | The bar on top of every page: the name (a link home), the open-to-work status, the theme switch |
+| `public/robots.txt` + `sitemap.xml` | Copied as is to the site root: crawlers may read everything, and the sitemap lists `/` and `/services` (add `/pt/` when it exists) |
 | `scripts/csp.mjs` + `nginx.conf` + `Dockerfile` | The Content-Security-Policy: the Docker build hashes every inline script the prerender wrote and writes `csp.conf`, which nginx includes; scripts run only from the site, those hashes and Cloudflare's analytics beacon (no `'unsafe-inline'`). Tests: `csp.test.mjs` |
 | `app/routes/home-entrance.css` | The typed entrance: the headline word by word behind a caret, each block of a `.typed` section out of skeleton lines; the hero on load from CSS, the rest when useReveal marks it |
 | `features/support-agent/*` | Scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles; from 1100 px the drawing sits right of the words (`.agent-stage`) |
@@ -61,9 +69,9 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 | `components/fire-figure.tsx` + `.css` | `FireFigure`: a multiplier figure (the 3x) as a button that jumps 1x, 2x, 3x, sparks and burns about 2.6 s, on entry and on click; plain text with reduced motion. `home.tsx` gives it any figure written as `Nx` |
 | `content/profile.ts` | Public facts for the page's lists (profile, figures, work, Services), a hand copy of `knowledge/facts.md` and the approved LinkedIn texts. Each scene keeps its own caption next to its drawing |
 | `hooks/use-decode.ts` | Section labels decode once as they come into view (0.7 s, text nodes changed in place); nothing with reduced motion |
-| `hooks/use-reveal.ts` | Marks each `.scene` and `.typed` section `.is-visible` once it is 35% into the screen, so its CSS plays once, in full, on a timer |
+| `hooks/use-reveal.ts` | Marks each `.scene`, `.typed` section and `[data-reveal]` block `.is-visible` once it is 35% into the screen, so its CSS plays once, in full, on a timer |
 | `lib/count.ts` | Count maths: splits a figure into its parts and gives the text at a point of the count, up from zero or down from a start value. Tests: `count.test.ts` |
 | `lib/entry.ts` | The entry point shared by useReveal and the big numbers (35% into the screen), `TYPED_IN_MS` (how long a typed block takes to show), `onEntry` and `reducedMotion` |
 | `lib/scramble.ts` | One frame of a decode: the real text from the left, random digits and capitals for the rest. Tests: `scramble.test.ts` |
 | `lib/step.ts` | `step(i)`: an element's turn in its scene (a delay of i x 140 ms) |
-| `styles/global.css` | Colour tokens for both themes, shared type, and the scene machinery (one screen per scene, played once on entry; with reduced motion nothing moves) |
+| `styles/global.css` | Colour tokens for both themes (`--before`: the grey of chart parts that are not the point), shared type, and the scene machinery (one screen per scene, played once on entry; with reduced motion nothing moves) |

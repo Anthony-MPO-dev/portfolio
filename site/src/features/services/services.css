@@ -1,0 +1,402 @@
+/* The /services page. Base styles are the final picture (no JS, reduced motion); once useReveal marks a chapter or a
+   row .is-visible, its marks play once: squares light up, the split bar and the ROI bars grow, the drawings draw
+   (global.css), the calculator's bars rise. Only transform and opacity move (and stroke-dashoffset for drawings).
+   --before is the grey of the parts that are not the point (checked against --accent with the dataviz validator;
+   always labelled in text). */
+
+.svc-hero {
+  padding: clamp(24px, 8svh, 110px) var(--gutter) 64px;
+}
+.svc-title {
+  font-size: clamp(36px, min(7vw, (80svh - 200px) / 5), 104px);
+  font-weight: 800;
+  font-stretch: 72%;
+  line-height: 0.95;
+  margin: 0;
+  max-width: 17ch;
+}
+.svc-who {
+  font-size: clamp(17px, 2vw, 22px);
+  line-height: 1.45;
+  max-width: 44ch;
+  color: var(--muted);
+  margin: 24px 0 0;
+}
+
+/* A chapter is one screen, or more when its content needs it. */
+.svc-stage {
+  height: auto;
+  min-height: 100svh;
+  gap: 20px;
+}
+.svc-fig,
+.svc-words {
+  display: grid;
+  gap: 20px;
+  justify-items: start;
+}
+/* Chapters 01 to 03 on wide screens: the drawing on the left, the words on the right. */
+@media (min-width: 1100px) {
+  .svc-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    align-items: center;
+    column-gap: 72px;
+  }
+  .svc-pair > .svc-kicker {
+    grid-column: 1 / -1;
+    align-self: end;
+  }
+}
+.svc-kicker {
+  margin: 0;
+  font: 500 13px var(--mono);
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.svc-say {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 40px);
+  font-weight: 700;
+  font-stretch: 80%;
+  line-height: 1.15;
+  max-width: 30ch;
+}
+.svc-say b {
+  color: var(--accent);
+}
+.svc-also {
+  margin: 0;
+  font-size: clamp(17px, 1.9vw, 22px);
+  line-height: 1.45;
+  max-width: 48ch;
+}
+.svc-src {
+  margin: 0;
+  font: 500 12px/1.6 var(--mono);
+  color: var(--muted);
+  max-width: 80ch;
+}
+.svc-src a {
+  color: var(--muted);
+}
+
+/* 01: a hundred squares, a quarter of them lit. */
+.svc-waffle {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  width: min(100%, 340px);
+}
+.svc-waffle span {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--line);
+}
+.svc-waffle .lit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.reveal-ready .svc-waffle .lit::after {
+  opacity: 0;
+  transition: opacity 0.25s ease calc(var(--d) * 28ms);
+}
+.reveal-ready .is-visible .svc-waffle .lit::after {
+  opacity: 1;
+}
+
+/* 02: one bar split by share, with a key underneath. */
+.svc-split {
+  display: flex;
+  gap: 2px;
+  width: min(100%, 900px);
+}
+.svc-split span {
+  flex: 0 0 calc(var(--w) * 1% - 2px);
+  height: 32px;
+  border-radius: 2px;
+  background: var(--before);
+  transform-origin: left;
+}
+.svc-split .first,
+.svc-key .first::before {
+  background: var(--accent);
+}
+.reveal-ready .svc-split span {
+  opacity: 0;
+  transform: scaleX(0.2);
+  transition:
+    transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i) * 140ms),
+    opacity 0.4s ease calc(var(--i) * 140ms);
+}
+.reveal-ready .is-visible .svc-split span {
+  opacity: 1;
+  transform: none;
+}
+.svc-key {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  font: 500 13px var(--mono);
+}
+.svc-key b {
+  display: block;
+  font: 800 clamp(28px, 4vw, 48px) var(--sans);
+  font-stretch: 72%;
+}
+.svc-key li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--before);
+}
+
+/* 03: two return-on-investment bars rising. */
+.svc-roi {
+  display: flex;
+  gap: 28px;
+  align-items: flex-end;
+  height: min(280px, 34svh);
+}
+.svc-roi > div {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  justify-items: start;
+  gap: 4px;
+  height: 100%;
+  width: 112px;
+}
+.svc-roi-bar {
+  align-self: end;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  transform: scaleY(var(--h));
+  transform-origin: bottom;
+}
+.reveal-ready .svc-roi-bar {
+  transform: scaleY(0);
+  transition: transform 1s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i) * 140ms);
+}
+.reveal-ready .is-visible .svc-roi-bar {
+  transform: scaleY(var(--h));
+}
+.svc-roi b {
+  font: 800 34px var(--sans);
+  font-stretch: 72%;
+}
+.svc-roi small {
+  font: 500 12px var(--mono);
+  color: var(--muted);
+  min-height: 3em; /* both labels take the same height, so the figures line up */
+}
+
+/* 04: the services, each with its before turning into its after. */
+.svc-offer {
+  padding: 96px var(--gutter);
+  border-top: 1px solid var(--ink);
+}
+.svc-row {
+  display: grid;
+  gap: 16px;
+  padding: 32px 0;
+  border-bottom: 1px solid var(--line);
+}
+.svc-row h2 {
+  margin: 0 0 6px;
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 1;
+}
+.svc-row p {
+  margin: 4px 0 0;
+  max-width: 56ch;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.svc-row .svc-proof {
+  font: 500 14px/1.5 var(--mono);
+  color: var(--accent);
+  margin-top: 10px;
+}
+.svc-turn {
+  width: min(100%, 440px);
+  overflow: visible;
+}
+.svc-turn text {
+  font: 500 10px var(--mono);
+  fill: var(--ink);
+}
+.svc-turn rect {
+  fill: none;
+  stroke: var(--ink);
+}
+.svc-turn circle {
+  fill: var(--muted);
+}
+.svc-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.svc-turn .svc-cap {
+  fill: var(--accent);
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: bottom;
+}
+.reveal-ready .svc-cap.grow {
+  transform: scaleY(0);
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i) * 140ms + 300ms);
+}
+.reveal-ready .is-visible .svc-cap.grow {
+  transform: none;
+}
+@media (min-width: 1100px) {
+  .svc-row {
+    grid-template-columns: 440px 1fr;
+    align-items: center;
+    gap: 56px;
+  }
+}
+
+/* 05: the calculator. */
+.svc-calc-grid {
+  display: grid;
+  gap: 32px;
+  border: 1px solid var(--ink);
+  padding: clamp(16px, 3vw, 32px);
+}
+.svc-fields {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+.svc-fields label {
+  display: grid;
+  gap: 6px;
+  font: 500 14px var(--mono);
+  color: var(--muted);
+}
+.svc-fields input::placeholder {
+  color: var(--before);
+}
+.svc-fields input:not([type="range"]) {
+  font: 700 28px var(--sans);
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 0;
+  padding: 4px 0;
+  width: 9ch;
+}
+.svc-range b {
+  color: var(--ink);
+}
+.svc-range input {
+  accent-color: var(--accent);
+  width: min(100%, 420px);
+  min-height: 32px;
+}
+.svc-range small {
+  font-size: 12px;
+}
+.svc-big {
+  margin: 0;
+  font-size: clamp(64px, 12vw, 150px);
+  font-weight: 800;
+  font-stretch: 70%;
+  line-height: 0.9;
+}
+.svc-unit {
+  margin: 4px 0 0;
+  font: 500 14px var(--mono);
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.svc-sub {
+  margin: 12px 0 0;
+  font-size: 18px;
+  line-height: 1.45;
+  min-height: 1.45em;
+}
+.svc-months {
+  margin: 24px 0 0;
+}
+.svc-months-plot {
+  height: 180px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: end;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+}
+.svc-months-plot span {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  transform: scaleY(var(--h));
+  transform-origin: bottom;
+}
+.reveal-ready .svc-months-plot span {
+  transform: scaleY(0);
+}
+.reveal-ready .is-visible .svc-months-plot span {
+  transform: scaleY(var(--h));
+  animation: svc-grow 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i) * 45ms);
+}
+@keyframes svc-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+.svc-months figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: 500 12px var(--mono);
+  color: var(--muted);
+  padding-top: 6px;
+}
+.svc-months figcaption span:not(:nth-child(2)) {
+  white-space: nowrap;
+}
+.svc-months figcaption span:nth-child(2) {
+  text-align: center;
+}
+.svc-terms {
+  margin: 8px 0 0;
+  font-size: 18px;
+  color: var(--muted);
+}
+.svc-cta {
+  font-size: clamp(20px, 2.6vw, 30px);
+  font-weight: 700;
+  text-decoration: none;
+}
+.svc-cta:hover {
+  text-decoration: underline;
+  text-decoration-skip-ink: none;
+}
+@media (min-width: 1100px) {
+  .svc-calc-grid {
+    grid-template-columns: 1fr 1.2fr;
+    align-items: start;
+  }
+}

@@ -1,0 +1,17 @@
+/* The bar on top of every page. */
+.top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px var(--gutter);
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid var(--ink);
+}
+.top a {
+  text-decoration: none;
+}
+.top-status {
+  margin-left: auto;
+  color: var(--accent);
+}

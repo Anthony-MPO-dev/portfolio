@@ -79,4 +79,5 @@ export const services = {
     "One pipeline I built does in 5 minutes, at its fastest, what used to take an hour. I also run an AI support agent in production with 3x faster replies, so I know where bots break.",
   terms: "Fixed scope, fixed price, async.",
   cta: "Send me the task you'd like to stop doing by hand.",
+  more: "What each service pays back, with sources",
 };

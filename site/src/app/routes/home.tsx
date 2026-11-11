@@ -1,8 +1,9 @@
 import { Fragment, useRef } from "react";
+import { Link } from "react-router";
 import portrait from "@/assets/portrait-168.webp";
 import { CountUp } from "@/components/count-up";
 import { FireFigure } from "@/components/fire-figure";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteHeader } from "@/components/site-header";
 import { cases, figures, profile, services } from "@/content/profile";
 import { PipelineScene } from "@/features/credit-pipeline/pipeline-scene";
 import { MatrixRain } from "@/features/matrix-rain/rain";
@@ -71,11 +72,7 @@ export default function Home() {
 
   return (
     <>
-      <header className="top">
-        <span>{profile.name}</span>
-        <span className="top-status">{profile.status}</span>
-        <ThemeToggle />
-      </header>
+      <SiteHeader />
 
       <main ref={root}>
         <section className="hero typed">
@@ -139,6 +136,9 @@ export default function Home() {
           <a className="services-cta" href={mail}>
             {services.cta} <span className="arrow" aria-hidden="true">&rarr;</span>
           </a>
+          <Link className="services-more" to="/services">
+            {services.more} <span className="arrow" aria-hidden="true">&rarr;</span>
+          </Link>
         </section>
 
         <section className="contact typed">
