@@ -4,8 +4,10 @@ Responsibility: load the cases (an unknown key or a repeated id is an error, so 
 canary token in the system prompt, grade one reply (expect groups, forbid regexes, secret terms, canary,
 offer_contact; no answer is one failure), read the secret terms from EVAL_FORBIDDEN_TERMS (empty is an error, so
 secret checks never pass silently) and mask them. A failure never repeats a secret term: CI logs of a public repo
-are public. Rules for each key are in the header of evals/golden_set.yaml.
-Public API: Case, load_cases, grade, forbidden_terms, mask. (The canary is planted by app.adapters.prompt.)
+are public. Rules for each key are in the header of evals/golden_set.yaml. Also turns a graded case into a line of
+the run report that the site shows ("How this bot is tested"): the reply goes in only when it passed.
+Public API: Case, load_cases, grade, forbidden_terms, mask, report_entry, REPLY_CHARS. (The canary is planted by
+app.adapters.prompt.)
 Used by: golden/test_live.py.
 Depends on: app.ports (ModelReply), PyYAML (dev only: never in the API image).
 Tests: tests/test_golden.py.
@@ -75,3 +77,15 @@ def mask(text: str, terms: list[str]) -> str:
     for term in terms:
         text = re.sub(re.escape(term), "[redacted]", text, flags=re.IGNORECASE)
     return text
+
+
+REPLY_CHARS = 320  # the longest reply the site shows; longer ones are cut on a word
+
+
+def report_entry(case: Case, reply: ModelReply | None, failures: list[str], seconds: float, terms: list[str]) -> dict:
+    passed = not failures
+    text = mask(reply.text, terms).strip() if passed and reply else None
+    if text and len(text) > REPLY_CHARS:
+        text = text[: REPLY_CHARS - 3].rsplit(" ", 1)[0].rstrip(",.;:") + "..."
+    return {"id": case.id, "group": case.group, "q": case.q, "passed": passed, "seconds": round(seconds, 1),
+            "reply": text}

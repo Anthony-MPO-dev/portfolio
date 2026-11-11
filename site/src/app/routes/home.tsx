@@ -5,6 +5,7 @@ import { CountUp } from "@/components/count-up";
 import { FireFigure } from "@/components/fire-figure";
 import { SiteHeader } from "@/components/site-header";
 import { cases, figures, profile, services } from "@/content/profile";
+import { BotTests } from "@/features/bot-tests/bot-tests";
 import { PipelineScene } from "@/features/credit-pipeline/pipeline-scene";
 import { MatrixRain } from "@/features/matrix-rain/rain";
 import { MetricScene } from "@/features/support-agent/metric-scene";
@@ -16,7 +17,8 @@ import "./home.css";
 import "./home-entrance.css";
 
 // The one page of the site, composed here from the features: header, hero (signed with the author's photo), the three
-// scroll scenes (support agent, credit pipeline), the big figures, the work list, Services and contact. Lists come from
+// scroll scenes (support agent, credit pipeline), the big figures, the work list, how the bot is tested, Services and
+// contact. Lists come from
 // content/profile.ts. The sections marked .typed type themselves in (home-entrance.css); the labels decode (useDecode)
 // and the character rain falls behind the hero.
 const SITE_URL = "https://anthonymuniz.dev/";
@@ -125,6 +127,8 @@ export default function Home() {
             </article>
           ))}
         </section>
+
+        <BotTests />
 
         <section className="services typed">
           <h2 className="label">Services: {services.company}</h2>

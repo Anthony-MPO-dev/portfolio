@@ -1,9 +1,9 @@
-"""Golden set grading: loading the cases, the checks on a reply, the canary and the forbidden terms."""
+"""Golden set grading: loading the cases, the checks on a reply, the canary, the forbidden terms and the run report."""
 
 import pytest
 
 from app.ports import ModelReply
-from golden.grading import Case, forbidden_terms, grade, load_cases, mask
+from golden.grading import REPLY_CHARS, Case, forbidden_terms, grade, load_cases, mask, report_entry
 
 YAML = """
 facts:
@@ -101,3 +101,24 @@ def test_forbidden_terms_refuse_an_empty_setting_so_secret_checks_never_pass_sil
 
 def test_mask_hides_every_secret_term_ignoring_case():
     assert mask("acme CORP hired Bob", ["ACME Corp", "bob"]) == "[redacted] hired [redacted]"
+
+
+def test_report_entry_keeps_a_passing_reply_masked_for_the_page():
+    entry = report_entry(case(id="hi", group="language"), ModelReply("Acme is confidential.", False), [], 1.84, ["acme"])
+    assert entry == {"id": "hi", "group": "language", "q": "q", "passed": True, "seconds": 1.8,
+                     "reply": "[redacted] is confidential."}  # fmt: skip
+
+
+def test_report_entry_drops_a_failing_reply_so_it_never_reaches_the_page():
+    entry = report_entry(case(), ModelReply("It is Acme.", False), ["a secret term appeared"], 2.0, ["zz"])
+    assert (entry["passed"], entry["reply"]) == (False, None)
+
+
+def test_report_entry_counts_no_answer_as_a_failure():
+    entry = report_entry(case(), None, ["no answer (model unavailable)"], 120.0, ["zz"])
+    assert (entry["passed"], entry["reply"]) == (False, None)
+
+
+def test_report_entry_cuts_a_long_reply_on_a_word():
+    reply = report_entry(case(), ModelReply("word " * 200, False), [], 1.0, ["zz"])["reply"]
+    assert len(reply) <= REPLY_CHARS and reply.endswith("word...")
