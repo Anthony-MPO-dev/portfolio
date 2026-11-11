@@ -104,6 +104,15 @@ svg {
   font-weight: 400;
   color: var(--muted);
 }
+/* Text only screen readers get, such as the final figure beside counting digits. */
+.num-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 /* The arrow that marks a link. */
 .arrow {
   color: var(--accent);

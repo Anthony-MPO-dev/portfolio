@@ -3,13 +3,16 @@ import { calculator as copy } from "@/content/services";
 import { onEntry, reducedMotion } from "@/lib/entry";
 import { WORK_WEEKS, clampInput, fullTimePeople, hoursBack, monthlyHours, parseRate } from "./hours";
 
-// The closing chapter: the visitor's own numbers in, the hours their team gets back out, as a big figure that counts
-// to each new total and a 12-month chart that grows again. The fields keep what the visitor typed; the maths uses
-// the cleaned numbers (hours.ts) and the field settles on them when it loses focus. The state lives here, so typing
-// re-renders only this chapter.
+// The closing chapter: the visitor's own numbers in (the page opens on an example and says so), the hours their team
+// gets back out, as a big figure that counts to each new total and a 12-month chart that grows again. The fields keep
+// what the visitor typed; the maths uses the cleaned numbers (hours.ts) and a field settles on them when it loses
+// focus. The state lives here, so typing re-renders only this chapter.
 // Public API: Calculator. Used by app/routes/services.tsx.
 
-const fmt = (n: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(n);
+const NUMBER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+const fmt = (n: number) => NUMBER.format(n);
+const PEOPLE = { min: 1, max: 500 };
+const WEEKLY = { min: 1, max: 40 };
 
 export function Calculator({ mail }: { mail: string }) {
   const [people, setPeople] = useState("5");
@@ -17,8 +20,8 @@ export function Calculator({ mail }: { mail: string }) {
   const [cut, setCut] = useState(50);
   const [rate, setRate] = useState("");
   const total = hoursBack({
-    people: clampInput(people, 1, 500),
-    hoursPerWeek: clampInput(hours, 1, 40),
+    people: clampInput(people, PEOPLE.min, PEOPLE.max),
+    hoursPerWeek: clampInput(hours, WEEKLY.min, WEEKLY.max),
     cutPercent: cut,
   });
   const fte = fullTimePeople(total);
@@ -28,32 +31,11 @@ export function Calculator({ mail }: { mail: string }) {
     <section className="scene svc-calc" aria-label="Your numbers">
       <div className="stage svc-stage">
         <p className="svc-kicker">{copy.kicker}</p>
+        <p className="svc-example">{copy.example}</p>
         <div className="svc-calc-grid">
           <div className="svc-fields">
-            <label>
-              <span>{copy.people}</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={500}
-                value={people}
-                onChange={(e) => setPeople(e.target.value)}
-                onBlur={() => setPeople(String(clampInput(people, 1, 500)))}
-              />
-            </label>
-            <label>
-              <span>{copy.hours}</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={40}
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                onBlur={() => setHours(String(clampInput(hours, 1, 40)))}
-              />
-            </label>
+            <NumberField label={copy.people} value={people} set={setPeople} range={PEOPLE} />
+            <NumberField label={copy.hours} value={hours} set={setHours} range={WEEKLY} />
             <label className="svc-range">
               <span>
                 {copy.cut}: <b>{cut}%</b>
@@ -79,16 +61,8 @@ export function Calculator({ mail }: { mail: string }) {
             </p>
             <p className="svc-unit">{copy.result}</p>
             <p className="svc-sub">
-              {fte >= 0.1 && (
-                <>
-                  About <b>{fmt(fte)}</b> full-time {fte === 1 ? "person" : "people"} free for other work.{" "}
-                </>
-              )}
-              {perHour !== null && (
-                <>
-                  Worth about <b>{fmt(Math.round(total * perHour))}</b> a year, in your currency.
-                </>
-              )}
+              {fte >= 0.1 && copy.fullTime(fmt(fte), fte === 1)}{" "}
+              {perHour !== null && copy.worth(fmt(Math.round(total * perHour)))}
             </p>
             <MonthBars total={total} />
           </div>
@@ -105,33 +79,52 @@ export function Calculator({ mail }: { mail: string }) {
   );
 }
 
+type FieldProps = { label: string; value: string; set: (v: string) => void; range: { min: number; max: number } };
+
+function NumberField({ label, value, set, range: { min, max } }: FieldProps) {
+  return (
+    <label>
+      <span>{label}</span>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => set(e.target.value)}
+        onBlur={() => set(String(clampInput(value, min, max)))}
+      />
+    </label>
+  );
+}
+
 // One series (hours back), so the caption names it and there is no legend. The bars grow with scaleY only; the key
 // replays the growth when the total changes. Hover shows each month's figure.
 function MonthBars({ total }: { total: number }) {
+  const [first, last] = copy.months;
   return (
-    <figure className="svc-months" aria-label={`Hours back piling up over 12 months, reaching ${fmt(total)}.`}>
+    <figure className="svc-months" aria-label={copy.chartLabel(fmt(total))}>
       <div className="svc-months-plot" key={total}>
         {monthlyHours(total).map((h, i) => (
           <span
             key={i}
-            title={`Month ${i + 1}: ${fmt(h)} hours`}
+            title={copy.monthTitle(i + 1, fmt(h))}
             style={{ "--h": (i + 1) / 12, "--i": i } as CSSProperties}
           />
         ))}
       </div>
       <figcaption>
-        <span>Month 1</span>
-        <span>
-          {copy.chart} ({WORK_WEEKS} working weeks)
-        </span>
-        <span>Month 12</span>
+        <span>{first}</span>
+        <span>{copy.chart(WORK_WEEKS)}</span>
+        <span>{last}</span>
       </figcaption>
     </figure>
   );
 }
 
-// The total, counting from the last figure shown to the new one in 0.6 s (text only): the first time from zero, when
-// it comes into view; after that, on every change. Final figure in the HTML.
+// The total, counting from the last figure shown to the new one in 0.6 s: the first time from zero, when it comes
+// into view; after that, on every change. Screen readers get only the final figure (.num-sr); the counting digits are
+// hidden from them, so a live region never reads the frames.
 function Ticker({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const shown = useRef(0);
@@ -165,5 +158,12 @@ function Ticker({ value }: { value: number }) {
       cancelAnimationFrame(frame);
     };
   }, [value]);
-  return <span ref={ref}>{fmt(value)}</span>;
+  return (
+    <>
+      <span className="num-sr">{fmt(value)}</span>
+      <span ref={ref} aria-hidden="true">
+        {fmt(value)}
+      </span>
+    </>
+  );
 }

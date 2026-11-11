@@ -275,6 +275,11 @@
 }
 
 /* 05: the calculator. */
+.svc-example {
+  margin: 0;
+  font-size: 17px;
+  color: var(--muted);
+}
 .svc-calc-grid {
   display: grid;
   gap: 32px;
@@ -398,5 +403,21 @@
   .svc-calc-grid {
     grid-template-columns: 1fr 1.2fr;
     align-items: start;
+  }
+}
+
+/* Reduced motion: every mark shows its final state from the start, seen or not (as global.css does for drawings). */
+@media (prefers-reduced-motion: reduce) {
+  .svc-waffle .lit::after,
+  .svc-split span {
+    opacity: 1 !important;
+  }
+  .svc-split span,
+  .svc-cap.grow {
+    transform: none !important;
+  }
+  .svc-roi-bar,
+  .svc-months-plot span {
+    transform: scaleY(var(--h)) !important;
   }
 }

@@ -13,7 +13,7 @@ export function Offer() {
       <p className="svc-kicker">{offer.kicker}</p>
       {offer.services.map((s) => (
         <article key={s.id} className="svc-row" data-reveal>
-          <Turn id={s.id} />
+          <Turn id={s.id} caption={s.caption} />
           <div>
             <h2>{s.name}</h2>
             <p>{s.line}</p>
@@ -36,7 +36,7 @@ const DOTS = [
   [240, 30],
 ];
 
-function Turn({ id }: { id: string }) {
+function Turn({ id, caption }: { id: string; caption: string }) {
   return (
     <svg className="svc-turn" viewBox="0 0 260 90" aria-hidden="true">
       {id === "automation" && (
@@ -54,9 +54,6 @@ function Turn({ id }: { id: string }) {
           ))}
           <path d="M6 60 H248" pathLength={1} className="draw svc-line" style={step(5)} />
           <path d="M240 52 L250 60 L240 68" pathLength={1} className="draw svc-line" style={step(6)} />
-          <text x={6} y={86} className="fade-in" style={step(7)}>
-            1 hour → as fast as 5 min
-          </text>
         </>
       )}
       {id === "agents" && (
@@ -79,9 +76,6 @@ function Turn({ id }: { id: string }) {
             </g>
           ))}
           <path d="M225 38 V58 H33" pathLength={1} className="draw svc-line" style={step(8)} />
-          <text x={6} y={86} className="fade-in" style={step(9)}>
-            replies 3x faster, 45 s → 15 s
-          </text>
         </>
       )}
       {id === "data" && (
@@ -95,9 +89,6 @@ function Turn({ id }: { id: string }) {
             className="draw svc-line"
             style={step(5)}
           />
-          <text x={6} y={86} className="fade-in" style={step(7)}>
-            scattered numbers → one dashboard
-          </text>
         </>
       )}
       {id === "software" && (
@@ -114,11 +105,11 @@ function Turn({ id }: { id: string }) {
               style={step(k * 0.6)}
             />
           ))}
-          <text x={6} y={86} className="fade-in" style={step(7)}>
-            about 10 → as many as 100 operations a day
-          </text>
         </>
       )}
+      <text x={6} y={86} className="fade-in" style={step(id === "agents" ? 9 : 7)}>
+        {caption}
+      </text>
     </svg>
   );
 }

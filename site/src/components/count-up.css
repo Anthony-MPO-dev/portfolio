@@ -1,13 +1,5 @@
 /* The counting digits: tabular, so each digit is as wide as the next, and right-aligned in a box held at the final
-   width. The real figure sits beside them for screen readers. */
-.num-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
+   width. The real figure sits beside them for screen readers (.num-sr, global.css). */
 .count {
   font-variant-numeric: tabular-nums;
 }

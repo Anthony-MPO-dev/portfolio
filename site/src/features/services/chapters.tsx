@@ -1,26 +1,23 @@
 import type { CSSProperties } from "react";
 import { CountUp } from "@/components/count-up";
-import { blockers, payoff, stall } from "@/content/services";
+import { blockers, intro, payoff, type Source, stall } from "@/content/services";
 import { step } from "@/lib/step";
 
 // The case for the service, one screen per chapter (.scene, played once by useReveal): most AI stalls (100 squares,
 // 25 lit), why (one bar split 70/20/10), and the payoff once it ships (two ROI bars rising). Every figure carries its
-// source as a link. From 1100 px the drawing (.svc-fig) sits left of the words (.svc-words). The base styles are the final picture (no JS, reduced motion).
+// source as a link. From 1100 px the drawing (.svc-fig) sits left of the words (.svc-words). The base styles are the
+// final picture (no JS, reduced motion).
 // Public API: StallChapter, BlockersChapter, PayoffChapter. Used by app/routes/services.tsx.
-
-type Source = { name: string; url: string };
 
 function Sources({ list, note }: { list: Source[]; note?: string }) {
   return (
     <p className="svc-src">
       {note && <>{note} </>}
-      Sources:{" "}
+      {intro.sources}{" "}
       {list.map((s, i) => (
         <span key={s.url}>
           {i > 0 && ", "}
-          <a href={s.url} rel="noopener">
-            {s.name}
-          </a>
+          <a href={s.url}>{s.name}</a>
         </span>
       ))}
       .
@@ -42,7 +39,7 @@ export function StallChapter() {
         </div>
         <div className="svc-words">
           <p className="svc-say">
-            Only <b>{stall.value}%</b> {stall.text}
+            {stall.lead} <b>{stall.value}%</b> {stall.text}
           </p>
           <p className="svc-also">{stall.also}</p>
           <Sources list={stall.sources} />
@@ -89,7 +86,7 @@ export function BlockersChapter() {
 }
 
 export function PayoffChapter() {
-  const top = Math.max(...payoff.studies.map((s) => parseFloat(s.roi)));
+  const top = Math.max(...payoff.studies.map((s) => s.roi));
   return (
     <section className="scene" aria-label="When it ships, it pays back">
       <div className="stage svc-stage svc-pair">
@@ -99,13 +96,15 @@ export function PayoffChapter() {
             <div key={s.label}>
               <span
                 className="svc-roi-bar"
-                style={{ "--h": parseFloat(s.roi) / top, ...step(k * 2) } as CSSProperties}
+                style={{ "--h": s.roi / top, ...step(k * 2) } as CSSProperties}
                 aria-hidden="true"
               />
               <b>
-                <CountUp text={s.roi} delay={300 + k * 280} ms={1100} />
+                <CountUp text={`${s.roi}%`} delay={300 + k * 280} ms={1100} />
               </b>
-              <small>ROI, {s.label}</small>
+              <small>
+                {payoff.roiLabel} {s.label}
+              </small>
             </div>
           ))}
         </div>
