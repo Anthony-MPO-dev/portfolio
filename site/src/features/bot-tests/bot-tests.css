@@ -1,11 +1,17 @@
 /* "How this bot is tested". The direct children type themselves in like every .typed section (home-entrance.css);
-   inside, one square per test question lights up after the other (opacity only), in step with the score counting.
-   The base styles are the final picture (no JS, reduced motion). */
+   inside, one square per question lights up after the other (opacity only), from --start, one every --each (both
+   set by bot-tests.tsx), in step with the score counting. The base styles are the final picture (no JS, reduced
+   motion). */
 .bot-tests {
   padding: 96px var(--gutter);
   border-top: 1px solid var(--ink);
   display: grid;
+  gap: 28px;
+}
+.bt-head {
+  display: grid;
   gap: 20px;
+  align-content: start;
 }
 .bt-score {
   margin: 0;
@@ -28,67 +34,94 @@
   max-width: 48ch;
 }
 
-/* One row per kind of question: its name and score, then a square per question. */
+/* One row per kind of question: name, score and a square per question; it opens to the questions themselves. */
 .bt-groups {
   display: grid;
-  gap: 18px;
-  margin-top: 12px;
+  gap: 14px;
+  align-content: start;
 }
-.bt-group p {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 0 0 6px;
-  font: 500 13px var(--mono);
+.bt-group summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 16px;
   max-width: 520px;
+  cursor: pointer;
+  list-style: none;
+  font: 500 13px var(--mono);
 }
-.bt-group p span:last-child {
+.bt-group summary::-webkit-details-marker {
+  display: none;
+}
+.bt-group summary > span:first-child::after {
+  content: " +";
+  color: var(--accent);
+}
+.bt-group[open] summary > span:first-child::after {
+  content: " \2212";
+}
+.bt-group summary > span:nth-child(2) {
   color: var(--muted);
 }
-.bt-group ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.bt-squares {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 3px;
-  max-width: 520px;
 }
-.bt-group li {
+.bt-squares i {
   position: relative;
   width: 16px;
   height: 16px;
   border-radius: 2px;
   background: var(--line);
 }
-.bt-group li::after {
+.bt-squares i::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: var(--accent);
 }
-.bt-group li.fail::after {
+.bt-squares i.fail::after {
   background: var(--danger);
 }
-.reveal-ready .bot-tests .bt-group li::after {
+.reveal-ready .bot-tests .bt-squares i::after {
   opacity: 0;
-  transition: opacity 0.15s ease calc(1000ms + var(--n) * var(--ms));
+  transition: opacity 0.15s ease calc(var(--start) + var(--n) * var(--each));
 }
-.reveal-ready .bot-tests.is-visible .bt-group li::after {
+.reveal-ready .bot-tests.is-visible .bt-squares i::after {
   opacity: 1;
+}
+.bt-group ul {
+  list-style: none;
+  margin: 10px 0 4px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-width: 60ch;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.bt-group li {
+  display: grid;
+  grid-template-columns: 1.4em 1fr;
+}
+.bt-group li > span:first-child {
+  color: var(--accent);
+}
+.bt-group li.fail > span:first-child,
+.bt-failed {
+  color: var(--danger);
 }
 .bt-failed {
   margin: 0;
   font: 500 13px/1.5 var(--mono);
-  color: var(--danger);
 }
 
 /* Attacks and the bot's real replies. */
 .bt-attacks {
   display: grid;
   gap: 20px;
-  margin-top: 24px;
 }
 .bt-attacks h3 {
   margin: 0;
@@ -116,13 +149,13 @@
   max-width: 60ch;
 }
 .bt-note {
-  margin: 8px 0 0;
+  margin: 0;
   font: 500 12px/1.6 var(--mono);
   color: var(--muted);
   max-width: 80ch;
 }
 
-/* Wide screens: the score and its words on the left, the squares on the right; the attacks in three columns. */
+/* Wide screens: the score and its words on the left, the groups on the right; the attacks in three columns. */
 @media (min-width: 1100px) {
   .bot-tests {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -134,11 +167,6 @@
   .bt-note {
     grid-column: 1 / -1;
   }
-  .bt-groups {
-    grid-column: 2;
-    grid-row: 2 / span 3;
-    margin-top: 0;
-  }
   .bt-attacks {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: 40px;
@@ -149,7 +177,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bt-group li::after {
+  .bt-squares i::after {
     opacity: 1 !important;
   }
 }

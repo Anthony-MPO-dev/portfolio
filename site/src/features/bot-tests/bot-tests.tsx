@@ -5,9 +5,10 @@ import { TYPED_IN_MS } from "@/lib/entry";
 import { type Run, showcase, summarize } from "./run";
 import "./bot-tests.css";
 
-// "How this bot is tested": the last golden set run, as the score, one square per test question lighting up in the
-// order they ran (grouped by kind), and a few attacks with the bot's real refusal. The run is content/bot-tests.json;
-// until the author's first run writes it, the section is not on the page.
+// "How this bot is tested": the last complete golden set run, as the score, one square per question lighting up in
+// the order they ran (grouped by kind; each group opens to its questions, marked passed or failed), and a few
+// attacks with the bot's real refusal. The run is content/bot-tests.json; until the author's first run writes it,
+// the section is not on the page.
 // Public API: BotTests. Used by app/routes/home.tsx.
 
 const found = import.meta.glob<Run>("/src/content/bot-tests.json", { eager: true, import: "default" });
@@ -22,35 +23,43 @@ export function BotTests() {
   if (!RUN) return null;
   const s = summarize(RUN);
   const failed = RUN.cases.filter((c) => !c.passed);
+  // the squares start when the section's text has typed in, one every SQUARE_MS
+  const timing = { "--start": `${TYPED_IN_MS}ms`, "--each": `${SQUARE_MS}ms` } as CSSProperties;
 
   return (
-    <section className="bot-tests typed" aria-label={copy.label}>
+    <section className="bot-tests typed" aria-label={copy.label} style={timing}>
       <h2 className="label">{copy.label}</h2>
-      <p className="bt-score">
-        <CountUp text={`${s.passed}/${s.total}`} delay={TYPED_IN_MS} ms={s.total * SQUARE_MS} />
-      </p>
-      <p className="bt-sub">{copy.passed(day(RUN.date), modelName(RUN.model))}</p>
-      <p className="bt-text">{copy.text(s.total)}</p>
+      <div className="bt-head">
+        <p className="bt-score">
+          <CountUp text={`${s.passed}/${s.total}`} delay={TYPED_IN_MS} ms={s.total * SQUARE_MS} />
+        </p>
+        <p className="bt-sub">{copy.passed(day(RUN.date), modelName(RUN.model))}</p>
+        <p className="bt-text">{copy.text(s.total)}</p>
+      </div>
       <div className="bt-groups">
         {s.groups.map((g) => (
-          <div key={g.group} className="bt-group">
-            <p>
+          <details key={g.group} className="bt-group">
+            <summary>
               <span>{copy.groups[g.group] ?? g.group}</span>
               <span>
                 {g.passed}/{g.cases.length}
               </span>
-            </p>
-            <ol aria-hidden="true">
+              <span className="bt-squares" aria-hidden="true">
+                {g.cases.map((c) => (
+                  <i key={c.id} className={c.passed ? undefined : "fail"} style={{ "--n": c.n } as CSSProperties} />
+                ))}
+              </span>
+            </summary>
+            <ul>
               {g.cases.map((c) => (
-                <li
-                  key={c.id}
-                  title={c.q}
-                  className={c.passed ? "ok" : "fail"}
-                  style={{ "--n": c.n, "--ms": `${SQUARE_MS}ms` } as CSSProperties}
-                />
+                <li key={c.id} className={c.passed ? undefined : "fail"}>
+                  <span aria-hidden="true">{c.passed ? "✓" : "×"}</span>
+                  <span className="num-sr">{c.passed ? copy.pass : copy.fail}: </span>
+                  {c.q}
+                </li>
               ))}
-            </ol>
-          </div>
+            </ul>
+          </details>
         ))}
         {failed.length > 0 && (
           <p className="bt-failed">

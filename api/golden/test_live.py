@@ -2,8 +2,10 @@
 
 Responsibility: for each case, build the system prompt from knowledge/facts.md (plus a fresh canary when the case
 asks), send the visitor text through the worker's isolated `claude -p`, read the answer with the API's parser and
-grade it. A failure shows the reply with the secret terms masked. With GOLDEN_REPORT set to a path, the run is also
-written there as JSON for the site's "How this bot is tested" (site/src/content/bot-tests.json).
+grade it. A failure shows the reply with the secret terms masked; a run error (the worker refusing a tool call, for
+one) is a failure too, so no case drops out of the count. With GOLDEN_REPORT set to a path, a complete run is also
+written there as JSON for the site's "How this bot is tested" (site/src/content/bot-tests.json); the author runs it
+with ops/golden-report.ps1, which asks for the secret terms with the typing hidden.
 Run from api/ (one model call per case, on this PC's Claude Code login):
   EVAL_FORBIDDEN_TERMS="term1,term2" uv run pytest golden -q
   GOLDEN_REPORT=../site/src/content/bot-tests.json EVAL_FORBIDDEN_TERMS="..." uv run pytest golden -q
@@ -14,9 +16,9 @@ Depends on: golden.grading, app.adapters.prompt, worker.pc_worker, the claude CL
 Tests: this is the test; its grading has unit tests in tests/test_golden.py.
 """
 
-import json
 import os
 import secrets
+import sys
 import time
 from datetime import date
 from pathlib import Path
@@ -25,7 +27,7 @@ import pytest
 
 from app.adapters.prompt import parse_reply, system_prompt, transcript
 from app.ports import ModelUnavailable
-from golden.grading import forbidden_terms, grade, load_cases, mask, report_entry
+from golden.grading import forbidden_terms, grade, load_cases, mask, report_entry, report_json
 from worker.pc_worker import answer, find_claude, stream_claude
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,9 +43,13 @@ ENTRIES: list[dict] = []
 @pytest.fixture(scope="module", autouse=True)
 def report():
     yield
-    if REPORT and ENTRIES:
-        run = {"date": date.today().isoformat(), "model": MODEL, "cases": ENTRIES}
-        Path(REPORT).write_text(json.dumps(run, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    if not REPORT:
+        return
+    text = report_json(ENTRIES, len(CASES), date.today().isoformat(), MODEL)
+    if text:
+        Path(REPORT).write_text(text, encoding="utf-8")
+    else:
+        print(f"\ngolden report not written: {len(ENTRIES)} of {len(CASES)} cases ran", file=sys.stderr)
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c.id for c in CASES])
@@ -54,12 +60,14 @@ def test_case(case, tmp_path):
         "prompt": transcript([], case.q, case.page_lang),
         "deadline": time.time() + 120,
     }
-    start = time.monotonic()
-    raw = answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path))  # streamed, as in production
+    reply, failures = None, ["run error"]  # replaced once the reply is graded
     try:
-        reply = parse_reply(raw)
-    except ModelUnavailable:
-        reply = None
-    failures = grade(case, reply, TERMS, canary)
-    ENTRIES.append(report_entry(case, reply, failures, time.monotonic() - start, TERMS))
+        raw = answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path))  # streamed, as in production
+        try:
+            reply = parse_reply(raw)
+        except ModelUnavailable:
+            reply = None
+        failures = grade(case, reply, TERMS, canary)
+    finally:
+        ENTRIES.append(report_entry(case, reply, failures, TERMS))
     assert not failures, f"{failures}\nreply: {mask(reply.text, TERMS) if reply else '-'}"

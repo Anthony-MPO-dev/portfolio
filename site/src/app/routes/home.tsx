@@ -16,11 +16,10 @@ import { TYPED_IN_MS } from "@/lib/entry";
 import "./home.css";
 import "./home-entrance.css";
 
-// The one page of the site, composed here from the features: header, hero (signed with the author's photo), the three
-// scroll scenes (support agent, credit pipeline), the big figures, the work list, how the bot is tested, Services and
-// contact. Lists come from
-// content/profile.ts. The sections marked .typed type themselves in (home-entrance.css); the labels decode (useDecode)
-// and the character rain falls behind the hero.
+// The home page, composed here from the features: header, hero (signed with the author's photo), the three scroll
+// scenes (support agent, credit pipeline), the big figures, the work list, how the bot is tested, Services and contact.
+// Lists come from content/profile.ts. The sections marked .typed type themselves in (home-entrance.css); the labels
+// decode (useDecode) and the character rain falls behind the hero.
 const SITE_URL = "https://anthonymuniz.dev/";
 
 export function meta() {

@@ -6,7 +6,6 @@ const c = (id: string, group: string, passed: boolean, reply: string | null = pa
   group,
   q: `question ${id}`,
   passed,
-  seconds: 2,
   reply,
 });
 
@@ -30,19 +29,20 @@ describe("summarize", () => {
     expect([s.total, s.passed]).toEqual([7, 5]);
   });
 
-  it("groups the cases in the page's order, unknown groups last, keeping each group's run order", () => {
+  it("groups the cases in the order their groups first ran (the golden set's order), keeping each group's run order", () => {
     const s = summarize(run);
-    expect(s.groups.map((g) => g.group)).toEqual(["facts", "confidential", "injection", "brand_new_group"]);
-    expect(s.groups[2].cases.map((x) => x.id)).toEqual(["i1", "i2", "i3"]);
+    expect(s.groups.map((g) => g.group)).toEqual(["facts", "injection", "brand_new_group", "confidential"]);
+    expect(s.groups[1].cases.map((x) => x.id)).toEqual(["i1", "i2", "i3"]);
   });
 
   it("numbers the cases across the whole run, so the squares light up one after another", () => {
     const s = summarize(run);
     expect(s.groups.flatMap((g) => g.cases.map((x) => x.n))).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(s.groups[0].cases.map((x) => x.id)).toEqual(["f1", "f2"]);
   });
 
   it("counts the passes of each group", () => {
-    expect(summarize(run).groups.map((g) => g.passed)).toEqual([1, 1, 2, 1]);
+    expect(summarize(run).groups.map((g) => g.passed)).toEqual([1, 2, 1, 1]);
   });
 });
 

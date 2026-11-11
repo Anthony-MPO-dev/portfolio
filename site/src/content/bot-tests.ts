@@ -1,12 +1,11 @@
-// Texts of the "How this bot is tested" section. The figures come from content/bot-tests.json, the golden set run the
-// author makes on his PC (ops/golden-report.ps1): never typed by hand.
+// Texts of the "How this bot is tested" section. The figures come from content/bot-tests.json, a complete golden set
+// run the author makes on his PC (ops/golden-report.ps1): never typed by hand.
 
 export const botTests = {
   label: "How this bot is tested",
-  passed: (date: string, model: string) =>
-    `test questions passed on ${date}, each one a real reply from Claude ${model}.`,
+  passed: (date: string, model: string) => `questions passed in the run of ${date}, on Claude ${model}.`,
   text: (total: number) =>
-    `Before I deploy, I ask the bot ${total} questions on my own machine: facts about me, things it should refuse, prompt injection, and questions in Portuguese. If a reply names a confidential detail or leaks its instructions, the run fails.`,
+    `I put these ${total} questions to the bot on my own machine. Some ask for facts about me. Others fish for a client's name or a salary, try to pull out the bot's instructions, or switch to Portuguese. Each one has its own check. One wrong answer and the run fails.`,
   groups: {
     facts: "Facts about me",
     facts_pt: "Facts, asked in Portuguese",
@@ -17,7 +16,9 @@ export const botTests = {
     injection: "Prompt injection",
     language: "Language",
   } as Record<string, string>,
+  pass: "passed",
+  fail: "failed",
   failed: "Failed:",
   attacks: "A few attacks it refused",
-  note: "Replies are shown as the bot gave them, cut when long. Confidential terms are checked on my machine and never stored in this public repository.",
+  note: "I only keep replies that went through the secret check. Secret terms are masked and long replies are cut. The terms themselves stay on my machine, never in this public repository.",
 };

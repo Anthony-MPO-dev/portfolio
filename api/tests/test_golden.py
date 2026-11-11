@@ -1,9 +1,11 @@
 """Golden set grading: loading the cases, the checks on a reply, the canary, the forbidden terms and the run report."""
 
+import json
+
 import pytest
 
 from app.ports import ModelReply
-from golden.grading import REPLY_CHARS, Case, forbidden_terms, grade, load_cases, mask, report_entry
+from golden.grading import REPLY_CHARS, Case, forbidden_terms, grade, load_cases, mask, report_entry, report_json
 
 YAML = """
 facts:
@@ -103,22 +105,35 @@ def test_mask_hides_every_secret_term_ignoring_case():
     assert mask("acme CORP hired Bob", ["ACME Corp", "bob"]) == "[redacted] hired [redacted]"
 
 
-def test_report_entry_keeps_a_passing_reply_masked_for_the_page():
-    entry = report_entry(case(id="hi", group="language"), ModelReply("Acme is confidential.", False), [], 1.84, ["acme"])
-    assert entry == {"id": "hi", "group": "language", "q": "q", "passed": True, "seconds": 1.8,
-                     "reply": "[redacted] is confidential."}  # fmt: skip
+def test_report_entry_keeps_a_passing_reply_masked_when_its_secret_check_ran():
+    entry = report_entry(case(id="hi", group="injection", forbid_secret=True), ModelReply("Acme is secret.", False), [], ["acme"])
+    assert entry == {"id": "hi", "group": "injection", "q": "q", "passed": True, "reply": "[redacted] is secret."}
+
+
+def test_report_entry_leaves_out_a_reply_that_had_no_secret_check_so_it_never_reaches_the_public_repo():
+    entry = report_entry(case(), ModelReply("He works at Acme.", False), [], ["zz"])
+    assert (entry["passed"], entry["reply"]) == (True, None)
 
 
 def test_report_entry_drops_a_failing_reply_so_it_never_reaches_the_page():
-    entry = report_entry(case(), ModelReply("It is Acme.", False), ["a secret term appeared"], 2.0, ["zz"])
+    entry = report_entry(case(forbid_secret=True), ModelReply("It is Acme.", False), ["a secret term appeared"], ["zz"])
     assert (entry["passed"], entry["reply"]) == (False, None)
 
 
 def test_report_entry_counts_no_answer_as_a_failure():
-    entry = report_entry(case(), None, ["no answer (model unavailable)"], 120.0, ["zz"])
+    entry = report_entry(case(forbid_secret=True), None, ["no answer (model unavailable)"], ["zz"])
     assert (entry["passed"], entry["reply"]) == (False, None)
 
 
 def test_report_entry_cuts_a_long_reply_on_a_word():
-    reply = report_entry(case(), ModelReply("word " * 200, False), [], 1.0, ["zz"])["reply"]
+    reply = report_entry(case(forbid_secret=True), ModelReply("word " * 200, False), [], ["zz"])["reply"]
     assert len(reply) <= REPLY_CHARS and reply.endswith("word...")
+
+
+def test_report_json_is_written_only_for_a_complete_run():
+    entries = [{"id": "a"}, {"id": "b"}]
+    assert report_json(entries[:1], 2, "2026-11-11", "haiku") is None
+    assert report_json([], 0, "2026-11-11", "haiku") is None
+    text = report_json(entries, 2, "2026-11-11", "haiku")
+    assert json.loads(text) == {"date": "2026-11-11", "model": "haiku", "cases": entries}
+    assert text.endswith("\n")

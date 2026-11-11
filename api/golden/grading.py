@@ -4,15 +4,17 @@ Responsibility: load the cases (an unknown key or a repeated id is an error, so 
 canary token in the system prompt, grade one reply (expect groups, forbid regexes, secret terms, canary,
 offer_contact; no answer is one failure), read the secret terms from EVAL_FORBIDDEN_TERMS (empty is an error, so
 secret checks never pass silently) and mask them. A failure never repeats a secret term: CI logs of a public repo
-are public. Rules for each key are in the header of evals/golden_set.yaml. Also turns a graded case into a line of
-the run report that the site shows ("How this bot is tested"): the reply goes in only when it passed.
-Public API: Case, load_cases, grade, forbidden_terms, mask, report_entry, REPLY_CHARS. (The canary is planted by
-app.adapters.prompt.)
+are public. Rules for each key are in the header of evals/golden_set.yaml. Also writes the run report the site shows
+("How this bot is tested"): one line per case, with the reply only when it passed and its secret check ran (any
+other reply never reaches the public repo), and the report only for a complete run.
+Public API: Case, load_cases, grade, forbidden_terms, mask, report_entry, report_json, REPLY_CHARS. (The canary is
+planted by app.adapters.prompt.)
 Used by: golden/test_live.py.
 Depends on: app.ports (ModelReply), PyYAML (dev only: never in the API image).
 Tests: tests/test_golden.py.
 """
 
+import json
 import re
 from dataclasses import dataclass, field, fields
 
@@ -82,10 +84,15 @@ def mask(text: str, terms: list[str]) -> str:
 REPLY_CHARS = 320  # the longest reply the site shows; longer ones are cut on a word
 
 
-def report_entry(case: Case, reply: ModelReply | None, failures: list[str], seconds: float, terms: list[str]) -> dict:
+def report_entry(case: Case, reply: ModelReply | None, failures: list[str], terms: list[str]) -> dict:
     passed = not failures
-    text = mask(reply.text, terms).strip() if passed and reply else None
+    text = mask(reply.text, terms).strip() if passed and reply and case.forbid_secret else None
     if text and len(text) > REPLY_CHARS:
         text = text[: REPLY_CHARS - 3].rsplit(" ", 1)[0].rstrip(",.;:") + "..."
-    return {"id": case.id, "group": case.group, "q": case.q, "passed": passed, "seconds": round(seconds, 1),
-            "reply": text}
+    return {"id": case.id, "group": case.group, "q": case.q, "passed": passed, "reply": text}
+
+
+def report_json(entries: list[dict], total: int, day: str, model: str) -> str | None:
+    if not entries or len(entries) != total:
+        return None  # a partial run (-k, -x, --lf, Ctrl+C) never replaces the report
+    return json.dumps({"date": day, "model": model, "cases": entries}, ensure_ascii=False, indent=1) + "\n"
