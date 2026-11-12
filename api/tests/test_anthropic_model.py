@@ -69,13 +69,14 @@ def test_streams_the_text_then_the_reply_and_the_contact_line_never_reaches_the_
     assert out[-1] == ModelReply("Yes, remote roles.", True)
 
 
-def test_sends_the_cached_system_prompt_the_conversation_and_haiku_at_low_effort():
+def test_sends_the_cached_system_prompt_the_conversation_and_haiku_at_medium_effort():
     client = FakeClient(FakeStream(["Hi."]))
     run(AnthropicModel(client, "SYSTEM"))
     call = client.calls[0]
     assert call["model"] == "claude-haiku-5-5"
     assert call["system"] == [{"type": "text", "text": "SYSTEM", "cache_control": {"type": "ephemeral"}}]
-    assert call["output_config"] == {"effort": "low"}
+    assert call["output_config"] == {"effort": "high"}  # lower, the reasoning leaked and the rules slipped
+    assert call["thinking"] == {"type": "adaptive", "display": "summarized"}  # no silent stretch while it thinks
     assert call["max_tokens"] >= 4000  # thinking counts toward it; a long answer must not be cut
     [turn] = call["messages"]
     assert turn["role"] == "user" and "<conversation>" in turn["content"][-1]["text"]

@@ -2,8 +2,11 @@
 
 Responsibility: send the same prompt the worker sent (the fixed system prompt, cached; the conversation transcript;
 a visitor's image as an image block before it), stream the text as it is written, and end with the parsed reply.
-Thinking stays on at low effort (a chat from facts needs little); max_tokens is a safety net well above a long answer,
-because thinking counts toward it. An API or transport error (the SDK lets raw httpx2 errors through once the stream
+Thinking at high effort: at low, Haiku 5.5 wrote its reasoning into the answer ("The visitor writes in English, so")
+and missed the language rule; at medium it still dropped the contact line now and then (golden set, 12/11: low and
+medium 53 to 56 of 57, high 56 with the one miss a timeout). max_tokens is a safety net well above a long answer,
+because thinking counts toward it. Thinking comes back summarized (never shown: text_stream carries only the answer),
+so the stream isn't silent while the model thinks; one quiet for 45 s is dropped and tried once more. An API or transport error (the SDK lets raw httpx2 errors through once the stream
 is read), a refusal or an answer cut at max_tokens is ModelUnavailable, even mid-stream, so the visitor sees "offline"
 and never half an answer; after 3 failures in a row the API is skipped for 30 s (circuit breaker). Every billed
 answer reports what it cost, also one cut short (the output guard blocked it, the visitor left, the stream broke): the
@@ -68,8 +71,9 @@ class AnthropicModel:
         model: str = MODEL,
         on_cost: Callable[[float], None] | None = None,
         breaker: CircuitBreaker | None = None,
+        effort: str = "high",
     ):
-        self.client, self.model, self.on_cost = client, model, on_cost or (lambda usd: None)
+        self.client, self.model, self.on_cost, self.effort = client, model, on_cost or (lambda usd: None), effort
         self.breaker = breaker or CircuitBreaker()
         self.system = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
 
@@ -79,7 +83,8 @@ class AnthropicModel:
     ) -> "AnthropicModel":
         """The engine with its own client: a key not scoped to a workspace needs the workspace id."""
         headers = {"anthropic-workspace-id": workspace} if workspace else None
-        client = anthropic.Anthropic(api_key=api_key, timeout=timeout, max_retries=1, default_headers=headers)
+        wait = anthropic.Timeout(max(timeout, 60), connect=5.0, read=45.0)  # read: the longest silence between pieces
+        client = anthropic.Anthropic(api_key=api_key, timeout=wait, max_retries=1, default_headers=headers)
         return cls(client, system, **kwargs)
 
     def stream(
@@ -92,7 +97,8 @@ class AnthropicModel:
             model=self.model,
             max_tokens=MAX_TOKENS,
             system=self.system,
-            output_config={"effort": "low"},
+            thinking={"type": "adaptive", "display": "summarized"},  # keeps bytes flowing while it thinks
+            output_config={"effort": self.effort},
             messages=[{"role": "user", "content": content}],
         )
         return manager, manager.__enter__()  # the request goes out here
