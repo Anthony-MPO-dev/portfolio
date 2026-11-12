@@ -2,6 +2,7 @@
 *
 !api/pyproject.toml
 !api/uv.lock
+!api/models.sha256
 !api/app
 !knowledge/facts.md
 **/__pycache__
