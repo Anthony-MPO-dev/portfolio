@@ -1,0 +1,38 @@
+# Search set for "Search what the bot knows": questions a visitor might type, in English, Portuguese and French,
+# each with a piece of the passage it must find (case-insensitive, matched against the passages of
+# knowledge/facts.md), or a list of pieces when several passages answer it. The search passes a question when one
+# of those passages is in the top 3 shown on the site.
+# Run with: cd api && uv run python -m golden.search_eval
+
+- {lang: en, q: "What's his full name?", expect: "Name: Anthony Muniz"}
+- {lang: en, q: "Does Kai use ChromaDB?", expect: "Kai, a personal copilot"}
+- {lang: en, q: "Does he know Go?", expect: ["his first Go project", "Agent in Go", "Server in Go"]}
+- {lang: en, q: "Where did he study?", expect: ["B.Sc. in Computer Science", "Computer Science degree at UFMT"]}
+- {lang: en, q: "How fast is his credit pipeline?", expect: "Credit analysis used to take about an hour"}
+- {lang: en, q: "Can he build a chatbot for my company?", expect: ["an AI chatbot that answers from the client's own documents", "n8n automations and AI chatbots", "This chatbot is a live demo"]}
+- {lang: en, q: "What did he fix in the support agent's search?", expect: "He cleaned up the search"}
+- {lang: en, q: "Is he open to remote roles?", expect: "Open to remote full-time"}
+- {lang: en, q: "How can I contact him?", expect: ["Email: anthonympodev", "LinkedIn: linkedin.com", "The contact form in this chat"]}
+- {lang: en, q: "What languages does he speak?", expect: "Portuguese (native), English"}
+
+- {lang: pt, q: "Qual o nome completo dele?", expect: "Name: Anthony Muniz"}
+- {lang: pt, q: "O Kai usa ChromaDB?", expect: "Kai, a personal copilot"}
+- {lang: pt, q: "Onde ele estudou?", expect: ["B.Sc. in Computer Science", "Computer Science degree at UFMT"]}
+- {lang: pt, q: "Quanto tempo leva a análise de crédito?", expect: "Credit analysis used to take about an hour"}
+- {lang: pt, q: "Ele está aberto a vagas remotas?", expect: "Open to remote full-time"}
+- {lang: pt, q: "Ele faz chatbots para empresas?", expect: ["an AI chatbot that answers from the client's own documents", "n8n automations and AI chatbots", "This chatbot is a live demo"]}
+- {lang: pt, q: "Qual foi o tema da pesquisa dele?", expect: ["automated surveillance platform for tuberculosis", "public health database (SINAN)", "He compared forecasting models"]}
+- {lang: pt, q: "Como falo com ele?", expect: ["Email: anthonympodev", "LinkedIn: linkedin.com", "The contact form in this chat"]}
+- {lang: pt, q: "Ele sabe Go?", expect: ["his first Go project", "Agent in Go", "Server in Go"]}
+- {lang: pt, q: "Que línguas ele fala?", expect: "Portuguese (native), English"}
+
+- {lang: fr, q: "Comment s'appelle-t-il ?", expect: "Name: Anthony Muniz"}
+- {lang: fr, q: "Kai utilise-t-il ChromaDB ?", expect: "Kai, a personal copilot"}
+- {lang: fr, q: "Où a-t-il étudié ?", expect: ["B.Sc. in Computer Science", "Computer Science degree at UFMT"]}
+- {lang: fr, q: "Combien de temps prend l'analyse de crédit ?", expect: "Credit analysis used to take about an hour"}
+- {lang: fr, q: "Est-il ouvert à des postes à distance ?", expect: "Open to remote full-time"}
+- {lang: fr, q: "Peut-il créer un chatbot pour mon entreprise ?", expect: ["an AI chatbot that answers from the client's own documents", "n8n automations and AI chatbots", "This chatbot is a live demo"]}
+- {lang: fr, q: "Sur quoi portait sa recherche ?", expect: ["automated surveillance platform for tuberculosis", "public health database (SINAN)", "He compared forecasting models"]}
+- {lang: fr, q: "Comment le contacter ?", expect: ["Email: anthonympodev", "LinkedIn: linkedin.com", "The contact form in this chat"]}
+- {lang: fr, q: "Connaît-il le Go ?", expect: ["his first Go project", "Agent in Go", "Server in Go"]}
+- {lang: fr, q: "Quelles langues parle-t-il ?", expect: "Portuguese (native), English"}
