@@ -4,7 +4,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
-RUN npm run build && node scripts/csp.mjs build/client > build/csp.conf
+# The chat is in the page since 12/11 (Anthropic API engine); build with --build-arg VITE_CHAT=0 to leave it out.
+ARG VITE_CHAT=1
+RUN VITE_CHAT=$VITE_CHAT npm run build && node scripts/csp.mjs build/client > build/csp.conf
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
