@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { profile } from "@/content/profile";
 import { clearConversation, sendMessage, uploadFile, type Lang } from "./api";
+import { CHAT_ASK } from "@/lib/events";
 import { humanToken } from "./human";
 import { copy } from "./copy";
 import { LeadForm } from "./lead-form";
@@ -90,7 +91,9 @@ export function Chat({ lang }: { lang: Lang }) {
 
   // "Ask the bot" from the fact search: open the panel and send the question as if it were typed here
   const sendLatest = useRef(send);
-  sendLatest.current = send;
+  useEffect(() => {
+    sendLatest.current = send;
+  });
   useEffect(() => {
     const onAsk = (event: Event) => {
       const question = (event as CustomEvent<unknown>).detail;
@@ -98,8 +101,8 @@ export function Chat({ lang }: { lang: Lang }) {
       setOpen(true);
       void sendLatest.current(question);
     };
-    window.addEventListener("chat:ask", onAsk);
-    return () => window.removeEventListener("chat:ask", onAsk);
+    window.addEventListener(CHAT_ASK, onAsk);
+    return () => window.removeEventListener(CHAT_ASK, onAsk);
   }, []);
 
   function onKey(event: KeyboardEvent<HTMLTextAreaElement>) {

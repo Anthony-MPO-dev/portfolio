@@ -1,4 +1,5 @@
 import { type CSSProperties, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { CHAT_ASK } from "@/lib/events";
 import { type Fact, getFacts, type Hit, searchFacts } from "./api";
 import { copy, type Lang, LANGS } from "./copy";
 import { scaler } from "./map";
@@ -6,19 +7,18 @@ import { getSound, setSound, useTypewriter } from "./typing";
 import "./fact-search.css";
 
 // "Search what the bot knows" on the home, after "How this bot is tested" (direction B, chosen by the author on 12/11):
-// a terminal prompt with a green cursor, the 5 closest facts typed in like the bot writing them (with quiet key
-// clicks), and the map of every fact where the question lands and draws lines to them. The search runs on the
-// server (api.ts); the map loads with the page's first visit to it. English by default, with EN, PT and FR in the
-// section. "Ask the bot" hands the question to the chat.
+// a terminal prompt with a green cursor, the map of every fact where the question lands and draws lines to the 5
+// closest, and those 5 typed in like the bot writing them (with quiet key clicks). The search runs on the server
+// (api.ts); the map loads when the section comes near the screen, and again with a search if it failed. English by
+// default, with EN, PT and FR in the section (its lang follows). "Ask the bot" hands the question to the chat.
 // Public API: FactSearch. Used by: app/routes/home.tsx.
+// Tests: the logic is in api.ts, map.ts and copy.ts (their tests); the section itself was checked in Chrome.
 
-const LOW = 0.78; // below this best score nothing in the facts is near (measured 12/11 on the search set)
 const CHAT = import.meta.env.VITE_CHAT === "1";
 const css = (o: Record<string, string | number>) => o as CSSProperties;
 
-type State =
-  | { status: "idle" | "searching" | "invalid" | "rate_limited" | "offline" | "unavailable" }
-  | { status: "ok"; q: string; hits: Hit[]; x: number; y: number };
+type Found = { n: number; q: string; hits: Hit[]; x: number; y: number };
+type State = { status: "idle" | "searching" | "invalid" | "rate_limited" | "offline" } | ({ status: "ok" } & Found);
 
 export function FactSearch() {
   const [lang, setLang] = useState<Lang>("en");
@@ -26,36 +26,46 @@ export function FactSearch() {
   const [facts, setFacts] = useState<Fact[] | null>(null);
   const [state, setState] = useState<State>({ status: "idle" });
   const [sound, setSoundOn] = useState(true);
-  const count = facts?.length ?? 66;
+  const section = useRef<HTMLElement>(null);
+  const searches = useRef(0);
 
   useEffect(() => {
-    getFacts().then(setFacts);
     setSoundOn(getSound());
+    const near = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        near.disconnect();
+        getFacts().then(setFacts);
+      },
+      { rootMargin: "800px 0px" },
+    );
+    if (section.current) near.observe(section.current);
+    return () => near.disconnect();
   }, []);
 
   async function ask(q: string) {
     if (!q.trim() || state.status === "searching") return;
     setState({ status: "searching" });
-    const result = await searchFacts(q.trim());
-    setState(result.status === "ok" ? { ...result, q: q.trim() } : { status: result.status });
+    const [result, map] = await Promise.all([searchFacts(q.trim()), facts ? facts : getFacts()]);
+    if (map && !facts) setFacts(map);
+    if (result.status === "ok" && map) setState({ ...result, n: ++searches.current, q: q.trim() });
+    else setState({ status: result.status === "ok" || result.status === "unavailable" ? "offline" : result.status });
   }
 
   const found = state.status === "ok" ? state : null;
-  const best = found ? Math.max(...found.hits.map((h) => h.score)) : 1;
-  const refused = { invalid: t.invalid, rate_limited: t.rate_limited, offline: t.offline, unavailable: t.offline };
+  const byId = useMemo(() => new Map((facts ?? []).map((f) => [f.id, f])), [facts]);
+  const top = found ? found.hits.flatMap((h) => (byId.has(h.id) ? [{ ...h, fact: byId.get(h.id)! }] : [])) : [];
   const status =
     state.status === "searching"
       ? t.searching
       : state.status === "ok"
-        ? best < LOW
-          ? t.nothing
-          : t.done(count)
+        ? t.done(facts?.length ?? 0)
         : state.status === "idle"
           ? ""
-          : refused[state.status];
+          : t[state.status];
 
   return (
-    <section className="fact-search typed" aria-label={t.label}>
+    <section ref={section} className="fact-search typed" aria-label={t.label} lang={lang}>
       <h2 className="label">{t.label}</h2>
       <div className="fs-side">
         <div className="fs-langs" role="group" aria-label={t.language}>
@@ -65,7 +75,7 @@ export function FactSearch() {
             </button>
           ))}
         </div>
-        <p className="fs-lead">{t.lead(count)}</p>
+        <p className="fs-lead">{t.lead(facts?.length)}</p>
         <Prompt placeholder={t.placeholder} button={t.search} onAsk={ask} chips={t.chips} />
         <div className="fs-status-row">
           <p className="fs-status" aria-live="polite">
@@ -83,9 +93,9 @@ export function FactSearch() {
             {t.sound(sound)}
           </button>
         </div>
-        {found && facts && <Results key={found.q} found={found} facts={facts} t={t} />}
       </div>
-      {facts && <FactMap facts={facts} found={found} label={t.mapLabel(count)} caption={t.caption} />}
+      {facts && <FactMap facts={facts} found={found} top={top} label={t.mapLabel(facts.length)} caption={t.caption} />}
+      {found && top.length > 0 && <Results key={found.n} found={found} top={top} t={t} />}
       <p className="fs-honest">{t.honest}</p>
     </section>
   );
@@ -153,80 +163,72 @@ function Prompt({ placeholder, button, onAsk, chips }: { placeholder: string; bu
 }
 
 type Copy = (typeof copy)[Lang];
+type Shown = Hit & { fact: Fact };
 
-// The 5 closest, typed one after the other with the green cursor at the end of the one being written; screen readers
-// get each whole text at once. "Ask the bot" comes when the typing ends.
-function Results({ found, facts, t }: { found: { q: string; hits: Hit[] }; facts: Fact[]; t: Copy }) {
-  const byId = useMemo(() => new Map(facts.map((f) => [f.id, f])), [facts]);
-  const hits = found.hits.flatMap((h) => (byId.has(h.id) ? [{ ...h, fact: byId.get(h.id)! }] : []));
+// The 5 closest, typed one after the other with the green cursor at the end of the one being written. Every item is
+// in the page from the start (screen readers get each whole text at once); the ones still waiting are invisible.
+// "Ask the bot" comes when the typing ends.
+function Results({ found, top, t }: { found: Found; top: Shown[]; t: Copy }) {
   const shown = useTypewriter(
-    hits.map((h) => h.fact.text),
-    found.q,
+    top.map((h) => h.fact.text),
+    String(found.n),
   );
-  const typing = shown.findIndex((n, i) => n < hits[i].fact.text.length);
+  const typing = shown.findIndex((n, i) => n < top[i].fact.text.length);
   return (
-    <>
+    <div className="fs-results">
       {t.factsNote && <p className="fs-note">{t.factsNote}</p>}
       <ol className="fs-list">
-        {hits.map((h, i) =>
-          i > 0 && typing !== -1 && typing < i ? null : (
-            <li key={h.id}>
-              <b>{i + 1}</b>
-              <div>
-                <p className="fs-meta">
-                  <span>{h.fact.section}</span>
-                  <b>{h.score.toFixed(3)}</b>
-                </p>
-                <p>
-                  <span aria-hidden="true">
-                    {h.fact.text.slice(0, shown[i])}
-                    {i === typing && <i className="fs-cur">_</i>}
-                  </span>
-                  <span className="num-sr">{h.fact.text}</span>
-                </p>
-              </div>
-            </li>
-          ),
-        )}
+        {top.map((h, i) => (
+          <li key={h.id} className={typing !== -1 && i > typing ? "fs-wait" : undefined}>
+            <b>{i + 1}</b>
+            <div>
+              <p className="fs-meta">
+                <span lang="en">{h.fact.section}</span>
+                <b>{h.score.toFixed(3)}</b>
+              </p>
+              <p lang="en">
+                <span aria-hidden="true">
+                  {h.fact.text.slice(0, shown[i])}
+                  {i === typing && <i className="fs-cur">_</i>}
+                </span>
+                <span className="num-sr">{h.fact.text}</span>
+              </p>
+            </div>
+          </li>
+        ))}
       </ol>
       {CHAT && typing === -1 && (
         <div className="fs-ask">
-          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("chat:ask", { detail: found.q }))}>
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent(CHAT_ASK, { detail: found.q }))}>
             {t.ask(found.q)} <span className="arrow" aria-hidden="true">&rarr;</span>
           </button>
           <p>{t.askNote}</p>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
-function FactMap({ facts, found, label, caption }: { facts: Fact[]; found: { q: string; hits: Hit[]; x: number; y: number } | null; label: string; caption: string }) {
+function FactMap({ facts, found, top, label, caption }: { facts: Fact[]; found: Found | null; top: Shown[]; label: string; caption: string }) {
   const { sx, sy } = useMemo(() => scaler(facts), [facts]);
-  const byId = useMemo(() => new Map(facts.map((f) => [f.id, f])), [facts]);
-  const top = found ? found.hits.filter((h) => byId.has(h.id)) : [];
-  const rank = new Map(top.map((h, i) => [h.id, i + 1]));
+  const rank = new Set(top.map((h) => h.id));
   const [qx, qy] = found ? [sx(found.x), sy(found.y)] : [0, 0];
   return (
     <figure className="fs-map">
-      <svg viewBox="0 0 100 100" role="img" aria-label={label} key={found?.q ?? "idle"}>
-        {top.map((h, i) => {
-          const f = byId.get(h.id)!;
-          return <line key={h.id} x1={qx} y1={qy} x2={sx(f.x)} y2={sy(f.y)} pathLength={1} className="fs-line" style={css({ "--i": i })} />;
-        })}
+      <svg viewBox="0 0 100 100" role="img" aria-label={label} key={found?.n ?? "idle"}>
+        {top.map((h, i) => (
+          <line key={h.id} x1={qx} y1={qy} x2={sx(h.fact.x)} y2={sy(h.fact.y)} pathLength={1} className="fs-line" style={css({ "--i": i })} />
+        ))}
         {facts.map((f) => (
           <circle key={f.id} cx={sx(f.x)} cy={sy(f.y)} r={rank.has(f.id) ? 1.5 : 1} className={rank.has(f.id) ? "fs-top" : undefined}>
             <title>{f.text}</title>
           </circle>
         ))}
-        {top.map((h, i) => {
-          const f = byId.get(h.id)!;
-          return (
-            <text key={h.id} x={sx(f.x) + 2} y={sy(f.y) - 1.6} style={css({ "--i": i })}>
-              {i + 1}
-            </text>
-          );
-        })}
+        {top.map((h, i) => (
+          <text key={h.id} x={sx(h.fact.x) + 2} y={sy(h.fact.y) - 1.6} style={css({ "--i": i })}>
+            {i + 1}
+          </text>
+        ))}
         {found && (
           <g className="fs-q">
             <circle cx={qx} cy={qy} r={4} className="fs-ring" />

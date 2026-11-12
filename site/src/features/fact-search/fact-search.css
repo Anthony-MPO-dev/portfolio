@@ -6,9 +6,28 @@
   border-top: 1px solid var(--ink);
   display: grid;
   gap: 40px;
+  /* phones: the map right under the search, so the question is seen landing; then the 5 */
+  grid-template-areas: "label" "side" "map" "results" "honest";
 }
 .fact-search > .label {
-  margin-bottom: -16px;
+  grid-area: label;
+}
+.fs-side {
+  grid-area: side;
+}
+.fs-map {
+  grid-area: map;
+}
+.fs-results {
+  grid-area: results;
+  display: grid;
+  gap: 16px;
+}
+.fs-honest {
+  grid-area: honest;
+}
+.fs-wait {
+  opacity: 0; /* typed later; already there for screen readers */
 }
 .fs-side {
   display: grid;
@@ -263,7 +282,7 @@
   stroke-width: 0.4;
   transform-box: fill-box;
   transform-origin: center;
-  animation: fs-pulse 1.8s ease-out infinite;
+  animation: fs-pulse 1.8s ease-out 4;
 }
 @keyframes fs-pulse {
   from {
@@ -291,12 +310,10 @@
 @media (min-width: 1100px) {
   .fact-search {
     grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    grid-template-areas: "label label" "side map" "results map" "honest honest";
+    grid-template-rows: auto auto 1fr auto;
     column-gap: 64px;
     align-items: start;
-  }
-  .fact-search > .label,
-  .fs-honest {
-    grid-column: 1 / -1;
   }
 }
 

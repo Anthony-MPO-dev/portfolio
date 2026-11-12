@@ -63,7 +63,7 @@ const reducedMotion = () => typeof matchMedia !== "undefined" && matchMedia("(pr
 // How much of each text is typed: one text after the other, `cps` characters a second, a click every 55 to 100 ms.
 export function useTypewriter(texts: string[], key: string, cps = 220): number[] {
   const total = texts.reduce((s, t) => s + t.length, 0);
-  const [n, setN] = useState(total);
+  const [n, setN] = useState(() => (reducedMotion() ? total : 0)); // never the whole text first
   useEffect(() => {
     if (reducedMotion()) return setN(total);
     setN(0);
