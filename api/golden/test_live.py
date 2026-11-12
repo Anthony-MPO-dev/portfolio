@@ -26,10 +26,9 @@ import time
 from datetime import date
 from pathlib import Path
 
-import anthropic
 import pytest
 
-from app.adapters.anthropic_model import AnthropicModel
+from app.adapters.anthropic_model import LABEL, AnthropicModel
 from app.adapters.prompt import parse_reply, system_prompt, transcript
 from app.ports import ModelUnavailable
 from golden.grading import forbidden_terms, grade, load_cases, mask, report_entry, report_json
@@ -39,9 +38,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CASES = load_cases((ROOT / "evals" / "golden_set.yaml").read_text(encoding="utf-8"))
 FACTS = (ROOT / "knowledge" / "facts.md").read_text(encoding="utf-8")
 TERMS = forbidden_terms(os.environ.get("EVAL_FORBIDDEN_TERMS"))
-API = anthropic.Anthropic(timeout=60, max_retries=2) if os.environ.get("ANTHROPIC_API_KEY") else None
-CLAUDE = None if API else find_claude()
-MODEL = "Haiku 5.5" if API else os.environ.get("PORTFOLIO_WORKER_MODEL", "haiku")
+KEY = os.environ.get("ANTHROPIC_API_KEY")
+CLAUDE = None if KEY else find_claude()
+MODEL = LABEL if KEY else os.environ.get("PORTFOLIO_WORKER_MODEL", "haiku")
 REPORT = os.environ.get("GOLDEN_REPORT")
 ENTRIES: list[dict] = []
 
@@ -68,17 +67,14 @@ def test_case(case, tmp_path):
     }
     reply, failures = None, ["run error"]  # replaced once the reply is graded
     try:
-        if API:  # the production engine, streamed, with the contact line already taken out
-            try:
-                reply = list(AnthropicModel(API, job["system"]).stream([], case.q, case.page_lang))[-1]
-            except ModelUnavailable:
-                reply = None
-        else:
-            raw = answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path))
-            try:
-                reply = parse_reply(raw)
-            except ModelUnavailable:
-                reply = None
+        try:
+            if KEY:  # the production engine, streamed, with the contact line already taken out
+                engine = AnthropicModel.connect(KEY, job["system"], workspace=os.environ.get("ANTHROPIC_WORKSPACE_ID"))
+                reply = list(engine.stream([], case.q, case.page_lang))[-1]
+            else:
+                reply = parse_reply(answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path)))
+        except ModelUnavailable:
+            reply = None
         failures = grade(case, reply, TERMS, canary)
     finally:
         ENTRIES.append(report_entry(case, reply, failures, TERMS))

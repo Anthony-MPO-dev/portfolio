@@ -92,6 +92,7 @@ class FakeStore:
 
     def __init__(self):
         self.turn_counts: dict[str, int] = {}
+        self.spent = 0.0
         self.histories: dict[str, list[Turn]] = {}
         self.locks: set[str] = set()
         self.ip_hour: Counter[str] = Counter()
@@ -129,10 +130,10 @@ class FakeStore:
         return self.global_day
 
     def add_spend(self, usd: float) -> None:
-        self.spent = getattr(self, "spent", 0.0) + usd
+        self.spent += usd
 
     def spend_today(self) -> float:
-        return getattr(self, "spent", 0.0)
+        return self.spent
 
     def acquire_lock(self, sid: str) -> bool:
         if sid in self.locks:

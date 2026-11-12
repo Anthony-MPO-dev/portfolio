@@ -8,7 +8,8 @@ is set, his decision of 2026-11-12; each answer's cost goes to the daily spend t
 isolated chat worker on his PC, the default without a key).
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (only for a key that
-isn't scoped to a workspace), MODEL_TIMEOUT (seconds), FACTS_PATH.
+isn't scoped to a workspace), TURNSTILE_SECRET (a new conversation then needs Cloudflare's browser proof),
+MODEL_TIMEOUT (seconds), FACTS_PATH.
 Redis user for REDIS_URL (checked against Redis 8 on 2026-11-06; database 0, add +select for another index):
   ACL SETUSER <user> on ><password> ~chat:* resetchannels -@all +exists +set +get +incr +incrby +ttl +expire
   +lrange +rpush +ltrim +lrem +blpop +del +multi +exec +hello +client|setinfo
@@ -30,7 +31,6 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 
-import anthropic
 import psycopg
 import redis
 from fastapi import FastAPI
@@ -41,6 +41,7 @@ from app.adapters.postgres import Db, PostgresLeadSink, PostgresQuestionLog, ens
 from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisAnswerCache, RedisStore
 from app.adapters.security_alert import N8nSecurityAlert
+from app.adapters.turnstile import TurnstileCheck
 from app.adapters.worker_queue import WorkerQueue
 from app.attachment_sandbox import convert_isolated
 from app.http import create_app
@@ -83,14 +84,14 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
     post = Poster()  # one keep-alive pool and one circuit breaker for every webhook call
     alert = N8nSecurityAlert(env["LEAD_WEBHOOK_URL"], r, post=post)  # guard and worker hits, to Anthony's Telegram
     canary = secrets.token_hex(12)  # new on every start: it shows up in a reply only if the prompt leaked
-    queue = WorkerQueue(waits, system_prompt(facts, canary=canary), timeout=timeout)
+    system = system_prompt(facts, canary=canary)
+    queue = WorkerQueue(waits, system, timeout=timeout)
     model = queue
     if engine == "anthropic":
-        workspace = {"anthropic-workspace-id": env["ANTHROPIC_WORKSPACE_ID"]} if env.get("ANTHROPIC_WORKSPACE_ID") else None
-        client = anthropic.Anthropic(
-            api_key=env["ANTHROPIC_API_KEY"], timeout=timeout, max_retries=1, default_headers=workspace
-        )
-        model = AnthropicModel(client, system_prompt(facts, canary=canary), on_cost=store.add_spend)
+        model = AnthropicModel.connect(
+            env["ANTHROPIC_API_KEY"], system, workspace=env.get("ANTHROPIC_WORKSPACE_ID"), timeout=timeout,
+            on_cost=store.add_spend,
+        )  # fmt: skip
     db = Db(env["DATABASE_URL"])  # pooled; opened by app(), so build stays free of network
     chat = ChatService(
         model,
@@ -102,6 +103,7 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         # keyed by the prompt without the canary: new facts or rules start a fresh cache, a restart doesn't
         cache=RedisAnswerCache(r, version=hashlib.sha256(system_prompt(facts).encode()).hexdigest()[:12]),
         convert=convert_isolated,  # each upload in a locked-down child process, 3 at a time
+        human=TurnstileCheck(env["TURNSTILE_SECRET"]) if env.get("TURNSTILE_SECRET") else None,
     )
     sink = SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"], post=post))
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])

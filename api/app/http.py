@@ -34,6 +34,8 @@ COOKIE_FLAGS = {"path": "/", "secure": True, "httponly": True, "samesite": "stri
 CODES = {
     "ok": 200,
     "offline": 200,
+    "resting": 200,
+    "challenge": 200,
     "blocked": 200,
     "invalid": 400,
     "rate_limited": 429,
@@ -52,6 +54,7 @@ class ChatIn(BaseModel):
     message: str = Field(max_length=2000)  # the use case enforces the real 500-character limit
     page_lang: str = Field("en", max_length=10)
     attachments: list[FileId] = Field(default_factory=list, max_length=3)  # ids from /api/attachments
+    human: str | None = Field(None, max_length=2048)  # Turnstile token (2,048 at most), only to open a conversation
 
 
 class LeadIn(BaseModel):
@@ -135,6 +138,7 @@ def create_app(
             message=body.message,
             page_lang=body.page_lang,
             attachments=body.attachments,
+            human_token=body.human,
         )
         if result.events is not None:  # the answer streams: one JSON event per line, as it is written
             lines = (json.dumps(event, ensure_ascii=False) + "\n" for event in result.events)
@@ -160,7 +164,13 @@ def create_app(
             reason, code = ("too_big", 413) if too_big else ("unreadable", 422)
             return JSONResponse({"status": "rejected", "reason": reason}, code)
         sid = request.cookies.get(COOKIE)
-        result = await run_in_threadpool(chat.attach, session_id=sid, client_key=client_key(request), data=bytes(data))
+        result = await run_in_threadpool(
+            chat.attach,
+            session_id=sid,
+            client_key=client_key(request),
+            data=bytes(data),
+            human_token=request.headers.get("x-human"),  # Turnstile token, needed only to open a conversation
+        )
         body = {"status": result.status} | ({"id": result.id, "summary": result.summary} if result.status == "ok" else {})
         response = JSONResponse(body | ({"reason": result.reason} if result.reason else {}), CODES[result.status])
         return remember(response, result.session_id, sid)

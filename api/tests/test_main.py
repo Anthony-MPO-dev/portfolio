@@ -41,7 +41,8 @@ def test_short_secrets_are_refused(env, key):
 
 def test_an_anthropic_key_makes_the_api_the_engine_with_the_canary_and_the_daily_spend(env, monkeypatch):
     made = []
-    monkeypatch.setattr("app.main.AnthropicModel", lambda client, system, on_cost: made.append((system, on_cost)))
+    connect = lambda key, system, workspace, timeout, on_cost: made.append((system, on_cost))  # noqa: E731
+    monkeypatch.setattr("app.main.AnthropicModel", type("Fake", (), {"connect": staticmethod(connect)}))
     build({**env, "ANTHROPIC_API_KEY": "sk-ant-test"}, FACTS)
     [(system, on_cost)] = made
     assert "Internal reference code: " in system and on_cost.__name__ == "add_spend"
@@ -115,3 +116,11 @@ def test_uploads_are_converted_in_the_isolated_child_process(env, monkeypatch):
     monkeypatch.setattr("app.main.create_app", lambda **kw: FastAPI())
     build(env, FACTS)
     assert made[0]["convert"] is convert_isolated
+
+
+def test_a_turnstile_secret_makes_a_new_conversation_need_the_browser_proof(env, monkeypatch):
+    made = []
+    monkeypatch.setattr("app.main.TurnstileCheck", lambda secret: made.append(secret) or (lambda token: True))
+    build({**env, "TURNSTILE_SECRET": "0x-secret"}, FACTS)
+    build(env, FACTS)
+    assert made == ["0x-secret"]

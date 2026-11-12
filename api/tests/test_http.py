@@ -40,7 +40,8 @@ def events(response):
 
 
 class World:
-    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None, convert=None):
+    def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None, convert=None,
+                 human=None):  # fmt: skip
         self.alerts = []
         self.model = model or FakeModel()
         self.store = FakeStore()
@@ -50,7 +51,7 @@ class World:
         self.converted = []
         convert = convert or (lambda data: self.converted.append(data) or PDF)
         chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits, guard or (lambda r: None),
-                           convert=convert)  # fmt: skip
+                           convert=convert, human=human)  # fmt: skip
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
         worker = self.worker if engine == "worker" else None
         app = create_app(
@@ -270,3 +271,13 @@ def test_the_message_names_its_files_and_the_model_gets_them():
 def test_file_ids_must_be_short_plain_tokens_and_3_at_most(ids):
     world = World()
     assert (world.chat(attachments=ids).status_code, world.model.calls) == (422, [])
+
+
+def test_the_browser_proof_rides_in_the_chat_body_and_in_a_header_for_uploads():
+    seen = []
+    world = World(human=lambda token: seen.append(token) or token == "real-browser")
+    refused = world.chat(human="script")
+    assert (refused.status_code, refused.json()["status"]) == (200, "challenge")
+    upload = world.client.post("/api/attachments", content=b"%PDF", headers={**RAW, "X-Human": "real-browser"})
+    assert upload.json()["status"] == "ok"
+    assert seen == ["script", "real-browser"]

@@ -10,14 +10,14 @@ IP = "client-a"
 
 
 def make(model: FakeModel | None = None, limits: Limits = Limits(), log: FakeQuestionLog | None = None, guard=None, alert=None,
-         cache=None):  # fmt: skip
+         cache=None, human=None):  # fmt: skip
     model = model or FakeModel()
     store = FakeStore()
     ids = (f"sid-{n}" for n in range(1, 1000))
     chat = ChatService(
         model=model, store=store, log=log or FakeQuestionLog(), new_session_id=lambda: next(ids), limits=limits,
         **({"guard": guard} if guard else {}), **({"alert": alert} if alert else {}),
-        **({"cache": cache} if cache is not None else {}),
+        **({"cache": cache} if cache is not None else {}), **({"human": human} if human else {}),
     )  # fmt: skip
     return chat, model, store
 
@@ -86,20 +86,20 @@ def test_one_ip_over_the_limit_does_not_block_other_visitors():
     assert ask(chat, "hi", ip="client-b").status == "ok"
 
 
-def test_global_daily_cap_takes_the_bot_offline_and_offers_contact():
+def test_global_daily_cap_rests_the_bot_until_tomorrow_and_offers_contact():
     chat, model, _ = make(limits=Limits(global_day=1))
     ask(chat, "hi", ip="client-a")
     result = ask(chat, "hi", ip="client-b")
-    assert (result.status, result.offer_contact, len(model.calls)) == ("offline", True, 1)
+    assert (result.status, result.offer_contact, len(model.calls)) == ("resting", True, 1)
 
 
-def test_the_daily_budget_in_dollars_takes_the_bot_offline_until_the_next_day():
+def test_the_daily_budget_in_dollars_rests_the_bot_until_the_next_day():
     chat, model, store = make(limits=Limits(budget_day=0.25))
     store.add_spend(0.24)
     assert ask(chat, "hi", ip="client-a").status == "ok"
     store.add_spend(0.02)
     result = ask(chat, "hi", ip="client-b")
-    assert (result.status, result.offer_contact, len(model.calls)) == ("offline", True, 1)
+    assert (result.status, result.offer_contact, len(model.calls)) == ("resting", True, 1)
 
 
 def test_conversation_over_the_turn_limit_must_start_over():
@@ -320,3 +320,25 @@ def test_a_cached_answer_still_goes_through_the_output_guard():
     cache = FakeCache({("en", "q"): ModelReply("old text with a leak", offer_contact=False)})
     chat, model, _ = make(guard=lambda text: "leak" if "leak" in text else None, cache=cache)
     assert (ask(chat, "q").status, len(model.calls)) == ("blocked", 0)
+
+
+def test_a_new_conversation_needs_the_browser_proof_and_one_already_open_does_not():
+    chat, model, _ = make(human=lambda token: token == "real-browser")
+    refused = chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token="script")
+    assert (refused.status, refused.session_id, len(model.calls)) == ("challenge", None, 0)
+    opened = chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token="real-browser")
+    list(opened.events)
+    again = chat.answer(session_id=opened.session_id, client_key=IP, message="and his stack?", page_lang="en")
+    assert again.status == "ok"
+
+
+def test_without_a_check_wired_the_chat_works_as_before():
+    chat, _, _ = make()
+    assert ask(chat, "hi").status == "ok"
+
+
+def test_a_refused_proof_costs_nothing_from_the_visitor_s_daily_messages():
+    chat, _, _ = make(limits=Limits(per_ip_day=1), human=lambda token: token == "real-browser")
+    assert chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token=None).status == "challenge"
+    opened = chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token="real-browser")
+    assert opened.status == "ok"

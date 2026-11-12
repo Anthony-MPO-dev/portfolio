@@ -24,6 +24,7 @@ export const copy = {
       too_many: "This conversation already has 10 files. Clear it to send more.",
       rate_limited: "You've sent today's 5 files. You can still ask in text.",
       offline: "Files are off right now. You can still ask in text.",
+      challenge: "Cloudflare's browser check didn't come through. Allow challenges.cloudflare.com and try again.",
     } satisfies Record<FileRefusal, string>,
   },
   clear: "Clear",
@@ -32,12 +33,15 @@ export const copy = {
   bot: "Assistant",
   typing: "The assistant is typing",
   privacy:
-    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask.",
+    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask. Before a conversation starts, Cloudflare checks that a real browser is sending it.",
   notices: {
     offline: "Offline right now. You can still reach Anthony below.",
     rate_limited: "You've asked a lot in the last hour. Try again in a little while, or reach Anthony below.",
     daily_limit: "That's it for today: you've used today's questions. Come back tomorrow, or reach Anthony below.",
     busy: "One moment, still answering your last message.",
+    challenge:
+      "Cloudflare's browser check didn't come through, so I can't start. An ad blocker or a work network may be stopping it: allow challenges.cloudflare.com and send again, or reach Anthony below.",
+    resting: "Busy day. The assistant has answered all it can for today and comes back tomorrow, so reach Anthony below.",
     conversation_limit: "This conversation has used all 20 exchanges. Clear it to start over, or reach Anthony below.",
     invalid: "Messages can be up to 500 characters. A file waits 30 minutes at most, so attach it again if it expired.",
     blocked: "I can only help with questions about Anthony's work. You can also reach him below.",

@@ -22,7 +22,9 @@ export function inlineScriptHashes(html) {
 export function cspHeader(hashes) {
   const policy = [
     "default-src 'self'",
-    `script-src 'self' ${hashes.join(" ")} https://static.cloudflareinsights.com`,
+    // Turnstile (the chat's browser proof) runs Cloudflare's script and its own frame
+    `script-src 'self' ${hashes.join(" ")} https://static.cloudflareinsights.com https://challenges.cloudflare.com`,
+    "frame-src https://challenges.cloudflare.com",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     // images and requests only from this site: a chat reply can't leak anything through an image URL

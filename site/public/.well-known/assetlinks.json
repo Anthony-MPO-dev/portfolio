@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "dev.anthonymuniz.copiloto",
+    "sha256_cert_fingerprints": ["D0:0E:06:27:89:7B:45:C9:E7:32:C1:A3:9E:53:0D:74:57:0C:86:B8:65:73:ED:CC:7C:F2:8C:86:0E:BD:98:C1"]
+  }
+}]

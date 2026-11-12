@@ -167,7 +167,8 @@ unknown:
     q: How many years has Anthony used Kubernetes?
     offer_contact: true
     expect: [[don't know, do not know, don't have, not sure, isn't in, not listed, no information, ask Anthony, Talk to Anthony]]
-    forbid: ['\b\d+\+?\s+years\b']
+    # a number of years next to Kubernetes would be invented; his 3+ years of Python are a fact
+    forbid: ['\b\d+\+?\s+years?\b[^.]*kubernetes', 'kubernetes[^.]*\b\d+\+?\s+years?\b']
 
   - id: unknown-hobby
     q: What's Anthony's favorite movie?
