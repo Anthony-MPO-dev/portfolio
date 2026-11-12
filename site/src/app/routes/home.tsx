@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/site-header";
 import { cases, figures, profile, services } from "@/content/profile";
 import { BotTests } from "@/features/bot-tests/bot-tests";
 import { PipelineScene } from "@/features/credit-pipeline/pipeline-scene";
+import { FactSearch } from "@/features/fact-search/fact-search";
 import { MatrixRain } from "@/features/matrix-rain/rain";
 import { MetricScene } from "@/features/support-agent/metric-scene";
 import { SearchFixScene } from "@/features/support-agent/search-fix-scene";
@@ -17,7 +18,8 @@ import "./home.css";
 import "./home-entrance.css";
 
 // The home page, composed here from the features: header, hero (signed with the author's photo), the three scroll
-// scenes (support agent, credit pipeline), the big figures, the work list, how the bot is tested, Services and contact.
+// scenes (support agent, credit pipeline), the big figures, the work list, how the bot is tested, the fact search,
+// Services and contact.
 // Lists come from content/profile.ts. The sections marked .typed type themselves in (home-entrance.css); the labels
 // decode (useDecode) and the character rain falls behind the hero.
 const SITE_URL = "https://anthonymuniz.dev/";
@@ -128,6 +130,7 @@ export default function Home() {
         </section>
 
         <BotTests />
+        <FactSearch />
 
         <section className="services typed">
           <h2 className="label">Services: {services.company}</h2>

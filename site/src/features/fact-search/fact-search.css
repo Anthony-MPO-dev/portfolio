@@ -1,0 +1,307 @@
+/* "Search what the bot knows". The direct children type themselves in like every .typed section (home-entrance.css).
+   Only transform, opacity and stroke-dashoffset move, and every animation fills from its first frame, so with
+   reduced motion (animation: none) the final picture shows. */
+.fact-search {
+  padding: 96px var(--gutter);
+  border-top: 1px solid var(--ink);
+  display: grid;
+  gap: 40px;
+}
+.fact-search > .label {
+  margin-bottom: -16px;
+}
+.fs-side {
+  display: grid;
+  gap: 22px;
+  align-content: start;
+}
+.fs-langs {
+  display: flex;
+  gap: 4px;
+}
+.fs-langs button {
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
+  font: 600 12px var(--mono);
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.fs-langs button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.fs-lead {
+  margin: 0;
+  font-size: clamp(17px, 1.9vw, 22px);
+  line-height: 1.45;
+  max-width: 48ch;
+}
+
+/* The prompt: "> ", mono text and a blinking green cursor where the caret is (the native caret is hidden; a mirror
+   of the text up to the caret places the cursor). */
+.fs-prompt {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  max-width: 640px;
+  border-bottom: 2px solid var(--ink);
+}
+.fs-prompt:focus-within {
+  border-color: var(--accent);
+}
+.fs-ps {
+  font: 600 clamp(18px, 2.2vw, 22px) var(--mono);
+  color: var(--accent);
+}
+.fs-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.fs-field input,
+.fs-mirror {
+  padding: 10px 0;
+  font: 500 clamp(16px, 2vw, 20px) var(--mono);
+}
+.fs-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  caret-color: transparent;
+}
+.fs-field input:focus {
+  outline: none;
+}
+.fs-mirror {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: pre;
+  pointer-events: none;
+  color: transparent;
+}
+.fs-mirror > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+}
+.fs-cur {
+  flex: none;
+  font-style: normal;
+  color: var(--accent);
+  animation: cursor-blink 1.1s steps(1) infinite;
+}
+.fs-ph {
+  color: var(--muted);
+  margin-left: 0.4ch;
+}
+.fs-prompt button {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: 600 14px var(--mono);
+  cursor: pointer;
+}
+.fs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 640px;
+}
+.fs-chips button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: none;
+  color: var(--ink);
+  font: 500 12px var(--mono);
+  cursor: pointer;
+}
+.fs-chips button:hover {
+  border-color: var(--accent);
+}
+.fs-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  align-items: baseline;
+  max-width: 640px;
+}
+.fs-status {
+  margin: 0;
+  font: 500 12px var(--mono);
+  color: var(--accent);
+}
+.fs-sound {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+  font: 500 12px var(--mono);
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.fs-note {
+  margin: 0;
+  font: 500 12px var(--mono);
+  color: var(--muted);
+}
+
+/* The 5 closest, typed in. */
+@keyframes fs-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.fs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+}
+.fs-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  animation: fs-in 0.3s ease both;
+}
+.fs-list li > b {
+  font: 700 18px var(--mono);
+  color: var(--accent);
+}
+.fs-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  font: 500 12px var(--mono);
+  color: var(--muted);
+}
+.fs-meta b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.fs-list li p:last-child {
+  margin: 4px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 60ch;
+}
+.fs-ask {
+  display: grid;
+  gap: 6px;
+  animation: fs-in 0.45s ease both 300ms;
+}
+.fs-ask button {
+  justify-self: start;
+  text-align: left;
+  border: 0;
+  padding: 0 0 4px;
+  background: none;
+  border-bottom: 2px solid var(--accent);
+  color: var(--ink);
+  font: 600 clamp(17px, 1.8vw, 20px) var(--sans);
+  cursor: pointer;
+}
+.fs-ask p {
+  margin: 0;
+  font: 500 12px var(--mono);
+  color: var(--muted);
+}
+
+/* The map: a dot per fact; the question lands with a ring and draws a line to each of the 5. */
+.fs-map {
+  margin: 0;
+}
+.fs-map svg {
+  display: block;
+  width: 100%;
+  max-width: 680px;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+}
+.fs-map circle {
+  fill: var(--before);
+}
+.fs-map circle.fs-top {
+  fill: var(--accent);
+}
+.fs-line {
+  stroke: var(--accent);
+  stroke-width: 0.3;
+  stroke-dasharray: 1;
+  animation: fs-draw 0.6s ease both calc(var(--i) * 120ms + 200ms);
+}
+@keyframes fs-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.fs-map text {
+  font: 600 3px var(--mono);
+  fill: var(--ink);
+  animation: fs-in 0.3s ease both calc(var(--i) * 120ms + 500ms);
+}
+.fs-q circle {
+  fill: var(--ink);
+}
+.fs-q .fs-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 0.4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fs-pulse 1.8s ease-out infinite;
+}
+@keyframes fs-pulse {
+  from {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.fs-map figcaption {
+  margin-top: 10px;
+  font: 500 12px/1.6 var(--mono);
+  color: var(--muted);
+  max-width: 680px;
+}
+.fs-honest {
+  margin: 0;
+  font: 500 12px/1.6 var(--mono);
+  color: var(--muted);
+  max-width: 80ch;
+}
+
+@media (min-width: 1100px) {
+  .fact-search {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    column-gap: 64px;
+    align-items: start;
+  }
+  .fact-search > .label,
+  .fs-honest {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fact-search * {
+    animation: none !important;
+  }
+}

@@ -26,7 +26,11 @@ export function Chat({ lang }: { lang: Lang }) {
   const fileKey = useRef(0);
   const hasSession = useRef(false); // the API has set the session cookie (it's HttpOnly, so the page can't see it)
   const proofBox = useRef<HTMLDivElement>(null); // where Cloudflare's check shows, only if it wants a click
-  const proof = () => (proofBox.current ? humanToken(proofBox.current) : Promise.resolve(undefined));
+  const proof = async () => {
+    // the panel may have just opened ("Ask the bot"): let it render before Cloudflare's check goes in it
+    for (let i = 0; i < 3 && !proofBox.current; i++) await new Promise((r) => requestAnimationFrame(r));
+    return proofBox.current ? humanToken(proofBox.current) : undefined;
+  };
   const uploading = state.files.some((f) => f.state === "uploading");
   const room = FILES - state.files.filter((f) => f.state !== "refused").length;
 
@@ -83,6 +87,20 @@ export function Chat({ lang }: { lang: Lang }) {
     while (!hasSession.current && jobs.length) await run(jobs.shift()!); // one at a time until one opens the session
     await Promise.all(jobs.map(run));
   }
+
+  // "Ask the bot" from the fact search: open the panel and send the question as if it were typed here
+  const sendLatest = useRef(send);
+  sendLatest.current = send;
+  useEffect(() => {
+    const onAsk = (event: Event) => {
+      const question = (event as CustomEvent<unknown>).detail;
+      if (typeof question !== "string" || !question.trim()) return;
+      setOpen(true);
+      void sendLatest.current(question);
+    };
+    window.addEventListener("chat:ask", onAsk);
+    return () => window.removeEventListener("chat:ask", onAsk);
+  }, []);
 
   function onKey(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
