@@ -98,6 +98,7 @@ class FakeStore:
         self.ip_hour: Counter[str] = Counter()
         self.ip_day: Counter[str] = Counter()
         self.uploads: Counter[str] = Counter()
+        self.searches: Counter[str] = Counter()
         self.global_day = 0
         self.off = False
         self.files: dict[tuple[str, str], Attachment] = {}
@@ -124,6 +125,10 @@ class FakeStore:
     def hit_uploads(self, client_key: str) -> tuple[int, int]:
         self.uploads[client_key] += 1
         return self.uploads[client_key], self.uploads[client_key]
+
+    def hit_search(self, client_key: str) -> tuple[int, int]:
+        self.searches[client_key] += 1
+        return self.searches[client_key], self.searches[client_key]
 
     def hit_global(self) -> int:
         self.global_day += 1

@@ -14,7 +14,6 @@ dependencies = [
     "psycopg[binary,pool]>=3.3.8",
     "pypdf>=7.0.0",
     "pyseccomp>=0.1.2 ; sys_platform == 'linux'",
-    "pyyaml>=6.0.3",
     "redis>=8.1",
     "tokenizers>=0.23.3",
     "urllib3>=2.8.0",

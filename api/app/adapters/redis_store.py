@@ -8,6 +8,7 @@ decisions. Every key it writes has an expiry, so nothing about a visitor stays f
 - chat:rl:{key}:h|d:{t}   messages per client per hour and per day (the key is an HMAC of the IP, never the IP)
 - chat:ru:{key}:h|d:{t}   uploads per client per hour and per day, apart from the messages
 - chat:g:{day}            messages for the whole site today
+- chat:s:{client}:m|d:... the fact search per visitor: this minute (2 min) and today (2 days)
 - chat:spend:{day}        what today's answers cost, in millionths of a US$ (2 days)
 - chat:form:{key}:{day}   valid contact forms per client today
 - chat:c:{v}:{lang}:{hash}  a clean answer to a first question, 24 h (v: prompt version; hash: SHA-256 of the
@@ -128,6 +129,11 @@ class RedisStore:
         t = self.now()
         hour, day = self._count((f"{prefix}:h:{t:%Y%m%d%H}", 2 * HOUR), (f"{prefix}:d:{t:%Y%m%d}", 2 * DAY))
         return hour, day
+
+    def hit_search(self, client_key: str) -> tuple[int, int]:
+        t = self.now()
+        prefix = f"chat:s:{client_key}"  # the fact search, apart from the chat's counters
+        return tuple(self._count((f"{prefix}:m:{t:%Y%m%d%H%M}", 120), (f"{prefix}:d:{t:%Y%m%d}", 2 * DAY)))
 
     def hit_global(self) -> int:
         return self._count((f"chat:g:{self.now():%Y%m%d}", 2 * DAY))[0]

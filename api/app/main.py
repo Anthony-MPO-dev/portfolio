@@ -9,7 +9,7 @@ isolated chat worker on his PC, the default without a key).
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (only for a key that
 isn't scoped to a workspace), TURNSTILE_SECRET (a new conversation then needs Cloudflare's browser proof),
-MODEL_TIMEOUT (seconds), FACTS_PATH.
+MODEL_TIMEOUT (seconds), FACTS_PATH, SEARCH_MODEL_DIR (the fact search's model folder).
 Redis user for REDIS_URL (checked against Redis 8 on 2026-11-06; database 0, add +select for another index):
   ACL SETUSER <user> on ><password> ~chat:* resetchannels -@all +exists +set +get +incr +incrby +ttl +expire
   +lrange +rpush +ltrim +lrem +blpop +del +multi +exec +hello +client|setinfo
@@ -37,6 +37,7 @@ from fastapi import FastAPI
 
 from app.adapters.anthropic_model import AnthropicModel
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert
+from app.adapters.onnx_embedder import E5_PREFIXES, OnnxEmbedder
 from app.adapters.postgres import Db, PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
 from app.adapters.redis_store import RedisAnswerCache, RedisStore
@@ -47,21 +48,25 @@ from app.attachment_sandbox import convert_isolated
 from app.http import create_app
 from app.http_post import Poster
 from app.output_guard import check
+from app.search.passages import passages
 from app.services.chat import ChatService
 from app.services.lead import LeadService
+from app.services.search import Embed, FactSearch, SearchService
 
 log = logging.getLogger(__name__)
 REQUIRED = ("REDIS_URL", "DATABASE_URL", "LEAD_WEBHOOK_URL", "WORKER_TOKEN", "IP_HMAC_KEY", "CONTACT_WHATSAPP")
 MIN_SECRET = 32
 PURGE_EVERY = 6 * 3600  # seconds
 DEFAULT_FACTS = Path(__file__).resolve().parents[2] / "knowledge" / "facts.md"
+DEFAULT_SEARCH_MODEL = "/app/models/multilingual-e5-small"  # downloaded into the image (api/Dockerfile)
 
 
 class ConfigError(RuntimeError):
     """The API can't start with these settings."""
 
 
-def build(env: Mapping[str, str], facts: str) -> FastAPI:
+def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> FastAPI:
+    """`embed` turns texts into vectors for the fact search (the model app() loads); None leaves the search 503."""
     missing = [key for key in REQUIRED if not env.get(key)]
     if missing:
         raise ConfigError(f"missing settings: {', '.join(missing)}")
@@ -115,13 +120,18 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
         ip_key=env["IP_HMAC_KEY"].encode(),
         origin=env.get("SITE_ORIGIN", "https://anthonymuniz.dev"),
         alert=alert,
+        search=SearchService(FactSearch(passages(facts), embed), store) if embed else None,
     )
     api.state.db = db
     return api
 
 
 def app() -> FastAPI:
-    api = build(os.environ, Path(os.environ.get("FACTS_PATH") or DEFAULT_FACTS).read_text(encoding="utf-8"))
+    folder = Path(os.environ.get("SEARCH_MODEL_DIR") or DEFAULT_SEARCH_MODEL)
+    embed = OnnxEmbedder(folder, E5_PREFIXES).embed if (folder / "model_quantized.onnx").exists() else None
+    if embed is None:
+        log.warning("no search model in %s: the fact search answers 503", folder)
+    api = build(os.environ, Path(os.environ.get("FACTS_PATH") or DEFAULT_FACTS).read_text(encoding="utf-8"), embed)
     db = api.state.db
     db.open()
     try:

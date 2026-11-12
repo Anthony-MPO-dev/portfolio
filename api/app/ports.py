@@ -85,6 +85,10 @@ class SessionStore(Protocol):
         """Count one upload for this client, apart from its messages; return (this hour, today)."""
         ...
 
+    def hit_search(self, client_key: str) -> tuple[int, int]:
+        """Count one fact search for this client; return (this minute, today)."""
+        ...
+
     def hit_global(self) -> int:
         """Count one message for the whole site and return the total for today."""
         ...

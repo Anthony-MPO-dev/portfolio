@@ -5,7 +5,8 @@ JSON only, /api/attachments one file as raw bytes (10 MB at most), and all refus
 then Origin). The session lives in the __Host-chat_sid cookie
 (Secure, HttpOnly, SameSite=Strict, no Max-Age), set only when the server created a new session. The visitor's IP
 (through Cloudflare, see app.client_ip) becomes an HMAC before it reaches any use case. Worker routes need the bearer token. Every answer is no-store and
-there are no public API docs.
+there are no public API docs, except the fact map (GET /api/search/facts), public and cached for an hour. The fact
+search (POST /api/search) is a browser route like the chat; without the model both answer 503.
 Public API: create_app.
 Used by: app.main (composition with the real adapters) and tests/test_http.py (with fakes).
 Depends on: FastAPI, app.services.chat.ChatService, app.services.lead.LeadService, app.ports.WorkerJobs,
@@ -28,6 +29,7 @@ from app.client_ip import client_ip, ip_source
 from app.ports import WorkerJobs
 from app.services.chat import ChatService
 from app.services.lead import LeadService
+from app.services.search import SearchService
 
 COOKIE = "__Host-chat_sid"
 COOKIE_FLAGS = {"path": "/", "secure": True, "httponly": True, "samesite": "strict"}
@@ -55,6 +57,10 @@ class ChatIn(BaseModel):
     page_lang: str = Field("en", max_length=10)
     attachments: list[FileId] = Field(default_factory=list, max_length=3)  # ids from /api/attachments
     human: str | None = Field(None, max_length=2048)  # Turnstile token (2,048 at most), only to open a conversation
+
+
+class SearchIn(BaseModel):
+    q: str = Field(max_length=1000)  # the use case enforces the real 200-character limit
 
 
 class LeadIn(BaseModel):
@@ -85,6 +91,7 @@ def create_app(
     ip_key: bytes,
     origin: str,
     alert: Callable[[str], None] = lambda reason: None,
+    search: SearchService | None = None,
 ) -> FastAPI:
     """`worker` is the local-worker engine's job queue; None (another engine) leaves the worker routes out."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -92,7 +99,7 @@ def create_app(
     @app.middleware("http")
     async def no_store(request: Request, call_next):
         response = await call_next(request)
-        response.headers["Cache-Control"] = "no-store"
+        response.headers.setdefault("Cache-Control", "no-store")
         return response
 
     def same_origin(request: Request) -> None:
@@ -128,6 +135,23 @@ def create_app(
 
     browser = [Depends(same_origin), body_type("application/json")]
     upload = [Depends(same_origin), body_type("application/octet-stream")]
+
+    @app.get("/api/search/facts")
+    def get_facts() -> Response:
+        if search is None:
+            return JSONResponse({"status": "unavailable"}, 503)
+        facts = [{"id": f.id, "section": f.section, "text": f.text, "x": f.xy[0], "y": f.xy[1]} for f in search.search.facts()]
+        return JSONResponse({"facts": facts}, headers={"Cache-Control": "public, max-age=3600"})
+
+    @app.post("/api/search", dependencies=browser)
+    def post_search(body: SearchIn, request: Request) -> Response:
+        if search is None:
+            return JSONResponse({"status": "unavailable"}, 503)
+        answer = search.ask(client_key=client_key(request), question=body.q)
+        if answer.found is None:
+            return JSONResponse({"status": answer.status}, CODES[answer.status])
+        hits = [{"id": h.id, "score": h.score} for h in answer.found.hits]
+        return JSONResponse({"status": "ok", "hits": hits, "x": answer.found.xy[0], "y": answer.found.xy[1]})
 
     @app.post("/api/chat", dependencies=browser)
     def post_chat(body: ChatIn, request: Request) -> Response:

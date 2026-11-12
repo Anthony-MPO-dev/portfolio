@@ -124,3 +124,14 @@ def test_a_turnstile_secret_makes_a_new_conversation_need_the_browser_proof(env,
     build({**env, "TURNSTILE_SECRET": "0x-secret"}, FACTS)
     build(env, FACTS)
     assert made == ["0x-secret"]
+
+
+def test_the_fact_search_runs_with_the_model_and_is_unavailable_without_it(env):
+    from fastapi.testclient import TestClient
+
+    from tests.test_search import fake_embed
+
+    facts = "## At a glance\n\n- Name: Jane Doe.\n- Based in Brazil.\n\n## Work\n\n- Credit pipeline in Python.\n"
+    with_model = TestClient(build(env, facts, fake_embed)).get("/api/search/facts")
+    without = TestClient(build(env, facts)).get("/api/search/facts")
+    assert (with_model.status_code, len(with_model.json()["facts"]), without.status_code) == (200, 3, 503)

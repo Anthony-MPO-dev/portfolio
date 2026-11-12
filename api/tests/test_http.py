@@ -5,6 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.http import create_app
+from app.services.search import FactSearch, SearchService
+from tests.test_search import PASSAGES, fake_embed
 from app.ports import Attachment, AttachmentRejected, ModelReply
 from app.services.chat import ChatService, Limits
 from app.services.lead import LeadService
@@ -41,7 +43,7 @@ def events(response):
 
 class World:
     def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None, convert=None,
-                 human=None):  # fmt: skip
+                 human=None, search=True):  # fmt: skip
         self.alerts = []
         self.model = model or FakeModel()
         self.store = FakeStore()
@@ -55,7 +57,8 @@ class World:
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
         worker = self.worker if engine == "worker" else None
         app = create_app(
-            chat=chat, lead=lead, worker=worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN, alert=self.alerts.append
+            chat=chat, lead=lead, worker=worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN, alert=self.alerts.append,
+            search=SearchService(FactSearch(PASSAGES, fake_embed), self.store) if search else None
         )
         self.client = TestClient(app, base_url=ORIGIN, client=(peer, 50000))
 
@@ -281,3 +284,29 @@ def test_the_browser_proof_rides_in_the_chat_body_and_in_a_header_for_uploads():
     upload = world.client.post("/api/attachments", content=b"%PDF", headers={**RAW, "X-Human": "real-browser"})
     assert upload.json()["status"] == "ok"
     assert seen == ["script", "real-browser"]
+
+
+def test_the_map_of_facts_is_public_and_cached_for_an_hour():
+    response = World().client.get("/api/search/facts")
+    facts = response.json()["facts"]
+    assert len(facts) == len(PASSAGES) and set(facts[0]) == {"id", "section", "text", "x", "y"}
+    assert "max-age=3600" in response.headers["cache-control"]
+
+
+def test_a_search_answers_with_the_hits_and_the_question_s_place():
+    response = World().client.post("/api/search", json={"q": "Does Kai use ChromaDB?"}, headers=SAME_SITE)
+    data = response.json()
+    assert response.status_code == 200 and data["hits"][0]["id"] == 3 and {"x", "y"} <= set(data)
+    assert "no-store" in response.headers["cache-control"]
+
+
+def test_a_search_from_another_site_or_too_long_is_refused():
+    world = World()
+    assert world.client.post("/api/search", json={"q": "x"}, headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
+    assert world.client.post("/api/search", json={"q": "x" * 201}, headers=SAME_SITE).status_code == 400
+
+
+def test_without_the_model_the_search_says_it_is_unavailable():
+    world = World(search=False)
+    assert world.client.get("/api/search/facts").status_code == 503
+    assert world.client.post("/api/search", json={"q": "x"}, headers=SAME_SITE).status_code == 503

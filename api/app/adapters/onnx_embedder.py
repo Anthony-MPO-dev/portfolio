@@ -3,8 +3,8 @@
 Responsibility: load the model and its tokenizer from a folder (model_quantized.onnx, tokenizer.json), turn texts
 into L2-normalized vectors by mean pooling, with the model's own prefix for a query or a passage (the e5 family
 wants "query: " and "passage: "). One thread, so a burst of searches can't starve the chat on the same machine.
-Public API: OnnxEmbedder.
-Used by: app.main (wires it into app.services.search), golden/search_eval.py.
+Public API: OnnxEmbedder, E5_PREFIXES.
+Used by: app.main (the fact search, app.services.search), golden/search_eval.py.
 Depends on: onnxruntime, tokenizers, numpy.
 Tests: golden/search_eval.py runs it on the real model (dev only); the search service is unit-tested with a fake.
 """
@@ -17,6 +17,7 @@ import numpy as np
 import onnxruntime as ort
 from tokenizers import Tokenizer
 
+E5_PREFIXES = {"query": "query: ", "passage": "passage: "}  # the e5 family wants them; others take none
 MAX_TOKENS = 256  # a passage of the fact base is far shorter; a visitor's question is capped at 200 characters
 
 

@@ -5,6 +5,13 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_NO_DEV=1 PYTHONUNBUFFERED=1
 COPY api/pyproject.toml api/uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
+# The fact search's model (multilingual-e5-small, int8, about 135 MB): pinned to a revision and checked by hash. It
+# runs on this server's CPU and never sees anything but the visitor's search question.
+ARG E5=https://huggingface.co/Xenova/multilingual-e5-small/resolve/761b726dd34fb83930e26aab4e9ac3899aa1fa78
+COPY api/models.sha256 /app/models/multilingual-e5-small/SHA256SUMS
+RUN cd /app/models/multilingual-e5-small \
+ && python -c "import sys, urllib.request as u; [u.urlretrieve(sys.argv[1] + '/' + f, f.split('/')[-1]) for f in ('onnx/model_quantized.onnx', 'tokenizer.json')]" "$E5" \
+ && sha256sum -c SHA256SUMS
 COPY api/app ./app
 COPY knowledge/facts.md ./knowledge/facts.md
 RUN useradd --create-home --uid 10001 api

@@ -192,3 +192,12 @@ def test_the_attachment_switch_is_read_from_redis(store, r):
     before = store.attachments_off()
     r.set("chat:attachments:off", 1)
     assert (before, store.attachments_off()) == (False, True)
+
+
+def test_search_count_is_per_client_per_minute_and_per_day(store, clock):
+    store.hit_search("ip-a")
+    second = store.hit_search("ip-a")
+    other = store.hit_search("ip-b")
+    clock.advance(minutes=1)
+    later = store.hit_search("ip-a")
+    assert (second, other, later) == ((2, 2), (1, 1), (1, 3))
