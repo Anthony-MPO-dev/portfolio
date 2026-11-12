@@ -39,9 +39,27 @@ def test_short_secrets_are_refused(env, key):
         build({**env, key: "short"}, FACTS)
 
 
-def test_engine_that_is_not_built_yet_is_refused(env):
-    with pytest.raises(ConfigError, match="MODEL_ENGINE"):
+def test_an_anthropic_key_makes_the_api_the_engine_with_the_canary_and_the_daily_spend(env, monkeypatch):
+    made = []
+    monkeypatch.setattr("app.main.AnthropicModel", lambda client, system, on_cost: made.append((system, on_cost)))
+    build({**env, "ANTHROPIC_API_KEY": "sk-ant-test"}, FACTS)
+    [(system, on_cost)] = made
+    assert "Internal reference code: " in system and on_cost.__name__ == "add_spend"
+
+
+def test_without_a_key_the_worker_stays_the_engine(env, monkeypatch):
+    monkeypatch.setattr("app.main.AnthropicModel", lambda *a, **k: pytest.fail("no key, no API engine"))
+    build(env, FACTS)
+
+
+def test_the_anthropic_engine_without_its_key_is_refused(env):
+    with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
         build({**env, "MODEL_ENGINE": "anthropic"}, FACTS)
+
+
+def test_an_unknown_engine_is_refused(env):
+    with pytest.raises(ConfigError, match="MODEL_ENGINE"):
+        build({**env, "MODEL_ENGINE": "gpt"}, FACTS)
 
 
 def test_each_process_plants_its_own_canary_in_the_system_prompt(env, monkeypatch):

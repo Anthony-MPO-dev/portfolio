@@ -43,13 +43,14 @@ class Limits:
     per_ip_day: int = 60
     turns: int = 20
     global_day: int = 300
+    budget_day: float = 0.25  # US$ a day for the whole site, from what each answer cost (Anthropic API, 12/11)
     message_files: int = 3
     session_files: int = 10
-    upload_ip_hour: int = 20  # apart from the messages: a message with 3 files still counts as one message
-    upload_ip_day: int = 60
+    upload_ip_hour: int = 5  # apart from the messages: a message with 3 files still counts as one message
+    upload_ip_day: int = 5  # files cost more tokens than text (author, 12/11)
 
 
-Status = Literal["ok", "invalid", "rate_limited", "busy", "conversation_limit", "offline", "blocked"]
+Status = Literal["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "offline", "blocked"]
 
 
 @dataclass(frozen=True)
@@ -118,7 +119,10 @@ class ChatService:
         if self.store.switched_off():
             return ChatResult("offline", session_id, offer_contact=True)
 
-        if _over(self.store.hit_ip(client_key), self.limits.per_ip_hour, self.limits.per_ip_day):
+        hour, day = self.store.hit_ip(client_key)
+        if day > self.limits.per_ip_day:  # the page says that's it for today
+            return ChatResult("daily_limit", session_id)
+        if hour > self.limits.per_ip_hour:
             return ChatResult("rate_limited", session_id)
 
         sid = self._strict_session(session_id)
@@ -158,7 +162,7 @@ class ChatService:
             self.log.record(redact(message), lang)
         except QuestionLogUnavailable:
             pass  # the log only feeds the golden set; the visitor still gets an answer
-        if self.store.hit_global() > self.limits.global_day:
+        if self.store.hit_global() > self.limits.global_day or self.store.spend_today() >= self.limits.budget_day:
             return ChatResult("offline", sid, offer_contact=True)
         return ChatResult("ok", sid, events=self._stream(sid, message, lang, ids, files))
 

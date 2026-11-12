@@ -128,6 +128,12 @@ class FakeStore:
         self.global_day += 1
         return self.global_day
 
+    def add_spend(self, usd: float) -> None:
+        self.spent = getattr(self, "spent", 0.0) + usd
+
+    def spend_today(self) -> float:
+        return getattr(self, "spent", 0.0)
+
     def acquire_lock(self, sid: str) -> bool:
         if sid in self.locks:
             return False

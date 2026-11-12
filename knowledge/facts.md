@@ -5,6 +5,7 @@ profile, his CV, or facts he approved for publishing. If something isn't here, t
 
 ## At a glance
 
+- Name: Anthony Muniz.
 - AI and backend engineer. He makes LLM agents work with real customers, and he measures it.
 - Based in Brazil (UTC-3), works remotely.
 - 3+ years of professional Python experience, writing code since 2017.

@@ -117,6 +117,14 @@ def test_global_count_resets_each_day(store, clock):
     assert (second, store.hit_global()) == (2, 1)
 
 
+def test_spend_adds_up_in_dollars_and_resets_each_day(store, clock):
+    store.add_spend(0.0012)
+    store.add_spend(0.0008)
+    today = store.spend_today()
+    clock.advance(days=1)
+    assert (round(today, 6), store.spend_today()) == (0.002, 0.0)
+
+
 def test_form_count_is_per_client_per_day(store, clock):
     store.hit_form("ip-a")
     second = store.hit_form("ip-a")

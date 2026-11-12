@@ -2,10 +2,13 @@
 
 Responsibility: read the settings, refuse to start when a secret is missing or too short (there are no default
 secrets), pick the model engine, plant a fresh canary in the system prompt on every start, and hand the use cases
-their adapters, with the output guard bound to that canary and its hits (and the worker's) alerted to Anthony. Engines: "worker" (the isolated chat worker, the
-only one). No paid model APIs, by the author's rule of 2026-11-08: the chat runs on his own Claude Code.
+their adapters, with the output guard bound to that canary and its hits (and the worker's) alerted to Anthony. Engines:
+"anthropic" (Claude Haiku 5.5 through the API, on the author's personal account; the default when ANTHROPIC_API_KEY
+is set, his decision of 2026-11-12; each answer's cost goes to the daily spend the use case caps) and "worker" (the
+isolated chat worker on his PC, the default without a key).
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
-CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, MODEL_TIMEOUT (seconds), FACTS_PATH.
+CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (only for a key that
+isn't scoped to a workspace), MODEL_TIMEOUT (seconds), FACTS_PATH.
 Redis user for REDIS_URL (checked against Redis 8 on 2026-11-06; database 0, add +select for another index):
   ACL SETUSER <user> on ><password> ~chat:* resetchannels -@all +exists +set +get +incr +incrby +ttl +expire
   +lrange +rpush +ltrim +lrem +blpop +del +multi +exec +hello +client|setinfo
@@ -27,10 +30,12 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 
+import anthropic
 import psycopg
 import redis
 from fastapi import FastAPI
 
+from app.adapters.anthropic_model import AnthropicModel
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert
 from app.adapters.postgres import Db, PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
@@ -62,9 +67,11 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
     short = [key for key in ("WORKER_TOKEN", "IP_HMAC_KEY") if len(env[key]) < MIN_SECRET]
     if short:
         raise ConfigError(f"{', '.join(short)} must have at least {MIN_SECRET} characters")
-    engine = env.get("MODEL_ENGINE", "worker")
-    if engine != "worker":
-        raise ConfigError(f"MODEL_ENGINE={engine!r} is not available; use 'worker'")
+    engine = env.get("MODEL_ENGINE") or ("anthropic" if env.get("ANTHROPIC_API_KEY") else "worker")
+    if engine not in ("worker", "anthropic"):
+        raise ConfigError(f"MODEL_ENGINE={engine!r} is not available; use 'anthropic' or 'worker'")
+    if engine == "anthropic" and not env.get("ANTHROPIC_API_KEY"):
+        raise ConfigError("MODEL_ENGINE=anthropic needs ANTHROPIC_API_KEY")
 
     timeout = int(env.get("MODEL_TIMEOUT", "45"))
     # Two pooled clients: quick calls fail within seconds; the queue's blocking waits get their own, longer socket.
@@ -77,9 +84,16 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
     alert = N8nSecurityAlert(env["LEAD_WEBHOOK_URL"], r, post=post)  # guard and worker hits, to Anthony's Telegram
     canary = secrets.token_hex(12)  # new on every start: it shows up in a reply only if the prompt leaked
     queue = WorkerQueue(waits, system_prompt(facts, canary=canary), timeout=timeout)
+    model = queue
+    if engine == "anthropic":
+        workspace = {"anthropic-workspace-id": env["ANTHROPIC_WORKSPACE_ID"]} if env.get("ANTHROPIC_WORKSPACE_ID") else None
+        client = anthropic.Anthropic(
+            api_key=env["ANTHROPIC_API_KEY"], timeout=timeout, max_retries=1, default_headers=workspace
+        )
+        model = AnthropicModel(client, system_prompt(facts, canary=canary), on_cost=store.add_spend)
     db = Db(env["DATABASE_URL"])  # pooled; opened by app(), so build stays free of network
     chat = ChatService(
-        queue,
+        model,
         store,
         PostgresQuestionLog(db),
         new_session_id=lambda: secrets.token_urlsafe(32),

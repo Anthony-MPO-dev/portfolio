@@ -22,7 +22,7 @@ export const copy = {
       no_text: "This PDF has no text. Send a picture of the page instead.",
       busy: "Busy right now. Try this file again in a minute.",
       too_many: "This conversation already has 10 files. Clear it to send more.",
-      rate_limited: "You've hit the file limit of 20 an hour or 60 a day. Try again later.",
+      rate_limited: "You've sent today's 5 files. You can still ask in text.",
       offline: "Files are off right now. You can still ask in text.",
     } satisfies Record<FileRefusal, string>,
   },
@@ -35,7 +35,8 @@ export const copy = {
     "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask.",
   notices: {
     offline: "Offline right now. You can still reach Anthony below.",
-    rate_limited: "You've hit the limit of 20 messages an hour or 60 a day. Try again later, or reach Anthony below.",
+    rate_limited: "You've asked a lot in the last hour. Try again in a little while, or reach Anthony below.",
+    daily_limit: "That's it for today: you've used today's questions. Come back tomorrow, or reach Anthony below.",
     busy: "One moment, still answering your last message.",
     conversation_limit: "This conversation has used all 20 exchanges. Clear it to start over, or reach Anthony below.",
     invalid: "Messages can be up to 500 characters. A file waits 30 minutes at most, so attach it again if it expired.",

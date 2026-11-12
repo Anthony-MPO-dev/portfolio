@@ -6,13 +6,16 @@ grade it. A failure shows the reply with the secret terms masked; a run error (t
 one) is a failure too, so no case drops out of the count. With GOLDEN_REPORT set to a path, a complete run is also
 written there as JSON for the site's "How this bot is tested" (site/src/content/bot-tests.json); the author runs it
 with ops/golden-report.ps1, which asks for the secret terms with the typing hidden.
-Run from api/ (one model call per case, on this PC's Claude Code login):
+Run from api/ (one model call per case). With ANTHROPIC_API_KEY set, each case goes through the production engine
+(app.adapters.anthropic_model, Claude Haiku 5.5, about US$ 0.05 for the whole set); without it, through the worker's
+`claude -p` on this PC's Claude Code login:
   EVAL_FORBIDDEN_TERMS="term1,term2" uv run pytest golden -q
   GOLDEN_REPORT=../site/src/content/bot-tests.json EVAL_FORBIDDEN_TERMS="..." uv run pytest golden -q
-Not collected by the unit run (testpaths is tests/). PORTFOLIO_WORKER_MODEL picks the model (haiku, as the worker).
+Not collected by the unit run (testpaths is tests/). PORTFOLIO_WORKER_MODEL picks the worker's model (haiku).
 Public API: none (pytest module).
 Used by: Anthony's PC before each deploy (phase 3 moves it to CI).
-Depends on: golden.grading, app.adapters.prompt, worker.pc_worker, the claude CLI.
+Depends on: golden.grading, app.adapters.prompt, app.adapters.anthropic_model (with a key), worker.pc_worker and the
+claude CLI (without one).
 Tests: this is the test; its grading has unit tests in tests/test_golden.py.
 """
 
@@ -23,8 +26,10 @@ import time
 from datetime import date
 from pathlib import Path
 
+import anthropic
 import pytest
 
+from app.adapters.anthropic_model import AnthropicModel
 from app.adapters.prompt import parse_reply, system_prompt, transcript
 from app.ports import ModelUnavailable
 from golden.grading import forbidden_terms, grade, load_cases, mask, report_entry, report_json
@@ -34,8 +39,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CASES = load_cases((ROOT / "evals" / "golden_set.yaml").read_text(encoding="utf-8"))
 FACTS = (ROOT / "knowledge" / "facts.md").read_text(encoding="utf-8")
 TERMS = forbidden_terms(os.environ.get("EVAL_FORBIDDEN_TERMS"))
-CLAUDE = find_claude()
-MODEL = os.environ.get("PORTFOLIO_WORKER_MODEL", "haiku")
+API = anthropic.Anthropic(timeout=60, max_retries=2) if os.environ.get("ANTHROPIC_API_KEY") else None
+CLAUDE = None if API else find_claude()
+MODEL = "Haiku 5.5" if API else os.environ.get("PORTFOLIO_WORKER_MODEL", "haiku")
 REPORT = os.environ.get("GOLDEN_REPORT")
 ENTRIES: list[dict] = []
 
@@ -62,11 +68,17 @@ def test_case(case, tmp_path):
     }
     reply, failures = None, ["run error"]  # replaced once the reply is graded
     try:
-        raw = answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path))  # streamed, as in production
-        try:
-            reply = parse_reply(raw)
-        except ModelUnavailable:
-            reply = None
+        if API:  # the production engine, streamed, with the contact line already taken out
+            try:
+                reply = list(AnthropicModel(API, job["system"]).stream([], case.q, case.page_lang))[-1]
+            except ModelUnavailable:
+                reply = None
+        else:
+            raw = answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path))
+            try:
+                reply = parse_reply(raw)
+            except ModelUnavailable:
+                reply = None
         failures = grade(case, reply, TERMS, canary)
     finally:
         ENTRIES.append(report_entry(case, reply, failures, TERMS))

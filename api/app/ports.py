@@ -89,6 +89,14 @@ class SessionStore(Protocol):
         """Count one message for the whole site and return the total for today."""
         ...
 
+    def add_spend(self, usd: float) -> None:
+        """Add what one answer cost (US$) to today's total for the whole site."""
+        ...
+
+    def spend_today(self) -> float:
+        """What the answers cost today, in US$."""
+        ...
+
     def acquire_lock(self, sid: str) -> bool:
         """Take the session's answer lock. False when another answer is in progress."""
         ...

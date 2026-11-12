@@ -75,9 +75,9 @@ def test_ip_over_the_hourly_limit_is_rate_limited():
     assert [ask(chat, "hi").status for _ in range(3)] == ["ok", "ok", "rate_limited"]
 
 
-def test_ip_over_the_daily_limit_is_rate_limited():
+def test_ip_over_the_daily_limit_is_done_for_the_day():
     chat, _, _ = make(limits=Limits(per_ip_hour=10, per_ip_day=2))
-    assert [ask(chat, "hi").status for _ in range(3)] == ["ok", "ok", "rate_limited"]
+    assert [ask(chat, "hi").status for _ in range(3)] == ["ok", "ok", "daily_limit"]
 
 
 def test_one_ip_over_the_limit_does_not_block_other_visitors():
@@ -89,6 +89,15 @@ def test_one_ip_over_the_limit_does_not_block_other_visitors():
 def test_global_daily_cap_takes_the_bot_offline_and_offers_contact():
     chat, model, _ = make(limits=Limits(global_day=1))
     ask(chat, "hi", ip="client-a")
+    result = ask(chat, "hi", ip="client-b")
+    assert (result.status, result.offer_contact, len(model.calls)) == ("offline", True, 1)
+
+
+def test_the_daily_budget_in_dollars_takes_the_bot_offline_until_the_next_day():
+    chat, model, store = make(limits=Limits(budget_day=0.25))
+    store.add_spend(0.24)
+    assert ask(chat, "hi", ip="client-a").status == "ok"
+    store.add_spend(0.02)
     result = ask(chat, "hi", ip="client-b")
     assert (result.status, result.offer_contact, len(model.calls)) == ("offline", True, 1)
 

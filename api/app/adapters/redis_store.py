@@ -8,6 +8,7 @@ decisions. Every key it writes has an expiry, so nothing about a visitor stays f
 - chat:rl:{key}:h|d:{t}   messages per client per hour and per day (the key is an HMAC of the IP, never the IP)
 - chat:ru:{key}:h|d:{t}   uploads per client per hour and per day, apart from the messages
 - chat:g:{day}            messages for the whole site today
+- chat:spend:{day}        what today's answers cost, in millionths of a US$ (2 days)
 - chat:form:{key}:{day}   valid contact forms per client today
 - chat:c:{v}:{lang}:{hash}  a clean answer to a first question, 24 h (v: prompt version; hash: SHA-256 of the
                           normalized question, so the key never holds the visitor's words)
@@ -130,6 +131,13 @@ class RedisStore:
 
     def hit_global(self) -> int:
         return self._count((f"chat:g:{self.now():%Y%m%d}", 2 * DAY))[0]
+
+    def add_spend(self, usd: float) -> None:
+        key = f"chat:spend:{self.now():%Y%m%d}"  # in millionths of a dollar: INCRBY is in the ACL, INCRBYFLOAT isn't
+        self.redis.pipeline().incrby(key, round(usd * 1_000_000)).expire(key, 2 * DAY).execute()
+
+    def spend_today(self) -> float:
+        return int(self.redis.get(f"chat:spend:{self.now():%Y%m%d}") or 0) / 1_000_000
 
     def hit_form(self, client_key: str) -> int:
         return self._count((f"chat:form:{client_key}:{self.now():%Y%m%d}", 2 * DAY))[0]

@@ -50,7 +50,7 @@ def test_a_refused_file_says_why_and_is_not_kept():
 
 
 def test_a_conversation_takes_10_files_at_most():
-    chat, _, _ = make(limits=Limits(per_ip_hour=100, per_ip_day=100))
+    chat, _, _ = make(limits=Limits(per_ip_hour=100, per_ip_day=100, upload_ip_hour=100, upload_ip_day=100))
     sid = upload(chat).session_id
     statuses = [upload(chat, sid=sid).status for _ in range(10)]
     assert statuses == ["ok"] * 9 + ["too_many"]

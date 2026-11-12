@@ -37,6 +37,7 @@ CODES = {
     "blocked": 200,
     "invalid": 400,
     "rate_limited": 429,
+    "daily_limit": 429,
     "busy": 429,
     "conversation_limit": 429,
     "unavailable": 503,
