@@ -4,7 +4,7 @@ Responsibility: define the model, session-store, answer-cache, lead, form-counte
 the data that crosses them.
 Public API: Turn, ModelReply, ModelUnavailable, Attachment, AttachmentRejected, ChatModel, SessionStore,
 AnswerCache, Lead, LeadUnavailable, LeadSink, FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs.
-Used by: app.services.chat, app.services.lead, app.http (WorkerJobs). Adapters implement them (the worker queue
+Used by: app.services.chat, app.services.lead, app.services.search (hit_search), app.http (WorkerJobs). Adapters implement them (the worker queue
 model, Redis store, answer cache and counters, Postgres plus n8n lead sink, Postgres question log).
 Depends on: nothing.
 Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fakes.py.

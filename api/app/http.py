@@ -9,7 +9,8 @@ there are no public API docs, except the fact map (GET /api/search/facts), publi
 search (POST /api/search) is a browser route like the chat; without the model both answer 503.
 Public API: create_app.
 Used by: app.main (composition with the real adapters) and tests/test_http.py (with fakes).
-Depends on: FastAPI, app.services.chat.ChatService, app.services.lead.LeadService, app.ports.WorkerJobs,
+Depends on: FastAPI, app.services.chat.ChatService, app.services.lead.LeadService, app.services.search.SearchService,
+app.ports.WorkerJobs,
 app.client_ip, the standard library hmac.
 Tests: tests/test_http.py.
 """
@@ -140,7 +141,7 @@ def create_app(
     def get_facts() -> Response:
         if search is None:
             return JSONResponse({"status": "unavailable"}, 503)
-        facts = [{"id": f.id, "section": f.section, "text": f.text, "x": f.xy[0], "y": f.xy[1]} for f in search.search.facts()]
+        facts = [{"id": f.id, "section": f.section, "text": f.text, "x": f.xy[0], "y": f.xy[1]} for f in search.facts()]
         return JSONResponse({"facts": facts}, headers={"Cache-Control": "public, max-age=3600"})
 
     @app.post("/api/search", dependencies=browser)

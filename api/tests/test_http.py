@@ -289,7 +289,7 @@ def test_the_browser_proof_rides_in_the_chat_body_and_in_a_header_for_uploads():
 def test_the_map_of_facts_is_public_and_cached_for_an_hour():
     response = World().client.get("/api/search/facts")
     facts = response.json()["facts"]
-    assert len(facts) == len(PASSAGES) and set(facts[0]) == {"id", "section", "text", "x", "y"}
+    assert len(facts) == len(PASSAGES) - 1 and set(facts[0]) == {"id", "section", "text", "x", "y"}  # no bot rules
     assert "max-age=3600" in response.headers["cache-control"]
 
 
