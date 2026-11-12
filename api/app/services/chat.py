@@ -108,11 +108,12 @@ class ChatService:
         their own IP limit, a conversation takes 10 at most, and the attachment switch turns them all away."""
         if self.convert is None or self.store.switched_off() or self.store.attachments_off():
             return AttachResult("offline", session_id)
+        known = bool(session_id and self.store.session_exists(session_id))
+        if not known and self.human and not self.human(human_token):  # before the count: a refusal costs nothing
+            return AttachResult("challenge", session_id)
         if _over(self.store.hit_uploads(client_key), self.limits.upload_ip_hour, self.limits.upload_ip_day):
             return AttachResult("rate_limited", session_id)
-        if not self._may_open(session_id, human_token):
-            return AttachResult("challenge", session_id)
-        sid = self._strict_session(session_id)
+        sid = session_id if known else self._new_session()
         if self.store.attachment_count(sid) >= self.limits.session_files:
             return AttachResult("too_many", sid)
         try:
@@ -137,15 +138,16 @@ class ChatService:
         if self.store.switched_off():
             return ChatResult("offline", session_id, offer_contact=True)
 
+        known = bool(session_id and self.store.session_exists(session_id))
+        if not known and self.human and not self.human(human_token):  # before the count: a refusal costs nothing
+            return ChatResult("challenge", session_id)
         hour, day = self.store.hit_ip(client_key)
         if day > self.limits.per_ip_day:  # the page says that's it for today
             return ChatResult("daily_limit", session_id)
         if hour > self.limits.per_ip_hour:
             return ChatResult("rate_limited", session_id)
-        if not self._may_open(session_id, human_token):
-            return ChatResult("challenge", session_id)
 
-        sid = self._strict_session(session_id)
+        sid = session_id if known else self._new_session()
         if not self.store.acquire_lock(sid):
             return ChatResult("busy", sid)
         owns_lock = True
@@ -162,13 +164,8 @@ class ChatService:
         if session_id:
             self.store.delete_session(session_id)
 
-    def _may_open(self, sid: str | None, human_token: str | None) -> bool:
-        """An open conversation goes on; a new one needs the browser proof, when the check is wired."""
-        return self.human is None or bool(sid and self.store.session_exists(sid)) or self.human(human_token)
-
-    def _strict_session(self, sid: str | None) -> str:
-        if sid and self.store.session_exists(sid):
-            return sid
+    def _new_session(self) -> str:
+        """Strict sessions: only an id the server made and still holds goes on; anything else starts a new one."""
         sid = self.new_session_id()
         self.store.create_session(sid)
         return sid

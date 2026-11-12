@@ -25,6 +25,8 @@ export function Chat({ lang }: { lang: Lang }) {
   const picker = useRef<HTMLInputElement>(null);
   const fileKey = useRef(0);
   const hasSession = useRef(false); // the API has set the session cookie (it's HttpOnly, so the page can't see it)
+  const proofBox = useRef<HTMLDivElement>(null); // where Cloudflare's check shows, only if it wants a click
+  const proof = () => (proofBox.current ? humanToken(proofBox.current) : Promise.resolve(undefined));
   const uploading = state.files.some((f) => f.state === "uploading");
   const room = FILES - state.files.filter((f) => f.state !== "refused").length;
 
@@ -49,11 +51,11 @@ export function Chat({ lang }: { lang: Lang }) {
     const onDelta = (piece: string) => dispatch({ type: "delta", text: piece });
     try {
       // a new conversation carries the browser proof; if the server forgot ours (2 h idle), prove it once more
-      const ask = async () =>
-        sendMessage(text.trim(), lang, { files, onDelta, signal: controller.signal, human: await humanToken() });
-      let result = hasSession.current ? await sendMessage(text.trim(), lang, { files, onDelta, signal: controller.signal }) : await ask();
-      if (result.status === "challenge" && hasSession.current) result = await ask();
-      hasSession.current = result.status !== "challenge";
+      const ask = async (prove: boolean) =>
+        sendMessage(text.trim(), lang, { files, onDelta, signal: controller.signal, human: prove ? await proof() : undefined });
+      let result = await ask(!hasSession.current);
+      if (result.status === "challenge" && hasSession.current) result = await ask(true);
+      if (!controller.signal.aborted) hasSession.current = result.status === "ok" || (hasSession.current && result.status !== "challenge");
       dispatch({ type: "answer", result });
     } finally {
       inflight.current = null; // a cleared conversation's request still holds it until it has settled
@@ -72,11 +74,13 @@ export function Chat({ lang }: { lang: Lang }) {
       });
     if (picker.current) picker.current.value = "";
     const run = async ({ key, file }: { key: number; file: File }) => {
-      const result = await uploadFile(file, hasSession.current ? undefined : await humanToken());
-      hasSession.current = result.status === "ok" || result.reason !== "challenge";
+      const upload = async (prove: boolean) => uploadFile(file, prove ? await proof() : undefined);
+      let result = await upload(!hasSession.current);
+      if (result.status === "refused" && result.reason === "challenge" && hasSession.current) result = await upload(true);
+      if (result.status === "ok") hasSession.current = true;
       dispatch({ type: "fileDone", key, result });
     };
-    if (!hasSession.current && jobs.length) await run(jobs.shift()!);
+    while (!hasSession.current && jobs.length) await run(jobs.shift()!); // one at a time until one opens the session
     await Promise.all(jobs.map(run));
   }
 
@@ -161,6 +165,7 @@ export function Chat({ lang }: { lang: Lang }) {
             <ContactPanel state={state} lang={lang} dispatch={dispatch} />
           </div>
 
+          <div ref={proofBox} className="chat-proof" />
           <form
             className="chat-composer"
             onSubmit={(e) => {

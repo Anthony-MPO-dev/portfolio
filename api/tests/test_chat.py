@@ -335,3 +335,10 @@ def test_a_new_conversation_needs_the_browser_proof_and_one_already_open_does_no
 def test_without_a_check_wired_the_chat_works_as_before():
     chat, _, _ = make()
     assert ask(chat, "hi").status == "ok"
+
+
+def test_a_refused_proof_costs_nothing_from_the_visitor_s_daily_messages():
+    chat, _, _ = make(limits=Limits(per_ip_day=1), human=lambda token: token == "real-browser")
+    assert chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token=None).status == "challenge"
+    opened = chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token="real-browser")
+    assert opened.status == "ok"

@@ -5,7 +5,7 @@ the caller's plan B (the e-mail fallback, skipping the question log) runs withou
 one trial call through: a success closes the circuit, a failure opens it again. Thread-safe (sync routes run in a
 thread pool).
 Public API: CircuitBreaker, CircuitOpen.
-Used by: app.http_post, app.adapters.postgres.
+Used by: app.http_post, app.adapters.postgres, app.adapters.anthropic_model, app.adapters.turnstile.
 Depends on: the standard library.
 Tests: tests/test_breaker.py.
 """

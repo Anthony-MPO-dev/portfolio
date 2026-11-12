@@ -381,3 +381,10 @@
     opacity: 0.6;
   }
 }
+
+/* Cloudflare's browser check: empty unless it asks the visitor to click (managed widget, interaction-only). */
+.chat-proof:not(:empty) {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}

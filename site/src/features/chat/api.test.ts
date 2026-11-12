@@ -20,6 +20,19 @@ describe("sendMessage", () => {
     expect(JSON.parse(init.body as string)).toEqual({ message: "Open to remote?", page_lang: "pt" });
   });
 
+  it("sends the browser proof only when given one", async () => {
+    const fetch = respond(200, { status: "ok", reply: "Yes.", offer_contact: false });
+    await sendMessage("Hi", "en", { human: "t-1" });
+    await sendMessage("Hi", "en");
+    const bodies = fetch.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
+    expect(bodies.map((b) => b.human)).toEqual(["t-1", undefined]);
+  });
+
+  it("reads a refused browser proof", async () => {
+    respond(200, { status: "challenge", reply: "", offer_contact: false });
+    expect((await sendMessage("q", "en")).status).toBe("challenge");
+  });
+
   it("reads a reply the output guard blocked", async () => {
     respond(200, { status: "blocked", reply: null, offer_contact: true });
     expect(await sendMessage("q", "en")).toEqual({ status: "blocked", reply: "", offerContact: true });
@@ -83,6 +96,13 @@ describe("sendMessage, streamed", () => {
 });
 
 describe("files", () => {
+  it("sends the browser proof in a header when given one", async () => {
+    const fetch = respond(200, { status: "ok", id: "f1", summary: "pdf, 1 page" });
+    await uploadFile(new Blob(["x"]), "t-2");
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(new Headers(init.headers).get("x-human")).toBe("t-2");
+  });
+
   it("names the uploaded files in the message", async () => {
     const fetch = respond(200, { status: "ok", reply: "Read.", offer_contact: false });
     await sendMessage("What is this?", "en", { files: ["ab12", "cd34"] });

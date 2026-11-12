@@ -54,7 +54,7 @@ class ChatIn(BaseModel):
     message: str = Field(max_length=2000)  # the use case enforces the real 500-character limit
     page_lang: str = Field("en", max_length=10)
     attachments: list[FileId] = Field(default_factory=list, max_length=3)  # ids from /api/attachments
-    human: str | None = Field(None, max_length=4096)  # Turnstile token, needed only to open a conversation
+    human: str | None = Field(None, max_length=2048)  # Turnstile token (2,048 at most), only to open a conversation
 
 
 class LeadIn(BaseModel):
