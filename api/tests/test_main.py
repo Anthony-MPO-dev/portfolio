@@ -116,3 +116,11 @@ def test_uploads_are_converted_in_the_isolated_child_process(env, monkeypatch):
     monkeypatch.setattr("app.main.create_app", lambda **kw: FastAPI())
     build(env, FACTS)
     assert made[0]["convert"] is convert_isolated
+
+
+def test_a_turnstile_secret_makes_a_new_conversation_need_the_browser_proof(env, monkeypatch):
+    made = []
+    monkeypatch.setattr("app.main.TurnstileCheck", lambda secret: made.append(secret) or (lambda token: True))
+    build({**env, "TURNSTILE_SECRET": "0x-secret"}, FACTS)
+    build(env, FACTS)
+    assert made == ["0x-secret"]

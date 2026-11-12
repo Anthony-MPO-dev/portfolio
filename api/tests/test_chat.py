@@ -10,14 +10,14 @@ IP = "client-a"
 
 
 def make(model: FakeModel | None = None, limits: Limits = Limits(), log: FakeQuestionLog | None = None, guard=None, alert=None,
-         cache=None):  # fmt: skip
+         cache=None, human=None):  # fmt: skip
     model = model or FakeModel()
     store = FakeStore()
     ids = (f"sid-{n}" for n in range(1, 1000))
     chat = ChatService(
         model=model, store=store, log=log or FakeQuestionLog(), new_session_id=lambda: next(ids), limits=limits,
         **({"guard": guard} if guard else {}), **({"alert": alert} if alert else {}),
-        **({"cache": cache} if cache is not None else {}),
+        **({"cache": cache} if cache is not None else {}), **({"human": human} if human else {}),
     )  # fmt: skip
     return chat, model, store
 
@@ -320,3 +320,18 @@ def test_a_cached_answer_still_goes_through_the_output_guard():
     cache = FakeCache({("en", "q"): ModelReply("old text with a leak", offer_contact=False)})
     chat, model, _ = make(guard=lambda text: "leak" if "leak" in text else None, cache=cache)
     assert (ask(chat, "q").status, len(model.calls)) == ("blocked", 0)
+
+
+def test_a_new_conversation_needs_the_browser_proof_and_one_already_open_does_not():
+    chat, model, _ = make(human=lambda token: token == "real-browser")
+    refused = chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token="script")
+    assert (refused.status, refused.session_id, len(model.calls)) == ("challenge", None, 0)
+    opened = chat.answer(session_id=None, client_key=IP, message="hi", page_lang="en", human_token="real-browser")
+    list(opened.events)
+    again = chat.answer(session_id=opened.session_id, client_key=IP, message="and his stack?", page_lang="en")
+    assert again.status == "ok"
+
+
+def test_without_a_check_wired_the_chat_works_as_before():
+    chat, _, _ = make()
+    assert ask(chat, "hi").status == "ok"

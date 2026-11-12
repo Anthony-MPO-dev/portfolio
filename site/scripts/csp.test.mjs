@@ -19,8 +19,11 @@ describe("inlineScriptHashes", () => {
 describe("cspHeader", () => {
   const header = cspHeader(["'sha256-x'", "'sha256-y'"]);
 
-  it("lets scripts run only from this site, the listed hashes and Cloudflare's analytics beacon", () => {
-    expect(header).toContain("script-src 'self' 'sha256-x' 'sha256-y' https://static.cloudflareinsights.com;");
+  it("lets scripts run only from this site, the listed hashes, Cloudflare's analytics beacon and Turnstile", () => {
+    expect(header).toContain(
+      "script-src 'self' 'sha256-x' 'sha256-y' https://static.cloudflareinsights.com https://challenges.cloudflare.com;",
+    );
+    expect(header).toContain("frame-src https://challenges.cloudflare.com;");
     expect(header).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 

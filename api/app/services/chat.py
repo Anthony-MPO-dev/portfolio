@@ -1,7 +1,8 @@
 """Chat use case: turn one visitor message into a result the page can show.
 
 Responsibility: honour the off switch, apply the message, IP (an hour, a day), turn and site-wide daily limits
-(messages and the US$ the answers cost), keep the session strict (only
+(messages and the US$ the answers cost), ask a new conversation (message or upload) for the browser proof (Turnstile)
+when the check is wired, keep the session strict (only
 ids this server created), hold one answer at a time per session, log the redacted question, and stream the model's
 answer as events: whole words only, each piece checked by the injected output guard on everything shown so far (a
 hit ends the stream as "blocked", alerts Anthony and is never saved), the contact line turned into offer_contact,
@@ -52,7 +53,8 @@ class Limits:
 
 
 Status = Literal[
-    "ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked"
+    "ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked",
+    "challenge",
 ]
 
 
@@ -67,7 +69,7 @@ class ChatResult:
 
 @dataclass(frozen=True)
 class AttachResult:
-    status: Literal["ok", "rejected", "rate_limited", "too_many", "offline"]
+    status: Literal["ok", "rejected", "rate_limited", "too_many", "offline", "challenge"]
     session_id: str | None = None
     id: str | None = None
     summary: str | None = None
@@ -86,6 +88,7 @@ class ChatService:
         alert: Callable[[str], None] = lambda reason: None,
         cache: AnswerCache | None = None,
         convert: Callable[[bytes], Attachment] | None = None,
+        human: Callable[[str | None], bool] | None = None,
     ):
         self.model = model
         self.store = store
@@ -96,14 +99,19 @@ class ChatService:
         self.alert = alert
         self.cache = cache
         self.convert = convert
+        self.human = human  # Turnstile: a new conversation needs a real browser's proof
 
-    def attach(self, *, session_id: str | None, client_key: str, data: bytes) -> AttachResult:
+    def attach(
+        self, *, session_id: str | None, client_key: str, data: bytes, human_token: str | None = None
+    ) -> AttachResult:
         """One uploaded file: converted in isolation and kept for this session until its answer ends. Uploads have
         their own IP limit, a conversation takes 10 at most, and the attachment switch turns them all away."""
         if self.convert is None or self.store.switched_off() or self.store.attachments_off():
             return AttachResult("offline", session_id)
         if _over(self.store.hit_uploads(client_key), self.limits.upload_ip_hour, self.limits.upload_ip_day):
             return AttachResult("rate_limited", session_id)
+        if not self._may_open(session_id, human_token):
+            return AttachResult("challenge", session_id)
         sid = self._strict_session(session_id)
         if self.store.attachment_count(sid) >= self.limits.session_files:
             return AttachResult("too_many", sid)
@@ -114,7 +122,14 @@ class ChatService:
         return AttachResult("ok", sid, id=self.store.save_attachment(sid, file), summary=file.summary)
 
     def answer(
-        self, *, session_id: str | None, client_key: str, message: str, page_lang: str, attachments: Sequence[str] = ()
+        self,
+        *,
+        session_id: str | None,
+        client_key: str,
+        message: str,
+        page_lang: str,
+        attachments: Sequence[str] = (),
+        human_token: str | None = None,
     ) -> ChatResult:
         message = message.strip()
         if not message or len(message) > self.limits.max_chars or len(attachments) > self.limits.message_files:
@@ -127,6 +142,8 @@ class ChatService:
             return ChatResult("daily_limit", session_id)
         if hour > self.limits.per_ip_hour:
             return ChatResult("rate_limited", session_id)
+        if not self._may_open(session_id, human_token):
+            return ChatResult("challenge", session_id)
 
         sid = self._strict_session(session_id)
         if not self.store.acquire_lock(sid):
@@ -144,6 +161,10 @@ class ChatService:
         """The visitor's "erase conversation" button."""
         if session_id:
             self.store.delete_session(session_id)
+
+    def _may_open(self, sid: str | None, human_token: str | None) -> bool:
+        """An open conversation goes on; a new one needs the browser proof, when the check is wired."""
+        return self.human is None or bool(sid and self.store.session_exists(sid)) or self.human(human_token)
 
     def _strict_session(self, sid: str | None) -> str:
         if sid and self.store.session_exists(sid):

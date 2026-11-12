@@ -119,3 +119,10 @@ def test_a_message_with_files_neither_uses_nor_fills_the_answer_cache():
     pdf = upload(chat)
     ask(chat, "What is this?", pdf.session_id, [pdf.id])
     assert cache.answers == {}
+
+
+def test_an_upload_that_would_open_a_conversation_needs_the_browser_proof_too():
+    chat, _, _ = make()
+    chat.human = lambda token: token == "real-browser"
+    assert chat.attach(session_id=None, client_key=IP, data=b"%PDF", human_token=None).status == "challenge"
+    assert chat.attach(session_id=None, client_key=IP, data=b"%PDF", human_token="real-browser").status == "ok"

@@ -5,9 +5,9 @@
 // submitLead, clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
 
 export type Lang = "en" | "pt";
-const CHAT = ["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked"] as const;
+const CHAT = ["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked", "challenge"] as const;
 const LEAD = ["ok", "invalid", "rate_limited", "unavailable"] as const;
-const REFUSALS = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline"] as const;
+const REFUSALS = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline", "challenge"] as const;
 export type ChatStatus = (typeof CHAT)[number];
 export type ChatResult = { status: ChatStatus; reply: string; offerContact: boolean };
 export type LeadStatus = (typeof LEAD)[number];
@@ -40,10 +40,16 @@ function post(url: string, body: unknown, signal?: AbortSignal): Promise<Respons
 export async function sendMessage(
   message: string,
   pageLang: Lang,
-  { files = [], onDelta = () => {}, signal }: { files?: string[]; onDelta?: (text: string) => void; signal?: AbortSignal } = {},
+  {
+    files = [],
+    onDelta = () => {},
+    signal,
+    human,
+  }: { files?: string[]; onDelta?: (text: string) => void; signal?: AbortSignal; human?: string } = {},
 ): Promise<ChatResult> {
   try {
-    const body = { message, page_lang: pageLang, ...(files.length ? { attachments: files } : {}) };
+    // human: the browser proof (human.ts), sent only to open a conversation
+    const body = { message, page_lang: pageLang, ...(files.length ? { attachments: files } : {}), ...(human ? { human } : {}) };
     const response = await post("/api/chat", body, signal);
     if (!response.headers.get("content-type")?.includes("ndjson")) return chatResult(await response.json());
     const lines = response.body!.pipeThrough(new TextDecoderStream()).getReader();
@@ -74,12 +80,12 @@ function chatResult(data: Data | null, streamed?: string): ChatResult {
 }
 
 // One file as raw bytes; the API converts it and keeps the result for this conversation until the answer ends.
-export async function uploadFile(file: Blob): Promise<UploadResult> {
+export async function uploadFile(file: Blob, human?: string): Promise<UploadResult> {
   if (file.size > MAX_FILE) return { status: "refused", reason: "too_big" };
   try {
     const response = await fetch("/api/attachments", {
       method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
+      headers: { "Content-Type": "application/octet-stream", ...(human ? { "X-Human": human } : {}) },
       body: file,
       credentials: "same-origin",
     });

@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { profile } from "@/content/profile";
 import { clearConversation, sendMessage, uploadFile, type Lang } from "./api";
+import { humanToken } from "./human";
 import { copy } from "./copy";
 import { LeadForm } from "./lead-form";
 import { initial, reduce, type Action, type Entry, type State } from "./state";
@@ -47,8 +48,12 @@ export function Chat({ lang }: { lang: Lang }) {
     const controller = (inflight.current = new AbortController());
     const onDelta = (piece: string) => dispatch({ type: "delta", text: piece });
     try {
-      const result = await sendMessage(text.trim(), lang, { files, onDelta, signal: controller.signal });
-      hasSession.current = true;
+      // a new conversation carries the browser proof; if the server forgot ours (2 h idle), prove it once more
+      const ask = async () =>
+        sendMessage(text.trim(), lang, { files, onDelta, signal: controller.signal, human: await humanToken() });
+      let result = hasSession.current ? await sendMessage(text.trim(), lang, { files, onDelta, signal: controller.signal }) : await ask();
+      if (result.status === "challenge" && hasSession.current) result = await ask();
+      hasSession.current = result.status !== "challenge";
       dispatch({ type: "answer", result });
     } finally {
       inflight.current = null; // a cleared conversation's request still holds it until it has settled
@@ -67,8 +72,8 @@ export function Chat({ lang }: { lang: Lang }) {
       });
     if (picker.current) picker.current.value = "";
     const run = async ({ key, file }: { key: number; file: File }) => {
-      const result = await uploadFile(file);
-      hasSession.current = true;
+      const result = await uploadFile(file, hasSession.current ? undefined : await humanToken());
+      hasSession.current = result.status === "ok" || result.reason !== "challenge";
       dispatch({ type: "fileDone", key, result });
     };
     if (!hasSession.current && jobs.length) await run(jobs.shift()!);

@@ -6,7 +6,9 @@ RUN npm ci --no-audit --no-fund
 COPY . .
 # The chat is in the page since 12/11 (Anthropic API engine); build with --build-arg VITE_CHAT=0 to leave it out.
 ARG VITE_CHAT=1
-RUN VITE_CHAT=$VITE_CHAT npm run build && node scripts/csp.mjs build/client > build/csp.conf
+# Turnstile's site key is public (the secret lives in the API's env); without one the chat sends no browser proof.
+ARG VITE_TURNSTILE_SITEKEY=0x4AAAAAAF-naOwEPdaF6xQz
+RUN VITE_CHAT=$VITE_CHAT VITE_TURNSTILE_SITEKEY=$VITE_TURNSTILE_SITEKEY npm run build && node scripts/csp.mjs build/client > build/csp.conf
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
