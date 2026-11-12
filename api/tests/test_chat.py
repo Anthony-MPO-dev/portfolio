@@ -86,20 +86,20 @@ def test_one_ip_over_the_limit_does_not_block_other_visitors():
     assert ask(chat, "hi", ip="client-b").status == "ok"
 
 
-def test_global_daily_cap_takes_the_bot_offline_and_offers_contact():
+def test_global_daily_cap_rests_the_bot_until_tomorrow_and_offers_contact():
     chat, model, _ = make(limits=Limits(global_day=1))
     ask(chat, "hi", ip="client-a")
     result = ask(chat, "hi", ip="client-b")
-    assert (result.status, result.offer_contact, len(model.calls)) == ("offline", True, 1)
+    assert (result.status, result.offer_contact, len(model.calls)) == ("resting", True, 1)
 
 
-def test_the_daily_budget_in_dollars_takes_the_bot_offline_until_the_next_day():
+def test_the_daily_budget_in_dollars_rests_the_bot_until_the_next_day():
     chat, model, store = make(limits=Limits(budget_day=0.25))
     store.add_spend(0.24)
     assert ask(chat, "hi", ip="client-a").status == "ok"
     store.add_spend(0.02)
     result = ask(chat, "hi", ip="client-b")
-    assert (result.status, result.offer_contact, len(model.calls)) == ("offline", True, 1)
+    assert (result.status, result.offer_contact, len(model.calls)) == ("resting", True, 1)
 
 
 def test_conversation_over_the_turn_limit_must_start_over():

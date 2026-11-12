@@ -38,6 +38,7 @@ export const copy = {
     rate_limited: "You've asked a lot in the last hour. Try again in a little while, or reach Anthony below.",
     daily_limit: "That's it for today: you've used today's questions. Come back tomorrow, or reach Anthony below.",
     busy: "One moment, still answering your last message.",
+    resting: "Busy day. The assistant has answered all it can for today and comes back tomorrow, so reach Anthony below.",
     conversation_limit: "This conversation has used all 20 exchanges. Clear it to start over, or reach Anthony below.",
     invalid: "Messages can be up to 500 characters. A file waits 30 minutes at most, so attach it again if it expired.",
     blocked: "I can only help with questions about Anthony's work. You can also reach him below.",

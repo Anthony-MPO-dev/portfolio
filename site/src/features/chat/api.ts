@@ -5,7 +5,7 @@
 // submitLead, clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
 
 export type Lang = "en" | "pt";
-const CHAT = ["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "offline", "blocked"] as const;
+const CHAT = ["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked"] as const;
 const LEAD = ["ok", "invalid", "rate_limited", "unavailable"] as const;
 const REFUSALS = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline"] as const;
 export type ChatStatus = (typeof CHAT)[number];

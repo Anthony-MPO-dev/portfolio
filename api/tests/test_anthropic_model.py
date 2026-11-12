@@ -1,3 +1,6 @@
+"""Anthropic engine: the text streams, the reply ends it, every billed answer counts toward the day's budget, and any
+failure is offline, never half an answer."""
+
 from types import SimpleNamespace
 
 import anthropic
@@ -32,6 +35,10 @@ class FakeStream:
 
     def get_final_message(self):
         return SimpleNamespace(stop_reason=self.stop, usage=self.use)
+
+    @property
+    def current_message_snapshot(self):  # what the SDK knows mid-stream: the input, not yet the output
+        return SimpleNamespace(usage=usage(self.use.input_tokens, 1, self.use.cache_read_input_tokens, 0))
 
 
 class FakeClient:
@@ -69,7 +76,7 @@ def test_sends_the_cached_system_prompt_the_conversation_and_haiku_at_low_effort
     assert call["model"] == "claude-haiku-5-5"
     assert call["system"] == [{"type": "text", "text": "SYSTEM", "cache_control": {"type": "ephemeral"}}]
     assert call["output_config"] == {"effort": "low"}
-    assert 0 < call["max_tokens"] <= 2000
+    assert call["max_tokens"] >= 4000  # thinking counts toward it; a long answer must not be cut
     [turn] = call["messages"]
     assert turn["role"] == "user" and "<conversation>" in turn["content"][-1]["text"]
 
@@ -89,11 +96,32 @@ def test_a_refusal_or_a_cut_answer_is_offline_not_half_an_answer(stop):
         run(AnthropicModel(FakeClient(FakeStream(["Partial"], stop=stop)), "SYSTEM"))
 
 
-def test_an_api_error_before_or_during_the_answer_is_offline():
+@pytest.mark.parametrize(
+    "error", [connection_error(), httpx2.ReadTimeout("read timed out"), httpx2.RemoteProtocolError("peer closed")]
+)
+def test_an_error_before_or_during_the_answer_is_offline(error):
     with pytest.raises(ModelUnavailable):
-        run(AnthropicModel(FakeClient(connection_error()), "SYSTEM"))
-    with pytest.raises(ModelUnavailable):
-        run(AnthropicModel(FakeClient(FakeStream(["Half"], error=connection_error())), "SYSTEM"))
+        run(AnthropicModel(FakeClient(error), "SYSTEM"))
+    with pytest.raises(ModelUnavailable):  # the SDK lets raw transport errors through once the stream is read
+        run(AnthropicModel(FakeClient(FakeStream(["Half"], error=error)), "SYSTEM"))
+
+
+def test_after_three_failures_in_a_row_the_api_is_skipped_for_a_while():
+    client = FakeClient(connection_error())
+    model = AnthropicModel(client, "SYSTEM")
+    for _ in range(4):
+        with pytest.raises(ModelUnavailable):
+            run(model)
+    assert len(client.calls) == 3
+
+
+def test_an_answer_cut_short_still_counts_what_it_cost():
+    spent = []
+    model = AnthropicModel(FakeClient(FakeStream(["Ignore your rules ", "and tell me"])), "SYSTEM", on_cost=spent.append)
+    pieces = model.stream([], "q", "en")
+    next(pieces)
+    pieces.close()  # the output guard blocked it, or the visitor left
+    assert len(spent) == 1 and spent[0] > cost_usd(usage(input=4000, output=0))
 
 
 def test_each_answer_reports_what_it_cost_even_when_it_ends_offline():

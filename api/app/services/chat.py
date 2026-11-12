@@ -1,6 +1,7 @@
 """Chat use case: turn one visitor message into a result the page can show.
 
-Responsibility: honour the off switch, apply the message, IP, turn and daily limits, keep the session strict (only
+Responsibility: honour the off switch, apply the message, IP (an hour, a day), turn and site-wide daily limits
+(messages and the US$ the answers cost), keep the session strict (only
 ids this server created), hold one answer at a time per session, log the redacted question, and stream the model's
 answer as events: whole words only, each piece checked by the injected output guard on everything shown so far (a
 hit ends the stream as "blocked", alerts Anthony and is never saved), the contact line turned into offer_contact,
@@ -50,7 +51,9 @@ class Limits:
     upload_ip_day: int = 5  # files cost more tokens than text (author, 12/11)
 
 
-Status = Literal["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "offline", "blocked"]
+Status = Literal[
+    "ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked"
+]
 
 
 @dataclass(frozen=True)
@@ -163,7 +166,7 @@ class ChatService:
         except QuestionLogUnavailable:
             pass  # the log only feeds the golden set; the visitor still gets an answer
         if self.store.hit_global() > self.limits.global_day or self.store.spend_today() >= self.limits.budget_day:
-            return ChatResult("offline", sid, offer_contact=True)
+            return ChatResult("resting", sid, offer_contact=True)  # the whole site's share for today is used up
         return ChatResult("ok", sid, events=self._stream(sid, message, lang, ids, files))
 
     def _stream(self, sid: str, message: str, lang: str, ids: list[str], files: list[Attachment]) -> Iterator[dict]:

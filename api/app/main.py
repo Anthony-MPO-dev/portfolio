@@ -30,7 +30,6 @@ from collections.abc import Mapping
 from functools import partial
 from pathlib import Path
 
-import anthropic
 import psycopg
 import redis
 from fastapi import FastAPI
@@ -83,14 +82,14 @@ def build(env: Mapping[str, str], facts: str) -> FastAPI:
     post = Poster()  # one keep-alive pool and one circuit breaker for every webhook call
     alert = N8nSecurityAlert(env["LEAD_WEBHOOK_URL"], r, post=post)  # guard and worker hits, to Anthony's Telegram
     canary = secrets.token_hex(12)  # new on every start: it shows up in a reply only if the prompt leaked
-    queue = WorkerQueue(waits, system_prompt(facts, canary=canary), timeout=timeout)
+    system = system_prompt(facts, canary=canary)
+    queue = WorkerQueue(waits, system, timeout=timeout)
     model = queue
     if engine == "anthropic":
-        workspace = {"anthropic-workspace-id": env["ANTHROPIC_WORKSPACE_ID"]} if env.get("ANTHROPIC_WORKSPACE_ID") else None
-        client = anthropic.Anthropic(
-            api_key=env["ANTHROPIC_API_KEY"], timeout=timeout, max_retries=1, default_headers=workspace
-        )
-        model = AnthropicModel(client, system_prompt(facts, canary=canary), on_cost=store.add_spend)
+        model = AnthropicModel.connect(
+            env["ANTHROPIC_API_KEY"], system, workspace=env.get("ANTHROPIC_WORKSPACE_ID"), timeout=timeout,
+            on_cost=store.add_spend,
+        )  # fmt: skip
     db = Db(env["DATABASE_URL"])  # pooled; opened by app(), so build stays free of network
     chat = ChatService(
         model,
