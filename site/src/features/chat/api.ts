@@ -6,7 +6,6 @@
 
 import type { Lang } from "@/lib/lang";
 
-export type { Lang };
 const CHAT = ["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked", "challenge"] as const;
 const LEAD = ["ok", "invalid", "rate_limited", "unavailable"] as const;
 const REFUSALS = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline", "challenge"] as const;

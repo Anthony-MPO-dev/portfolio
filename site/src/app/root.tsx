@@ -6,7 +6,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import archivoLatin from "@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url";
 import "@/styles/global.css";
 import { useLang } from "@/hooks/use-lang";
-import { LANG_BOOT } from "@/lib/lang";
+import { HTML_LANG, LANG_BOOT } from "@/lib/lang";
 
 // HTML shell of every prerendered page: fonts, the page's language (lang, from its path), and the boot script.
 
@@ -25,7 +25,7 @@ export function links() {
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang={useLang() === "pt" ? "pt-BR" : "en"} suppressHydrationWarning>
+    <html lang={HTML_LANG[useLang()]} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

@@ -7,7 +7,7 @@ import "./support-agent.css";
 const QUESTIONS = Array.from({ length: 23 }, (_, n) => n);
 const IMPROVED = [0, 2, 3, 5, 7, 8, 10, 13, 14, 16, 19, 20, 22];
 
-export const COPY = {
+const COPY = {
   en: {
     label: "The search fix",
     drawing: "23 test questions. 13 of them now get a document the agent used to miss.",

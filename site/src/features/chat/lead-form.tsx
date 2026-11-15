@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { submitLead, type Lang, type LeadResult } from "./api";
+import type { Lang } from "@/lib/lang";
+import { submitLead, type LeadResult } from "./api";
 import { copy } from "./copy";
 
 // Contact form shown when the bot offers it: name, company and email required, LinkedIn optional, Hiring or

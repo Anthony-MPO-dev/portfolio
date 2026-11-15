@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router";
 import { contact, home } from "@/content/profile";
 import { useLang } from "@/hooks/use-lang";
-import { type Lang, pathIn, rememberLang } from "@/lib/lang";
+import { HTML_LANG, type Lang, pathIn, rememberLang } from "@/lib/lang";
 import { ThemeToggle } from "./theme-toggle";
 import "./site-header.css";
 
@@ -22,19 +22,24 @@ export function SiteHeader() {
       <Link to={pathIn(lang, "/")}>{contact.name}</Link>
       <span className="top-status">{home[lang].profile.status}</span>
       <nav className="top-lang" aria-label={lang === "pt" ? "Idioma" : "Language"}>
-        {LANGS.map((l) => (
+        {LANGS.map((l, i) => [
+          i > 0 && (
+            <span key="sep" className="top-lang-sep" aria-hidden="true">
+              |
+            </span>
+          ),
           <Link
             key={l.id}
             to={pathIn(l.id, pathname)}
-            lang={l.id === "pt" ? "pt-BR" : "en"}
-            hrefLang={l.id === "pt" ? "pt-BR" : "en"}
+            lang={HTML_LANG[l.id]}
+            hrefLang={HTML_LANG[l.id]}
             title={l.name}
             aria-current={l.id === lang ? "page" : undefined}
             onClick={() => rememberLang(l.id)}
           >
             {l.label}
-          </Link>
-        ))}
+          </Link>,
+        ])}
       </nav>
       <ThemeToggle lang={lang} />
     </header>

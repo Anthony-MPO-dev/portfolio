@@ -1,3 +1,5 @@
+import type { Lang } from "@/lib/lang";
+
 // The golden set run the page shows ("How this bot is tested"): content/bot-tests.json, written by a complete live
 // run on the author's PC (api/golden/test_live.py with GOLDEN_REPORT). summarize counts the passes and groups the
 // cases in the order their groups first ran (the golden set's own order), numbering them across the run so the
@@ -13,7 +15,7 @@ const ATTACKS = ["injection", "confidential"];
 
 // Portuguese if it has a Portuguese accent or one of its short words (not those English shares, such as "a" or "do").
 const PORTUGUESE = /[ãõçáéíóúâêô]|\b(o|os|que|qual|em|para|ele|dele|dela|da|uma|não)\b/i;
-export const spokenIn = (text: string): "pt" | "en" => (PORTUGUESE.test(text) ? "pt" : "en");
+export const spokenIn = (text: string): Lang => (PORTUGUESE.test(text) ? "pt" : "en");
 
 export function summarize(run: Run) {
   let n = 0;

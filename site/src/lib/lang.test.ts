@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { alternates, LANG_BOOT, langOf, pathIn } from "./lang";
+import { alternates, LANG_BOOT, langOf, pageLinks, pathIn } from "./lang";
 
 describe("langOf", () => {
   it("reads Portuguese from the /pt/ pages and English from the rest", () => {
@@ -35,6 +35,20 @@ describe("alternates", () => {
       "https://anthonymuniz.dev/pt/",
       "https://anthonymuniz.dev/",
     ]);
+  });
+});
+
+describe("pageLinks", () => {
+  it("gives a page's address and the tags every page shares, in its language", () => {
+    const { url, tags } = pageLinks("pt", "/services");
+    expect(url).toBe("https://anthonymuniz.dev/pt/services");
+    expect(tags.slice(0, 3)).toEqual([
+      { property: "og:url", content: "https://anthonymuniz.dev/pt/services" },
+      { property: "og:locale", content: "pt_BR" },
+      { tagName: "link", rel: "canonical", href: "https://anthonymuniz.dev/pt/services" },
+    ]);
+    expect(tags.slice(3)).toEqual(alternates("/services"));
+    expect(pageLinks("en", "/").tags[1]).toEqual({ property: "og:locale", content: "en_US" });
   });
 });
 

@@ -2,7 +2,8 @@ import type { Lang } from "@/lib/lang";
 import "./theme-toggle.css";
 
 // Light or dark switch. The boot script in root.tsx applies the saved choice before paint, and CSS (.when-light,
-// .when-dark) picks the button's word, so neither the page nor the label flashes before React loads.
+// .when-dark) picks the button's word, so neither the page nor the label flashes before React loads. The words follow
+// the page's language. Public API: ThemeToggle. Used by: components/site-header.tsx.
 function currentTheme(): "light" | "dark" {
   const set = document.documentElement.dataset.theme;
   if (set === "light" || set === "dark") return set;
@@ -19,7 +20,7 @@ function toggleTheme() {
   }
 }
 
-export const WORDS = {
+const WORDS = {
   en: { label: "Switch between light and dark theme", dark: "Dark", light: "Light" },
   pt: { label: "Trocar entre tema claro e escuro", dark: "Escuro", light: "Claro" },
 };

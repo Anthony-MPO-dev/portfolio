@@ -1,7 +1,8 @@
 // Fixed text of the chat panel, in the page's language (English, or Portuguese on the /pt/ pages, a faithful
 // translation the author reviews, 15/11): labels, notices and the contact form. The bot's replies follow the
 // message's language on their own. Public API: copy. Used by: features/chat/chat.tsx, lead-form.tsx.
-import type { FileRefusal, Lang } from "./api";
+import type { Lang } from "@/lib/lang";
+import type { FileRefusal } from "./api";
 import type { Notice } from "./state";
 
 const en = {

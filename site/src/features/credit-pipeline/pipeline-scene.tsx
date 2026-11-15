@@ -7,7 +7,7 @@ import "./pipeline-scene.css";
 const BUREAUS = [0, 1, 2, 3, 4];
 const WORKER_X = [80, 200, 320];
 
-export const COPY = {
+const COPY = {
   en: {
     label: "The credit pipeline",
     note: "Five or more credit bureaus in, one report out. A credit analysis used to take about an hour, and this pipeline gets it done in as fast as 5 minutes. Moving the heavy work to RabbitMQ and Celery workers raised capacity from about 10 to as many as 100 operations a day.",

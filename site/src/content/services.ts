@@ -4,7 +4,8 @@ import type { Lang } from "@/lib/lang";
 // 15/11). The author's results come from knowledge/facts.md and content/profile.ts; the market figures from
 // .claude/docs/research/automation-ai-value.md, each one read on the publisher's own page or PDF and worded as the
 // source words it. Vendor-commissioned studies say so on the page. Nothing here is estimated: the only chart that
-// changes is the calculator's, and it runs on the visitor's numbers. The sources keep their own (English) titles.
+// changes is the calculator's, and it runs on the visitor's numbers. The sources keep their own (English) titles; on
+// the Portuguese page the counts the site adds to them are in Brazilian format.
 // Public API: servicesPage, Source. Used by: app/routes/services.tsx, features/services/*.
 
 export type Source = { name: string; url: string };
@@ -160,7 +161,7 @@ const pt: typeof en = {
     squares: (n: number) => `${n} de 100 quadrados acesos`,
     text: "das iniciativas de IA deram aos CEOs o retorno que eles esperavam.",
     also: "E só 25% das empresas levaram 40% ou mais dos seus pilotos de IA para a produção.",
-    sources: SOURCES.stall,
+    sources: [{ ...SOURCES.stall[0], name: "IBM CEO Study, 2025 (2.000 CEOs)" }, SOURCES.stall[1]],
   },
   blockers: {
     aria: "Por que trava",
@@ -171,7 +172,7 @@ const pt: typeof en = {
       { label: "O algoritmo", value: 10 },
     ],
     text: "O que trava raramente é o modelo. Cerca de 70% do que segura a IA são pessoas e processos, e só 10% é o algoritmo. É aí que está a maior parte do meu trabalho.",
-    sources: SOURCES.blockers,
+    sources: [{ ...SOURCES.blockers[0], name: "BCG, Where's the Value in AI?, 2024 (1.000 executivos)" }],
   },
   payoff: {
     aria: "Em produção, ela se paga",
@@ -195,12 +196,12 @@ const pt: typeof en = {
         line: "Construo fluxos no n8n e serviços em Python que levam dados entre HubSpot, Google Sheets, Gmail e WhatsApp, para ninguém do seu time copiar à mão.",
         proof: "Uma análise de crédito que refiz caiu de cerca de uma hora para 5 minutos no melhor caso.",
         caption: "1 hora → 5 min no melhor caso",
-        words: ["copiar", "colar", "checar", "e-mail", "salvar"],
+        words: ["copiar", "colar", "checar", "e-mail", "arquivar"],
       },
       {
         id: "agents",
         name: "Agentes de IA e skills",
-        line: "Construo agentes de atendimento que respondem a partir dos seus documentos e passam para uma pessoa quando não sabem. Também monto agentes e skills que o seu time usa todo dia.",
+        line: "Construo agentes de atendimento que respondem a partir dos seus documentos e passam para uma pessoa quando não conseguem resolver. Também monto agentes e skills que o seu time usa todo dia.",
         proof: "Meu agente de atendimento em produção responde 3x mais rápido: 15 segundos no meio da conversa, em vez de 45.",
         caption: "respostas 3x mais rápidas, 45 s → 15 s",
         words: ["pergunta", "seus docs", "resposta", "pessoa"],

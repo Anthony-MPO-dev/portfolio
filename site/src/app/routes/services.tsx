@@ -9,7 +9,7 @@ import "@/features/services/services.css";
 import { useDecode } from "@/hooks/use-decode";
 import { useLang } from "@/hooks/use-lang";
 import { useReveal } from "@/hooks/use-reveal";
-import { alternates, langOf, pathIn, SITE } from "@/lib/lang";
+import { langOf, pageLinks } from "@/lib/lang";
 
 // The /services page of Insight AI & Automation, one screen per chapter: the opening, why most AI stalls, why it
 // stalls, what it pays back once it ships (market figures with their sources), the four services with the author's
@@ -19,7 +19,7 @@ import { alternates, langOf, pathIn, SITE } from "@/lib/lang";
 export function meta({ location }: { location: { pathname: string } }) {
   const lang = langOf(location.pathname);
   const { meta, intro } = servicesPage[lang];
-  const url = SITE + pathIn(lang, "/services");
+  const { tags } = pageLinks(lang, "/services");
   const title = `${meta.title}, ${contact.name}`;
   const description = intro.title;
   return [
@@ -28,10 +28,7 @@ export function meta({ location }: { location: { pathname: string } }) {
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: url },
-    { property: "og:locale", content: lang === "pt" ? "pt_BR" : "en_US" },
-    { tagName: "link", rel: "canonical", href: url },
-    ...alternates("/services"),
+    ...tags,
   ];
 }
 

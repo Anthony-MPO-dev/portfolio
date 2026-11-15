@@ -18,7 +18,11 @@
 /* EN | PT: two short links, the current one in ink and underlined. */
 .top-lang {
   display: flex;
+  align-items: center;
   font: 500 13px var(--mono);
+}
+.top-lang-sep {
+  color: var(--muted);
 }
 .top-lang a {
   display: inline-flex;

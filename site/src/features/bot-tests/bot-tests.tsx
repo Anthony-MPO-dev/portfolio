@@ -67,7 +67,13 @@ export function BotTests() {
         ))}
         {failed.length > 0 && (
           <p className="bt-failed">
-            {copy.failed} {failed.map((c) => c.q).join(" / ")}
+            {copy.failed}{" "}
+            {failed.map((c, i) => (
+              <span key={c.id} lang={spokenIn(c.q)}>
+                {i > 0 && " / "}
+                {c.q}
+              </span>
+            ))}
           </p>
         )}
       </div>

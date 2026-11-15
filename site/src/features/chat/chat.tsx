@@ -1,17 +1,18 @@
 import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { contact } from "@/content/profile";
-import { clearConversation, sendMessage, uploadFile, type Lang } from "./api";
+import { clearConversation, sendMessage, uploadFile } from "./api";
 import { CHAT_ASK } from "@/lib/events";
+import type { Lang } from "@/lib/lang";
 import { humanToken } from "./human";
 import { copy } from "./copy";
 import { LeadForm } from "./lead-form";
 import { initial, reduce, type Action, type Entry, type State } from "./state";
 import "./chat.css";
 
-type Copy = (typeof copy)[Lang];
-
 // Chat: a launcher in the corner that opens the panel (a full page over the site on phones). Replies keep their
-// line breaks. Mounted by app/root.tsx only when the build sets VITE_CHAT=1. Tests: state.test.ts, api.test.ts.
+// line breaks; the fixed text follows the page's language (copy.ts). Mounted by app/root.tsx only when the build
+// sets VITE_CHAT=1. Tests: state.test.ts, api.test.ts.
+type Copy = (typeof copy)[Lang];
 const MAX = 500;
 const FILES = 3; // per message, as the API allows
 const ACCEPT = "image/png,image/jpeg,image/webp,application/pdf,.xlsx,.csv";

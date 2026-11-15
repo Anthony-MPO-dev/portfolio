@@ -5,7 +5,7 @@ import "./support-agent.css";
 // Support agent, the metric that lied: the dashboard line swings while the "bot changes" line stays flat.
 const SWING = "M0 120 L50 150 L100 168 L150 70 L200 34 L250 128 L300 150 L360 96";
 
-export const COPY = {
+const COPY = {
   en: {
     label: "The metric that lied",
     drawing: "A dashboard line swings up and down 4x while the bot line stays flat.",

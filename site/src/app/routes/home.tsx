@@ -15,7 +15,7 @@ import { useDecode } from "@/hooks/use-decode";
 import { useLang } from "@/hooks/use-lang";
 import { useReveal } from "@/hooks/use-reveal";
 import { TYPED_IN_MS } from "@/lib/entry";
-import { alternates, langOf, pathIn, SITE } from "@/lib/lang";
+import { langOf, pageLinks, pathIn } from "@/lib/lang";
 import "./home.css";
 import "./home-entrance.css";
 
@@ -29,7 +29,7 @@ import "./home-entrance.css";
 export function meta({ location }: { location: { pathname: string } }) {
   const lang = langOf(location.pathname);
   const { profile } = home[lang];
-  const url = SITE + pathIn(lang, "/");
+  const { url, tags } = pageLinks(lang, "/");
   const title = `${contact.name}, ${profile.role}`;
   return [
     { title },
@@ -37,10 +37,7 @@ export function meta({ location }: { location: { pathname: string } }) {
     { property: "og:title", content: title },
     { property: "og:description", content: profile.lede },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: url },
-    { property: "og:locale", content: lang === "pt" ? "pt_BR" : "en_US" },
-    { tagName: "link", rel: "canonical", href: url },
-    ...alternates("/"),
+    ...tags,
     // The card search engines read about the author (schema.org Person): only facts already on the page.
     {
       "script:ld+json": {
