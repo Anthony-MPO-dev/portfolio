@@ -10,7 +10,7 @@ import "./fact-search.css";
 // a terminal prompt with a green cursor, the map of every fact where the question lands and draws lines to the 5
 // closest, and those 5 typed in like the bot writing them (with quiet key clicks). The search runs on the server
 // (api.ts); the map loads when the section comes near the screen, and again with a search if it failed. English by
-// default, with EN, PT and FR in the section (its lang follows). "Ask the bot" hands the question to the chat.
+// default (Portuguese on /pt/), with EN, PT and FR in the section (its lang follows). "Ask the bot" hands the question to the chat.
 // Public API: FactSearch. Used by: app/routes/home.tsx.
 // Tests: the logic is in api.ts, map.ts and copy.ts (their tests); the section itself was checked in Chrome.
 
@@ -20,8 +20,8 @@ const css = (o: Record<string, string | number>) => o as CSSProperties;
 type Found = { n: number; q: string; hits: Hit[]; x: number; y: number };
 type State = { status: "idle" | "searching" | "invalid" | "rate_limited" | "offline" } | ({ status: "ok" } & Found);
 
-export function FactSearch() {
-  const [lang, setLang] = useState<Lang>("en");
+export function FactSearch({ start }: { start: Lang }) {
+  const [lang, setLang] = useState<Lang>(start);
   const t = copy[lang];
   const [facts, setFacts] = useState<Fact[] | null>(null);
   const [state, setState] = useState<State>({ status: "idle" });

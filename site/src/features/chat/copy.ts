@@ -1,9 +1,10 @@
-// Fixed English text of the chat panel: labels, notices and the contact form. The Portuguese copy comes with the
-// /pt/ pages, after the author approves it. Used by: features/chat/chat.tsx, lead-form.tsx.
-import type { FileRefusal } from "./api";
+// Fixed text of the chat panel, in the page's language (English, or Portuguese on the /pt/ pages, a faithful
+// translation the author reviews, 15/11): labels, notices and the contact form. The bot's replies follow the
+// message's language on their own. Public API: copy. Used by: features/chat/chat.tsx, lead-form.tsx.
+import type { FileRefusal, Lang } from "./api";
 import type { Notice } from "./state";
 
-export const copy = {
+const en = {
   launcher: "Ask about Anthony",
   title: "Ask about Anthony",
   sub: "An AI assistant that answers from Anthony's public profile. It can be wrong.",
@@ -64,3 +65,71 @@ export const copy = {
   sentProject: "Sent. Anthony will reply by email.",
   emailFallback: "Please email Anthony at",
 };
+
+const pt: typeof en = {
+  launcher: "Pergunte sobre o Anthony",
+  title: "Pergunte sobre o Anthony",
+  sub: "Um assistente de IA que responde a partir do perfil público do Anthony. Ele pode errar.",
+  intro: "O que você quer saber?",
+  suggestions: [
+    "Ele está aberto a vagas remotas nos EUA ou na Europa?",
+    "O que ele construiu com RAG e ChromaDB?",
+    "O que a Insight AI & Automation constrói para empresas?",
+  ],
+  placeholder: "Pergunte sobre o trabalho dele com Python, RAG ou n8n",
+  send: "Enviar",
+  files: {
+    attach: "Anexe uma imagem, um PDF ou uma planilha (até 3)",
+    reading: "Lendo o arquivo",
+    remove: "Remover",
+    refused: {
+      type: "Aqui só funcionam imagens e arquivos PDF, XLSX e CSV.",
+      too_big: "Grande demais. Imagens podem ter até 5 MB, e arquivos PDF ou XLSX até 10 MB.",
+      unreadable: "Não consegui ler este arquivo.",
+      no_text: "Este PDF não tem texto. Mande uma foto da página.",
+      busy: "Ocupado agora. Tente este arquivo de novo em um minuto.",
+      too_many: "Esta conversa já tem 10 arquivos. Limpe a conversa para mandar mais.",
+      rate_limited: "Você já mandou os 5 arquivos de hoje. Ainda dá para perguntar por texto.",
+      offline: "Os arquivos estão desligados agora. Ainda dá para perguntar por texto.",
+      challenge: "A checagem de navegador da Cloudflare não passou. Libere challenges.cloudflare.com e tente de novo.",
+    },
+  },
+  clear: "Limpar",
+  close: "Fechar",
+  you: "Você",
+  bot: "Assistente",
+  typing: "O assistente está digitando",
+  privacy:
+    "As perguntas ficam guardadas por 30 dias para melhorar o bot, e e-mails e telefones são apagados antes de gravar. Os arquivos são lidos para a resposta e apagados logo depois. Não mande dados pessoais de outras pessoas. Os contatos que você manda ao Anthony ficam guardados por até 12 meses, e ele apaga se você pedir. Antes de uma conversa começar, a Cloudflare confere se quem manda é um navegador de verdade.",
+  notices: {
+    offline: "Fora do ar agora. Você ainda pode falar com o Anthony aqui embaixo.",
+    rate_limited: "Você perguntou bastante na última hora. Tente de novo daqui a pouco, ou fale com o Anthony aqui embaixo.",
+    daily_limit: "Por hoje é isso: você usou as perguntas de hoje. Volte amanhã, ou fale com o Anthony aqui embaixo.",
+    busy: "Um momento, ainda respondendo a sua última mensagem.",
+    challenge:
+      "A checagem de navegador da Cloudflare não passou, então não consigo começar. Um bloqueador de anúncios ou a rede do trabalho pode estar barrando: libere challenges.cloudflare.com e mande de novo, ou fale com o Anthony aqui embaixo.",
+    resting: "Dia cheio. O assistente já respondeu tudo o que podia hoje e volta amanhã, então fale com o Anthony aqui embaixo.",
+    conversation_limit: "Esta conversa usou as 20 trocas. Limpe para começar de novo, ou fale com o Anthony aqui embaixo.",
+    invalid: "As mensagens podem ter até 500 caracteres. Um arquivo espera no máximo 30 minutos, então anexe de novo se ele expirou.",
+    blocked: "Só posso ajudar com perguntas sobre o trabalho do Anthony. Você também pode falar com ele aqui embaixo.",
+  },
+  talk: "Falar com o Anthony",
+  form: {
+    name: "Nome",
+    company: "Empresa",
+    email: "E-mail",
+    linkedin: "LinkedIn",
+    optional: "opcional",
+    linkedinHint: "Mande o seu LinkedIn e o Anthony vai se conectar com você.",
+    kind: "Sobre o que é?",
+    hiring: "Contratação",
+    project: "Projeto",
+    submit: "Enviar ao Anthony",
+    error: "Confira os campos. Nome, empresa e um e-mail válido são obrigatórios.",
+  },
+  sentHiring: "Enviado. O Anthony vai responder. Para uma resposta mais rápida, mande uma mensagem no WhatsApp:",
+  sentProject: "Enviado. O Anthony vai responder por e-mail.",
+  emailFallback: "Mande um e-mail para o Anthony em",
+};
+
+export const copy: Record<Lang, typeof en> = { en, pt };

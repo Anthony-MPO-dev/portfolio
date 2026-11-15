@@ -1,6 +1,8 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
-import { calculator as copy } from "@/content/services";
+import { servicesPage } from "@/content/services";
+import { useLang } from "@/hooks/use-lang";
 import { onEntry, reducedMotion } from "@/lib/entry";
+import { type Lang, LOCALE } from "@/lib/lang";
 import { WORK_WEEKS, clampInput, fullTimePeople, hoursBack, monthlyHours, parseRate } from "./hours";
 
 // The closing chapter: the visitor's own numbers in (the page opens on an example and says so), the hours their team
@@ -9,12 +11,18 @@ import { WORK_WEEKS, clampInput, fullTimePeople, hoursBack, monthlyHours, parseR
 // focus. The state lives here, so typing re-renders only this chapter.
 // Public API: Calculator. Used by app/routes/services.tsx.
 
-const NUMBER = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
-const fmt = (n: number) => NUMBER.format(n);
+type Copy = (typeof servicesPage)[Lang]["calculator"];
+type Format = (n: number) => string;
+const FORMATS = Object.fromEntries(
+  (Object.keys(LOCALE) as Lang[]).map((l) => [l, new Intl.NumberFormat(LOCALE[l], { maximumFractionDigits: 1 }).format]),
+) as Record<Lang, Format>;
 const PEOPLE = { min: 1, max: 500 };
 const WEEKLY = { min: 1, max: 40 };
 
 export function Calculator({ mail }: { mail: string }) {
+  const lang = useLang();
+  const copy = servicesPage[lang].calculator;
+  const fmt = FORMATS[lang];
   const [people, setPeople] = useState("5");
   const [hours, setHours] = useState("8");
   const [cut, setCut] = useState(50);
@@ -28,7 +36,7 @@ export function Calculator({ mail }: { mail: string }) {
   const perHour = parseRate(rate);
 
   return (
-    <section className="scene svc-calc" aria-label="Your numbers">
+    <section className="scene svc-calc" aria-label={copy.aria}>
       <div className="stage svc-stage">
         <p className="svc-kicker">{copy.kicker}</p>
         <p className="svc-example">{copy.example}</p>
@@ -52,19 +60,19 @@ export function Calculator({ mail }: { mail: string }) {
             </label>
             <label>
               <span>{copy.rate}</span>
-              <input inputMode="decimal" placeholder="e.g. 50" value={rate} onChange={(e) => setRate(e.target.value)} />
+              <input inputMode="decimal" placeholder={copy.ratePlaceholder} value={rate} onChange={(e) => setRate(e.target.value)} />
             </label>
           </div>
           <div className="svc-out" aria-live="polite">
             <p className="svc-big">
-              <Ticker value={total} />
+              <Ticker value={total} fmt={fmt} />
             </p>
             <p className="svc-unit">{copy.result}</p>
             <p className="svc-sub">
-              {fte >= 0.1 && copy.fullTime(fmt(fte), fte === 1)}{" "}
+              {fte >= 0.1 && copy.fullTime(fmt(fte), fte)}{" "}
               {perHour !== null && copy.worth(fmt(Math.round(total * perHour)))}
             </p>
-            <MonthBars total={total} />
+            <MonthBars total={total} copy={copy} fmt={fmt} />
           </div>
         </div>
         <p className="svc-terms">{copy.terms}</p>
@@ -100,7 +108,7 @@ function NumberField({ label, value, set, range: { min, max } }: FieldProps) {
 
 // One series (hours back), so the caption names it and there is no legend. The bars grow with scaleY only; the key
 // replays the growth when the total changes. Hover shows each month's figure.
-function MonthBars({ total }: { total: number }) {
+function MonthBars({ total, copy, fmt }: { total: number; copy: Copy; fmt: Format }) {
   const [first, last] = copy.months;
   return (
     <figure className="svc-months" aria-label={copy.chartLabel(fmt(total))}>
@@ -125,7 +133,7 @@ function MonthBars({ total }: { total: number }) {
 // The total, counting from the last figure shown to the new one in 0.6 s: the first time from zero, when it comes
 // into view; after that, on every change. Screen readers get only the final figure (.num-sr); the counting digits are
 // hidden from them, so a live region never reads the frames.
-function Ticker({ value }: { value: number }) {
+function Ticker({ value, fmt }: { value: number; fmt: Format }) {
   const ref = useRef<HTMLSpanElement>(null);
   const shown = useRef(0);
   const seen = useRef(false);
@@ -157,7 +165,7 @@ function Ticker({ value }: { value: number }) {
       stop();
       cancelAnimationFrame(frame);
     };
-  }, [value]);
+  }, [value, fmt]);
   return (
     <>
       <span className="num-sr">{fmt(value)}</span>

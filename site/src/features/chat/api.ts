@@ -4,7 +4,9 @@
 // visitor sees a fixed notice and the contact, never an error. Public API: sendMessage, uploadFile,
 // submitLead, clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
 
-export type Lang = "en" | "pt";
+import type { Lang } from "@/lib/lang";
+
+export type { Lang };
 const CHAT = ["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversation_limit", "resting", "offline", "blocked", "challenge"] as const;
 const LEAD = ["ok", "invalid", "rate_limited", "unavailable"] as const;
 const REFUSALS = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline", "challenge"] as const;

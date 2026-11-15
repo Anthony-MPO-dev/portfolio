@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { offer } from "@/content/services";
+import { servicesPage } from "@/content/services";
+import { useLang } from "@/hooks/use-lang";
 import { step } from "@/lib/step";
 
 // The four services, each with a small drawing of its before turning into its after (the before fades, the after
@@ -8,12 +9,13 @@ import { step } from "@/lib/step";
 // Public API: Offer. Used by app/routes/services.tsx.
 
 export function Offer() {
+  const { offer } = servicesPage[useLang()];
   return (
-    <section className="svc-offer" aria-label="Services">
+    <section className="svc-offer" aria-label={offer.aria}>
       <p className="svc-kicker">{offer.kicker}</p>
       {offer.services.map((s) => (
         <article key={s.id} className="svc-row" data-reveal>
-          <Turn id={s.id} caption={s.caption} />
+          <Turn id={s.id} caption={s.caption} words={s.words} />
           <div>
             <h2>{s.name}</h2>
             <p>{s.line}</p>
@@ -36,12 +38,12 @@ const DOTS = [
   [240, 30],
 ];
 
-function Turn({ id, caption }: { id: string; caption: string }) {
+function Turn({ id, caption, words }: { id: string; caption: string; words: string[] }) {
   return (
     <svg className="svc-turn" viewBox="0 0 260 90" aria-hidden="true">
       {id === "automation" && (
         <>
-          {["copy", "paste", "check", "email", "file"].map((w, k) => (
+          {words.map((w, k) => (
             <text
               key={w}
               x={6 + k * 50}
@@ -58,7 +60,7 @@ function Turn({ id, caption }: { id: string; caption: string }) {
       )}
       {id === "agents" && (
         <>
-          {["question", "your docs", "answer", "a person"].map((w, k) => (
+          {words.map((w, k) => (
             <g key={w}>
               <rect
                 x={4 + k * 64}

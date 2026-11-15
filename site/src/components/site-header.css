@@ -15,3 +15,48 @@
   margin-left: auto;
   color: var(--accent);
 }
+/* EN | PT: two short links, the current one in ink and underlined. */
+.top-lang {
+  display: flex;
+  font: 500 13px var(--mono);
+}
+.top-lang a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 6px;
+  color: var(--muted);
+}
+.top-lang a[aria-current="page"],
+.top-lang a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+/* Phones: the name and the status stack on the left, the switches stay on the right, so the bar keeps one row's
+   height with the EN | PT switch in it. */
+@media (max-width: 640px) {
+  .top {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas: "name lang theme" "status lang theme";
+    column-gap: 8px;
+    row-gap: 2px;
+  }
+  .top > a {
+    grid-area: name;
+    white-space: nowrap;
+  }
+  .top-status {
+    grid-area: status;
+    margin-left: 0;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .top-lang {
+    grid-area: lang;
+  }
+  .top .theme-toggle {
+    grid-area: theme;
+  }
+}

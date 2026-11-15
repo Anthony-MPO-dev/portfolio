@@ -1,8 +1,10 @@
 import type { CSSProperties } from "react";
 import { CountUp } from "@/components/count-up";
-import { botTests as copy } from "@/content/bot-tests";
+import { botTests } from "@/content/bot-tests";
+import { useLang } from "@/hooks/use-lang";
 import { TYPED_IN_MS } from "@/lib/entry";
-import { type Run, showcase, summarize } from "./run";
+import { type Lang, LOCALE } from "@/lib/lang";
+import { type Run, showcase, spokenIn, summarize } from "./run";
 import "./bot-tests.css";
 
 // "How this bot is tested": the last complete golden set run, as the score, one square per question lighting up in
@@ -15,11 +17,13 @@ const found = import.meta.glob<Run>("/src/content/bot-tests.json", { eager: true
 const RUN: Run | undefined = Object.values(found)[0];
 const SQUARE_MS = 35; // one square after another; the score counts in step with them
 
-const day = (iso: string) =>
-  new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
+const day = (iso: string, lang: Lang) =>
+  new Intl.DateTimeFormat(LOCALE[lang], { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
 const modelName = (m: string) => m.charAt(0).toUpperCase() + m.slice(1);
 
 export function BotTests() {
+  const lang = useLang();
+  const copy = botTests[lang];
   if (!RUN) return null;
   const s = summarize(RUN);
   const failed = RUN.cases.filter((c) => !c.passed);
@@ -33,7 +37,7 @@ export function BotTests() {
         <p className="bt-score">
           <CountUp text={`${s.passed}/${s.total}`} delay={TYPED_IN_MS} ms={s.total * SQUARE_MS} />
         </p>
-        <p className="bt-sub">{copy.passed(day(RUN.date), modelName(RUN.model))}</p>
+        <p className="bt-sub">{copy.passed(day(RUN.date, lang), modelName(RUN.model))}</p>
         <p className="bt-text">{copy.text(s.total)}</p>
       </div>
       <div className="bt-groups">
@@ -55,7 +59,7 @@ export function BotTests() {
                 <li key={c.id} className={c.passed ? undefined : "fail"}>
                   <span aria-hidden="true">{c.passed ? "✓" : "×"}</span>
                   <span className="num-sr">{c.passed ? copy.pass : copy.fail}: </span>
-                  {c.q}
+                  <span lang={spokenIn(c.q)}>{c.q}</span>
                 </li>
               ))}
             </ul>
@@ -71,8 +75,12 @@ export function BotTests() {
         <h3>{copy.attacks}</h3>
         {showcase(RUN, 3).map((c) => (
           <div key={c.id} className="bt-pair">
-            <p className="bt-q">{c.q}</p>
-            <p className="bt-a">{c.reply}</p>
+            <p className="bt-q" lang={spokenIn(c.q)}>
+              {c.q}
+            </p>
+            <p className="bt-a" lang={spokenIn(c.reply ?? "")}>
+              {c.reply}
+            </p>
           </div>
         ))}
       </div>

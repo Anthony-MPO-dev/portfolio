@@ -4,7 +4,7 @@ import portrait from "@/assets/portrait-168.webp";
 import { CountUp } from "@/components/count-up";
 import { FireFigure } from "@/components/fire-figure";
 import { SiteHeader } from "@/components/site-header";
-import { cases, figures, profile, services } from "@/content/profile";
+import { contact, home } from "@/content/profile";
 import { BotTests } from "@/features/bot-tests/bot-tests";
 import { PipelineScene } from "@/features/credit-pipeline/pipeline-scene";
 import { FactSearch } from "@/features/fact-search/fact-search";
@@ -12,40 +12,47 @@ import { MatrixRain } from "@/features/matrix-rain/rain";
 import { MetricScene } from "@/features/support-agent/metric-scene";
 import { SearchFixScene } from "@/features/support-agent/search-fix-scene";
 import { useDecode } from "@/hooks/use-decode";
+import { useLang } from "@/hooks/use-lang";
 import { useReveal } from "@/hooks/use-reveal";
 import { TYPED_IN_MS } from "@/lib/entry";
+import { alternates, langOf, pathIn, SITE } from "@/lib/lang";
 import "./home.css";
 import "./home-entrance.css";
 
 // The home page, composed here from the features: header, hero (signed with the author's photo), the three scroll
 // scenes (support agent, credit pipeline), the big figures, the work list, how the bot is tested, the fact search,
 // Services and contact.
-// Lists come from content/profile.ts. The sections marked .typed type themselves in (home-entrance.css); the labels
-// decode (useDecode) and the character rain falls behind the hero.
-const SITE_URL = "https://anthonymuniz.dev/";
+// Texts and lists come from content/profile.ts, in the page's language (/ in English, /pt/ in Portuguese). The
+// sections marked .typed type themselves in (home-entrance.css); the labels decode (useDecode) and the character rain
+// falls behind the hero.
 
-export function meta() {
-  const title = `${profile.name}, ${profile.role}`;
+export function meta({ location }: { location: { pathname: string } }) {
+  const lang = langOf(location.pathname);
+  const { profile } = home[lang];
+  const url = SITE + pathIn(lang, "/");
+  const title = `${contact.name}, ${profile.role}`;
   return [
     { title },
     { name: "description", content: profile.lede },
     { property: "og:title", content: title },
     { property: "og:description", content: profile.lede },
     { property: "og:type", content: "website" },
-    { property: "og:url", content: SITE_URL },
-    { tagName: "link", rel: "canonical", href: SITE_URL },
+    { property: "og:url", content: url },
+    { property: "og:locale", content: lang === "pt" ? "pt_BR" : "en_US" },
+    { tagName: "link", rel: "canonical", href: url },
+    ...alternates("/"),
     // The card search engines read about the author (schema.org Person): only facts already on the page.
     {
       "script:ld+json": {
         "@context": "https://schema.org",
         "@type": "Person",
-        name: profile.name,
+        name: contact.name,
         jobTitle: profile.role,
         description: profile.lede,
-        url: SITE_URL,
-        email: `mailto:${profile.email}`,
+        url,
+        email: `mailto:${contact.email}`,
         address: { "@type": "PostalAddress", addressCountry: "BR" },
-        sameAs: [profile.linkedin, profile.github],
+        sameAs: [contact.linkedin, contact.github],
         knowsAbout: ["Python", "FastAPI", "LLMs", "RAG", "Agentic AI", "LLM evaluation", "n8n", "Celery", "Redis", "Docker"],
       },
     },
@@ -71,7 +78,9 @@ export default function Home() {
   const root = useRef<HTMLElement>(null);
   useReveal(root);
   useDecode(root);
-  const mail = `mailto:${profile.email}`;
+  const lang = useLang();
+  const { profile, labels, figures, cases, services } = home[lang];
+  const mail = `mailto:${contact.email}`;
 
   return (
     <>
@@ -84,9 +93,9 @@ export default function Home() {
           <p className="hero-lede">{profile.lede}</p>
           <div className="byline">
             {/* 168 px: sharp at 56 px up to a 3x screen, 5 KB */}
-            <img className="byline-photo" src={portrait} width={168} height={210} decoding="async" alt={profile.name} />
+            <img className="byline-photo" src={portrait} width={168} height={210} decoding="async" alt={contact.name} />
             <p>
-              <strong>{profile.name}</strong>
+              <strong>{contact.name}</strong>
               <span>
                 {profile.role}. {profile.based}
               </span>
@@ -99,11 +108,11 @@ export default function Home() {
         <MetricScene />
         <PipelineScene />
 
-        <section className="figures typed" aria-label="Results">
+        <section className="figures typed" aria-label={labels.results}>
           {figures.map((f) => (
             <article key={f.fig}>
               {/^\d+x$/.test(f.fig) ? (
-                <FireFigure text={f.fig} />
+                <FireFigure text={f.fig} replay={labels.replay} hint={labels.hint} />
               ) : (
                 <p className="figure">
                   {f.from === undefined ? f.fig : <CountUp text={f.fig} from={f.from} delay={TYPED_IN_MS} ms={1200} />}
@@ -115,7 +124,7 @@ export default function Home() {
         </section>
 
         <section className="work typed">
-          <h2 className="label">Work</h2>
+          <h2 className="label">{labels.work}</h2>
           {cases.map((c) => (
             <article key={c.id} className="row">
               <h3>{c.title}</h3>
@@ -130,10 +139,12 @@ export default function Home() {
         </section>
 
         <BotTests />
-        <FactSearch />
+        <FactSearch start={lang} />
 
         <section className="services typed">
-          <h2 className="label">Services: {services.company}</h2>
+          <h2 className="label">
+            {labels.services}: {services.company}
+          </h2>
           <p className="services-lead">{services.lead}</p>
           <p className="services-text">{services.offer}</p>
           <p className="services-text">
@@ -142,20 +153,20 @@ export default function Home() {
           <a className="services-cta" href={mail}>
             {services.cta} <span className="arrow" aria-hidden="true">&rarr;</span>
           </a>
-          <Link className="services-more" to="/services">
+          <Link className="services-more" to={pathIn(lang, "/services")}>
             {services.more} <span className="arrow" aria-hidden="true">&rarr;</span>
           </Link>
         </section>
 
         <section className="contact typed">
-          <h2 className="label">Contact me</h2>
+          <h2 className="label">{labels.contact}</h2>
           <a className="contact-mail" href={mail}>
-            {profile.email}
+            {contact.email}
             <span className="arrow" aria-hidden="true">&#8599;</span>
           </a>
           <p className="contact-links">
-            <a href={profile.linkedin}>LinkedIn</a>
-            <a href={profile.github}>GitHub</a>
+            <a href={contact.linkedin}>LinkedIn</a>
+            <a href={contact.github}>GitHub</a>
           </p>
           <p className="contact-open">{profile.open}</p>
         </section>

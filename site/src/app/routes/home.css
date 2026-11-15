@@ -10,14 +10,19 @@
   padding-top: clamp(16px, 6svh, 110px);
 }
 .hero h1 {
-  font-size: clamp(28px, min(11.5vw, (86vh - 260px) / 3.6), 176px);
-  font-size: clamp(28px, min(11.5vw, (86svh - 260px) / 3.6), 176px);
+  font-size: clamp(28px, min(11.5vw, (86vh - 260px) / var(--rows, 3.6)), 176px);
+  font-size: clamp(28px, min(11.5vw, (86svh - 260px) / var(--rows, 3.6)), 176px);
   font-weight: 800;
   font-stretch: 72%;
   line-height: 0.9;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   margin: 0 0 clamp(16px, 4svh, 36px);
+}
+/* Portuguese words run longer ("funcionarem"), so the headline takes a little less of the height budget and the
+   opening still fits on the first screen. */
+.hero h1:lang(pt) {
+  --rows: 4.2;
 }
 .hero-lede {
   font-size: clamp(18px, 2vw, 24px);

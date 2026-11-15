@@ -3,12 +3,17 @@
 // cases in the order their groups first ran (the golden set's own order), numbering them across the run so the
 // squares light up one after another; showcase picks attacks the bot refused. The run keeps a reply only for a
 // passing case whose secret check ran, so only those can be shown.
-// Public API: Case, Run, summarize, showcase. Used by features/bot-tests/bot-tests.tsx. Tests: run.test.ts.
+// spokenIn tells a Portuguese question from an English one, for its lang attribute.
+// Public API: Case, Run, summarize, showcase, spokenIn. Used by features/bot-tests/bot-tests.tsx. Tests: run.test.ts.
 
 export type Case = { id: string; group: string; q: string; passed: boolean; reply: string | null };
 export type Run = { date: string; model: string; cases: Case[] };
 
 const ATTACKS = ["injection", "confidential"];
+
+// Portuguese if it has a Portuguese accent or one of its short words (not those English shares, such as "a" or "do").
+const PORTUGUESE = /[ãõçáéíóúâêô]|\b(o|os|que|qual|em|para|ele|dele|dela|da|uma|não)\b/i;
+export const spokenIn = (text: string): "pt" | "en" => (PORTUGUESE.test(text) ? "pt" : "en");
 
 export function summarize(run: Run) {
   let n = 0;

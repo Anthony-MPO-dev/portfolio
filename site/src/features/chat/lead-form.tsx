@@ -6,7 +6,7 @@ import { copy } from "./copy";
 // Project. The hidden "website" field is the honeypot. The WhatsApp number only ever comes back from the API.
 export function LeadForm({ lang, error, onDone }: { lang: Lang; error: boolean; onDone: (r: LeadResult) => void }) {
   const [busy, setBusy] = useState(false);
-  const t = copy.form;
+  const t = copy[lang].form;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -20,7 +20,7 @@ export function LeadForm({ lang, error, onDone }: { lang: Lang; error: boolean; 
 
   return (
     <form className="chat-lead" onSubmit={submit}>
-      <p className="chat-who">{copy.talk}</p>
+      <p className="chat-who">{copy[lang].talk}</p>
       <label>
         {t.name}
         <input name="name" required maxLength={300} autoComplete="name" />

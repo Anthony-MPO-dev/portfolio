@@ -3,13 +3,20 @@ import { figureAt, parseFigure } from "./count";
 
 describe("parseFigure", () => {
   it("splits a figure into its number and the text around it", () => {
-    expect(parseFigure("3x")).toEqual({ prefix: "", value: 3, decimals: 0, suffix: "x" });
-    expect(parseFigure("13")).toEqual({ prefix: "", value: 13, decimals: 0, suffix: "" });
-    expect(parseFigure("~100/day")).toEqual({ prefix: "~", value: 100, decimals: 0, suffix: "/day" });
+    expect(parseFigure("3x")).toMatchObject({ prefix: "", value: 3, decimals: 0, suffix: "x" });
+    expect(parseFigure("13")).toMatchObject({ prefix: "", value: 13, decimals: 0, suffix: "" });
+    expect(parseFigure("~100/day")).toMatchObject({ prefix: "~", value: 100, decimals: 0, suffix: "/day" });
   });
 
   it("keeps the decimals, so the count shows the same precision", () => {
-    expect(parseFigure("0.0205")).toEqual({ prefix: "", value: 0.0205, decimals: 4, suffix: "" });
+    expect(parseFigure("0.0205")).toMatchObject({ prefix: "", value: 0.0205, decimals: 4, suffix: "" });
+  });
+
+  it("reads a decimal comma (the Portuguese pages) and counts with it", () => {
+    const pt = parseFigure("0,0205")!;
+    expect(pt).toMatchObject({ value: 0.0205, decimals: 4 });
+    expect(figureAt(pt, 1, 1)).toBe("0,0205");
+    expect(figureAt(pt, 0, 1)).toBe("1,0000");
   });
 
   it("returns null when there is no number to count", () => {

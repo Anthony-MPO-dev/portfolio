@@ -14,7 +14,7 @@ const SPARKS = Array.from({ length: 18 }, (_, i) => ({
   "--t": `${(i % 6) * 35}ms`,
 })) as React.CSSProperties[];
 
-export function FireFigure({ text }: { text: string }) {
+export function FireFigure({ text, replay, hint }: { text: string; replay: string; hint: string }) {
   const id = `fire${useId().replace(/\W/g, "")}`; // the filter id, unique per figure and safe inside url(#...)
   const figure = parseFigure(text);
   const last = figure ? Math.round(figure.value) : 0;
@@ -54,7 +54,7 @@ export function FireFigure({ text }: { text: string }) {
       onClick={play}
       data-run={run > 0 ? "" : undefined}
       data-lit={lit ? "" : undefined}
-      aria-label={`${text}. Play the animation again`}
+      aria-label={`${text}. ${replay}`}
     >
       <span className="fire-flame" aria-hidden="true" key={`flame-${run}`} style={{ filter: `blur(0.025em) url(#${id})` }}>
         <i />
@@ -82,7 +82,7 @@ export function FireFigure({ text }: { text: string }) {
         {run > 0 && step > 1 && SPARKS.slice(0, lit ? SPARKS.length : 6).map((style, i) => <i key={i} style={style} />)}
       </span>
       <span className="fire-hint" aria-hidden="true">
-        ↻ replay
+        ↻ {hint}
       </span>
     </button>
   );

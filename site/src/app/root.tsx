@@ -5,11 +5,14 @@ import "@fontsource-variable/archivo/wdth.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import archivoLatin from "@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url";
 import "@/styles/global.css";
+import { useLang } from "@/hooks/use-lang";
+import { LANG_BOOT } from "@/lib/lang";
 
-// HTML shell of every prerendered page: fonts, and the boot script that applies the saved theme before paint.
+// HTML shell of every prerendered page: fonts, the page's language (lang, from its path), and the boot script.
 
-// Runs before paint so the saved theme applies without a flash.
-const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
+// Runs before paint: the saved theme applies without a flash, and a visitor who chose Portuguese is sent from an
+// English page to its /pt/ twin before anything shows (lib/lang.ts).
+const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}${LANG_BOOT}`;
 
 export function links() {
   return [
@@ -22,7 +25,7 @@ export function links() {
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={useLang() === "pt" ? "pt-BR" : "en"} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -45,12 +48,13 @@ const Chat =
   import.meta.env.VITE_CHAT === "1" ? lazy(() => import("@/features/chat/chat").then((m) => ({ default: m.Chat }))) : null;
 
 export default function App() {
+  const lang = useLang();
   return (
     <>
       <Outlet />
       {Chat && (
         <Suspense fallback={null}>
-          <Chat lang="en" />
+          <Chat lang={lang} />
         </Suspense>
       )}
     </>

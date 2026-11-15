@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
-import { profile } from "@/content/profile";
+import { contact } from "@/content/profile";
 import { clearConversation, sendMessage, uploadFile, type Lang } from "./api";
 import { CHAT_ASK } from "@/lib/events";
 import { humanToken } from "./human";
@@ -8,6 +8,8 @@ import { LeadForm } from "./lead-form";
 import { initial, reduce, type Action, type Entry, type State } from "./state";
 import "./chat.css";
 
+type Copy = (typeof copy)[Lang];
+
 // Chat: a launcher in the corner that opens the panel (a full page over the site on phones). Replies keep their
 // line breaks. Mounted by app/root.tsx only when the build sets VITE_CHAT=1. Tests: state.test.ts, api.test.ts.
 const MAX = 500;
@@ -15,6 +17,7 @@ const FILES = 3; // per message, as the API allows
 const ACCEPT = "image/png,image/jpeg,image/webp,application/pdf,.xlsx,.csv";
 
 export function Chat({ lang }: { lang: Lang }) {
+  const t = copy[lang];
   const [open, setOpen] = useState(false);
   const [state, dispatch] = useReducer(reduce, initial);
   const [draft, setDraft] = useState("");
@@ -123,20 +126,20 @@ export function Chat({ lang }: { lang: Lang }) {
         aria-controls="chat"
         onClick={() => setOpen(true)}
       >
-        {copy.launcher}
+        {t.launcher}
       </button>
       {open && (
         <section
           id="chat"
           className="chat"
           role="dialog"
-          aria-label={copy.title}
+          aria-label={t.title}
           onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
         >
           <header className="chat-head">
             <div>
-              <p className="chat-title">{copy.title}</p>
-              <p className="chat-sub">{copy.sub}</p>
+              <p className="chat-title">{t.title}</p>
+              <p className="chat-sub">{t.sub}</p>
             </div>
             <div className="chat-actions">
               {state.entries.length > 0 && (
@@ -150,11 +153,11 @@ export function Chat({ lang }: { lang: Lang }) {
                     clearConversation();
                   }}
                 >
-                  {copy.clear}
+                  {t.clear}
                 </button>
               )}
               <button type="button" className="chat-btn" onClick={() => setOpen(false)}>
-                {copy.close}
+                {t.close}
               </button>
             </div>
           </header>
@@ -162,9 +165,9 @@ export function Chat({ lang }: { lang: Lang }) {
           <div className="chat-log" ref={log} aria-live="polite" aria-busy={state.pending}>
             {state.entries.length === 0 && (
               <div className="chat-intro">
-                <h2>{copy.intro}</h2>
+                <h2>{t.intro}</h2>
                 <div className="chat-suggest">
-                  {copy.suggestions.map((q) => (
+                  {t.suggestions.map((q) => (
                     <button key={q} type="button" onClick={() => send(q)}>
                       {q}
                     </button>
@@ -173,11 +176,11 @@ export function Chat({ lang }: { lang: Lang }) {
               </div>
             )}
             {state.entries.map((entry) => (
-              <Message key={entry.id} entry={entry} />
+              <Message key={entry.id} entry={entry} t={t} />
             ))}
-            {state.partial && <Message entry={{ id: -1, from: "bot", text: state.partial }} />}
+            {state.partial && <Message entry={{ id: -1, from: "bot", text: state.partial }} t={t} />}
             {state.pending && !state.partial && (
-              <p className="chat-typing" role="status" aria-label={copy.typing}>
+              <p className="chat-typing" role="status" aria-label={t.typing}>
                 <span />
                 <span />
                 <span />
@@ -200,11 +203,11 @@ export function Chat({ lang }: { lang: Lang }) {
                   <li key={f.key} className={`chat-file ${f.state}`}>
                     <span className="chat-file-name">{f.name}</span>
                     <span className="chat-file-note">
-                      {f.state === "uploading" ? copy.files.reading : f.state === "ready" ? f.summary : copy.files.refused[f.reason]}
+                      {f.state === "uploading" ? t.files.reading : f.state === "ready" ? f.summary : t.files.refused[f.reason]}
                     </span>
                     <button
                       type="button"
-                      aria-label={`${copy.files.remove} ${f.name}`}
+                      aria-label={`${t.files.remove} ${f.name}`}
                       onClick={() => dispatch({ type: "fileRemove", key: f.key })}
                     >
                       ×
@@ -218,8 +221,8 @@ export function Chat({ lang }: { lang: Lang }) {
               rows={1}
               maxLength={MAX}
               value={draft}
-              placeholder={copy.placeholder}
-              aria-label={copy.placeholder}
+              placeholder={t.placeholder}
+              aria-label={t.placeholder}
               enterKeyHint="send"
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKey}
@@ -230,8 +233,8 @@ export function Chat({ lang }: { lang: Lang }) {
                 type="button"
                 className="chat-attach"
                 disabled={state.pending || room < 1}
-                aria-label={copy.files.attach}
-                title={copy.files.attach}
+                aria-label={t.files.attach}
+                title={t.files.attach}
                 onClick={() => picker.current?.click()}
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -249,22 +252,22 @@ export function Chat({ lang }: { lang: Lang }) {
                 </span>
               )}
               <button type="submit" className="chat-send" disabled={!draft.trim() || state.pending || uploading}>
-                {copy.send}
+                {t.send}
               </button>
             </div>
           </form>
-          <p className="chat-privacy">{copy.privacy}</p>
+          <p className="chat-privacy">{t.privacy}</p>
         </section>
       )}
     </>
   );
 }
 
-function Message({ entry }: { entry: Entry }) {
-  if (entry.from === "notice") return <p className="chat-notice">{copy.notices[entry.notice]}</p>;
+function Message({ entry, t }: { entry: Entry; t: Copy }) {
+  if (entry.from === "notice") return <p className="chat-notice">{t.notices[entry.notice]}</p>;
   return (
     <div className={`chat-msg ${entry.from}`}>
-      <p className="chat-who">{entry.from === "you" ? copy.you : copy.bot}</p>
+      <p className="chat-who">{entry.from === "you" ? t.you : t.bot}</p>
       <p className="chat-text">{entry.text}</p>
       {entry.files && <p className="chat-sent-files">{entry.files.join(", ")}</p>}
     </div>
@@ -272,6 +275,7 @@ function Message({ entry }: { entry: Entry }) {
 }
 
 function ContactPanel({ state, lang, dispatch }: { state: State; lang: Lang; dispatch: (a: Action) => void }) {
+  const t = copy[lang];
   const c = state.contact;
   switch (c.step) {
     case "none":
@@ -279,7 +283,7 @@ function ContactPanel({ state, lang, dispatch }: { state: State; lang: Lang; dis
     case "offered":
       return (
         <button type="button" className="chat-send chat-talk" onClick={() => dispatch({ type: "openForm" })}>
-          {copy.talk}
+          {t.talk}
         </button>
       );
     case "form":
@@ -287,15 +291,15 @@ function ContactPanel({ state, lang, dispatch }: { state: State; lang: Lang; dis
     case "sent":
       return c.whatsapp ? (
         <p className="chat-notice">
-          {copy.sentHiring} <a href={`https://wa.me/${c.whatsapp.replace(/\D/g, "")}`}>{c.whatsapp}</a>
+          {t.sentHiring} <a href={`https://wa.me/${c.whatsapp.replace(/\D/g, "")}`}>{c.whatsapp}</a>
         </p>
       ) : (
-        <p className="chat-notice">{copy.sentProject}</p>
+        <p className="chat-notice">{t.sentProject}</p>
       );
     case "email":
       return (
         <p className="chat-notice">
-          {copy.emailFallback} <a href={`mailto:${profile.email}`}>{profile.email}</a>.
+          {t.emailFallback} <a href={`mailto:${contact.email}`}>{contact.email}</a>.
         </p>
       );
   }

@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { CountUp } from "@/components/count-up";
-import { blockers, intro, payoff, type Source, stall } from "@/content/services";
+import { type Source, servicesPage } from "@/content/services";
+import { useLang } from "@/hooks/use-lang";
 import { step } from "@/lib/step";
 
 // The case for the service, one screen per chapter (.scene, played once by useReveal): most AI stalls (100 squares,
@@ -10,6 +11,7 @@ import { step } from "@/lib/step";
 // Public API: StallChapter, BlockersChapter, PayoffChapter. Used by app/routes/services.tsx.
 
 function Sources({ list, note }: { list: Source[]; note?: string }) {
+  const { intro } = servicesPage[useLang()];
   return (
     <p className="svc-src">
       {note && <>{note} </>}
@@ -26,12 +28,13 @@ function Sources({ list, note }: { list: Source[]; note?: string }) {
 }
 
 export function StallChapter() {
+  const { stall } = servicesPage[useLang()];
   return (
-    <section className="scene" aria-label="Most AI stalls">
+    <section className="scene" aria-label={stall.aria}>
       <div className="stage svc-stage svc-pair">
         <p className="svc-kicker">{stall.kicker}</p>
         <div className="svc-fig">
-          <div className="svc-waffle" role="img" aria-label={`${stall.value} of 100 squares lit`}>
+          <div className="svc-waffle" role="img" aria-label={stall.squares(stall.value)}>
             {Array.from({ length: 100 }, (_, i) => (
               <span key={i} className={i < stall.value ? "lit" : undefined} style={{ "--d": i } as CSSProperties} />
             ))}
@@ -50,8 +53,9 @@ export function StallChapter() {
 }
 
 export function BlockersChapter() {
+  const { blockers } = servicesPage[useLang()];
   return (
-    <section className="scene" aria-label="Why it stalls">
+    <section className="scene" aria-label={blockers.aria}>
       <div className="stage svc-stage svc-pair">
         <p className="svc-kicker">{blockers.kicker}</p>
         <div className="svc-fig">
@@ -86,9 +90,10 @@ export function BlockersChapter() {
 }
 
 export function PayoffChapter() {
+  const { payoff } = servicesPage[useLang()];
   const top = Math.max(...payoff.studies.map((s) => s.roi));
   return (
-    <section className="scene" aria-label="When it ships, it pays back">
+    <section className="scene" aria-label={payoff.aria}>
       <div className="stage svc-stage svc-pair">
         <p className="svc-kicker">{payoff.kicker}</p>
         <div className="svc-fig svc-roi">
