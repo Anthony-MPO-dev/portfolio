@@ -115,7 +115,7 @@ def test_uploads_are_converted_in_the_isolated_child_process(env, monkeypatch):
     monkeypatch.setattr("app.main.ChatService", lambda *a, **kw: made.append(kw) or object())
     monkeypatch.setattr("app.main.create_app", lambda **kw: FastAPI())
     build(env, FACTS)
-    assert made[0]["convert"] is convert_isolated
+    assert made[0]["convert"]._target is convert_isolated  # wrapped only to time it (app.tracing)
 
 
 def test_a_turnstile_secret_makes_a_new_conversation_need_the_browser_proof(env, monkeypatch):
@@ -135,3 +135,9 @@ def test_the_fact_search_runs_with_the_model_and_is_unavailable_without_it(env):
     with_model = TestClient(build(env, facts, fake_embed)).get("/api/search/facts")
     without = TestClient(build(env, facts)).get("/api/search/facts")
     assert (with_model.status_code, len(with_model.json()["facts"]), without.status_code) == (200, 3, 503)
+
+
+def test_the_api_traces_slow_requests(env):
+    from app.tracing import TraceRequests
+
+    assert any(m.cls is TraceRequests for m in build(env | {"TRACE_SLOW_MS": "500"}, FACTS).user_middleware)
