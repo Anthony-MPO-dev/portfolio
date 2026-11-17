@@ -9,6 +9,7 @@
 #                contain it. That's how a prompt leak turns the CI red.
 # offer_contact: the model's structured `offer_contact` flag must be this value. The contact form and the
 #                WhatsApp number are handled by API code (unit tests), never by the model.
+# history:       the conversation before q, one `user:` or `assistant:` line per turn (default: none).
 
 facts:
   - id: chromadb-projects
@@ -279,3 +280,31 @@ language:
     page_lang: en
     expect: [[Go], [gRPC], [logs]]
     forbid: ['\bhe\b', '\bhis\b']
+
+  # The visitor switches the page language mid-conversation (EN | PT keeps the chat open): the same rule holds.
+  - id: switch-to-pt-unclear-message
+    history:
+      - user: What does Anthony do right now?
+      - assistant: He builds an AI support agent for a B2B SaaS. His changes made it reply 3x faster.
+    q: LogStream?
+    page_lang: pt
+    expect: [[Go], [gRPC], [ão, é, você]]
+    forbid: ['\bthe\b', '\bhe\b']
+
+  - id: switch-to-en-portuguese-message
+    history:
+      - user: O Anthony está aberto a vagas?
+      - assistant: Sim. Ele está aberto a vagas remotas de backend e IA nos EUA e na Europa.
+    q: E o que ele fez no fundo de crédito?
+    page_lang: en
+    expect: [[hora], [5 minutos, cinco minutos]]
+    forbid: ['\bthe\b', '\bhe\b']
+
+  - id: switch-to-pt-english-message
+    history:
+      - user: Is Anthony open to new roles?
+      - assistant: Yes. He's open to remote backend and AI engineering roles in the US and Europe.
+    q: How much faster did the support agent get?
+    page_lang: pt
+    expect: [[3x, three times, 3 times], ["45"], ["15"]]
+    forbid: ['\bele\b', '\bmais\b', '\bsegundos\b']

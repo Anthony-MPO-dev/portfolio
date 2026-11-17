@@ -62,7 +62,7 @@ def test_case(case, tmp_path):
     canary = secrets.token_hex(8) if case.canary else None
     job = {
         "system": system_prompt(FACTS, canary=canary),
-        "prompt": transcript([], case.q, case.page_lang),
+        "prompt": transcript(case.history, case.q, case.page_lang),
         "deadline": time.time() + 120,
     }
     reply, failures = None, ["run error"]  # replaced once the reply is graded
@@ -70,7 +70,7 @@ def test_case(case, tmp_path):
         try:
             if KEY:  # the production engine, streamed, with the contact line already taken out
                 engine = AnthropicModel.connect(KEY, job["system"], workspace=os.environ.get("ANTHROPIC_WORKSPACE_ID"))
-                reply = list(engine.stream([], case.q, case.page_lang))[-1]
+                reply = list(engine.stream(case.history, case.q, case.page_lang))[-1]
             else:
                 reply = parse_reply(answer(job, stream_claude, claude=CLAUDE, model=MODEL, workdir=str(tmp_path)))
         except ModelUnavailable:

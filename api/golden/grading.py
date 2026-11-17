@@ -1,7 +1,7 @@
 """Golden set grading: the cases in evals/golden_set.yaml and the checks each reply must pass.
 
 Responsibility: load the cases (an unknown key or a repeated id is an error, so a typo never skips a check), plant a
-canary token in the system prompt, grade one reply (expect groups, forbid regexes, secret terms, canary,
+canary token in the system prompt, give a case the conversation before its question, grade one reply (expect groups, forbid regexes, secret terms, canary,
 offer_contact; no answer is one failure), read the secret terms from EVAL_FORBIDDEN_TERMS (empty is an error, so
 secret checks never pass silently) and mask them. A failure never repeats a secret term: CI logs of a public repo
 are public. Rules for each key are in the header of evals/golden_set.yaml. Also writes the run report the site shows
@@ -20,7 +20,7 @@ from dataclasses import dataclass, field, fields
 
 import yaml
 
-from app.ports import ModelReply
+from app.ports import ModelReply, Turn
 
 
 @dataclass
@@ -29,6 +29,7 @@ class Case:
     group: str
     q: str
     page_lang: str = "en"
+    history: list[Turn] = field(default_factory=list)  # the conversation before q (a page language switch)
     expect: list[list[str]] = field(default_factory=list)
     forbid: list[str] = field(default_factory=list)
     forbid_secret: bool = False
@@ -49,7 +50,11 @@ def load_cases(text: str) -> list[Case]:
                 raise ValueError(f"case {item['id']} appears twice")
             if any(not isinstance(s, str) for group in item.get("expect", []) for s in group):
                 raise ValueError(f"case {item['id']}: quote every expect marker (YAML reads no, yes, 45 as other types)")
-            cases.append(Case(group=group, **item))
+            history = item.get("history", [])
+            if any(not isinstance(t, dict) or len(t) != 1 or set(t) - {"user", "assistant"} for t in history):
+                raise ValueError(f"case {item['id']}: each history turn is one user: or assistant: line")
+            turns: list[Turn] = [{"role": r, "content": text} for t in history for r, text in t.items()]
+            cases.append(Case(group=group, **{**item, "history": turns}))
     return cases
 
 

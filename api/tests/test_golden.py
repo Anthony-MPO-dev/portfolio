@@ -36,6 +36,31 @@ def test_load_reads_every_group_with_defaults():
         "language", "pt", False, [r"\bhello\b"], True, True)  # fmt: skip
 
 
+SWITCH = """
+language:
+  - id: switch
+    q: ok
+    page_lang: pt
+    history:
+      - user: What does he do?
+      - assistant: He builds AI agents.
+"""
+
+
+def test_load_reads_the_conversation_before_the_question():
+    (switch,) = load_cases(SWITCH)
+    assert switch.history == [
+        {"role": "user", "content": "What does he do?"},
+        {"role": "assistant", "content": "He builds AI agents."},
+    ]
+
+
+@pytest.mark.parametrize("turn", ["- bot: hi", "- hi", "- {user: hi, assistant: hello}"])
+def test_load_refuses_a_history_turn_that_is_not_one_user_or_assistant_line(turn):
+    with pytest.raises(ValueError, match="switch: each history turn"):
+        load_cases(SWITCH.replace("- assistant: He builds AI agents.", turn))
+
+
 def test_load_refuses_an_unknown_key_so_a_typo_never_skips_a_check():
     with pytest.raises(ValueError, match="speed.*expects"):
         load_cases("facts:\n  - id: speed\n    q: x\n    expects: [[a]]\n")
