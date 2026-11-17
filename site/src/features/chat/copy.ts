@@ -35,7 +35,7 @@ const en = {
   bot: "Assistant",
   typing: "The assistant is typing",
   privacy:
-    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask. Before a conversation starts, Cloudflare checks that a real browser is sending it.",
+    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask. Before a conversation starts, Cloudflare checks that a real browser is sending it. Cloudflare also times how fast pages load. No cookies. Nothing that identifies you.",
   notices: {
     offline: "Offline right now. You can still reach Anthony below.",
     rate_limited: "You've asked a lot in the last hour. Try again in a little while, or reach Anthony below.",
