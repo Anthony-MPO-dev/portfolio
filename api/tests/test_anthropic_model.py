@@ -139,3 +139,9 @@ def test_cost_follows_the_haiku_prices_per_million_tokens():
     assert cost_usd(usage(input=1_000_000, output=0)) == pytest.approx(0.10)
     assert cost_usd(usage(input=0, output=1_000_000)) == pytest.approx(0.50)
     assert cost_usd(usage(input=0, output=0, read=1_000_000, write=1_000_000)) == pytest.approx(0.135)
+
+
+def test_the_client_sends_no_trace_header_and_records_no_spans():
+    # app.tracing makes a request's span current: the SDK must not send its trace id to the API nor trace the call.
+    options = AnthropicModel.connect("sk-ant-test", "system").client.open_telemetry
+    assert options["propagation"] is False and options["traces"]["enabled"] is False

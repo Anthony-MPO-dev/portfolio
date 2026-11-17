@@ -1,6 +1,7 @@
 """Slow request tracing: one line per slow request, with its route, status and the time each adapter took, and never
 the visitor's IP, path, query or text."""
 
+import inspect
 import json
 import time
 
@@ -15,16 +16,23 @@ from app.tracing import SlowTraces, TraceRequests, make_tracer, traced
 
 
 class Slow:
-    def __init__(self, seconds=0.0):
-        self.seconds = seconds
+    def __init__(self, before=0.0, between=0.0):
+        self.before, self.between, self.made = before, between, []
 
     def lookup(self, key):
-        time.sleep(self.seconds)
+        time.sleep(self.before)
         return [key]
 
     def stream(self, text):
-        time.sleep(self.seconds)
-        yield from text.split()
+        def chunks():
+            time.sleep(self.before)
+            for n, word in enumerate(text.split()):
+                if n:
+                    time.sleep(self.between)
+                yield word
+
+        self.made.append(chunks())
+        return self.made[-1]
 
     def broken(self, text):
         raise ValueError(f"bad input: {text}")
@@ -33,10 +41,10 @@ class Slow:
         return token == "ok"
 
 
-def api(slow_ms, adapter_seconds=0.0):
+def api(slow_ms, **slow):
     lines: list[str] = []
     tracer = make_tracer(slow_ms, emit=lines.append)
-    adapter = traced(Slow(adapter_seconds), "redis", tracer)
+    adapter = traced(Slow(**slow), "redis", tracer)
     app = FastAPI()
 
     @app.get("/api/items/{item}")
@@ -50,6 +58,10 @@ def api(slow_ms, adapter_seconds=0.0):
     @app.get("/api/fail")
     def fail():
         adapter.broken("my secret question")
+
+    @app.get("/api/worker/next")
+    def poll():
+        return {"job": None}
 
     app.add_middleware(TraceRequests, tracer=tracer)
     return TestClient(app, raise_server_exceptions=False), lines
@@ -65,10 +77,10 @@ def logged(lines):
 def test_a_slow_request_logs_its_route_status_and_each_adapter_call():
     client, lines = api(slow_ms=0)
     assert client.get("/api/items/abc?email=x@y.z", headers={"X-Forwarded-For": "203.0.113.9"}).status_code == 200
-    trace = logged(lines)
-    assert (trace["route"], trace["status"]) == ("GET /api/items/{item}", 200)
-    assert [s["name"] for s in trace["spans"]] == ["redis.lookup", "redis"]
-    assert all(s["ms"] >= 0 for s in trace["spans"]) and trace["ms"] >= 0 and len(trace["trace"]) == 32
+    found = logged(lines)
+    assert (found["route"], found["status"]) == ("GET /api/items/{item}", 200)
+    assert [s["name"] for s in found["spans"]] == ["redis.lookup", "redis"]
+    assert found["first_ms"] <= found["ms"] and len(found["trace"]) == 32
     assert not any(leak in lines[0] for leak in ("abc", "email", "203.0.113.9", "testclient"))
 
 
@@ -79,31 +91,69 @@ def test_a_fast_request_logs_nothing():
 
 
 def test_a_streamed_reply_is_timed_until_its_last_chunk_with_the_first_one_marked():
-    client, lines = api(slow_ms=0, adapter_seconds=0.05)
+    client, lines = api(slow_ms=0, before=0.05)
     assert client.post("/api/chat").text == "mysecretquestion"
     (stream,) = logged(lines)["spans"]
     assert stream["name"] == "redis.stream" and stream["ms"] >= 50 and 50 <= stream["first_ms"] <= stream["ms"]
     assert "secret" not in lines[0]
 
 
+def test_a_streamed_reply_is_slow_by_its_first_chunk_not_by_its_length():
+    client, lines = api(slow_ms=150, between=0.1)  # first chunk at once, the whole reply in about 200 ms
+    client.post("/api/chat")
+    assert lines == []
+    client, lines = api(slow_ms=150, before=0.2)  # first chunk after 200 ms
+    client.post("/api/chat")
+    assert logged(lines)["first_ms"] >= 150
+
+
 def test_a_failing_adapter_keeps_its_error_and_logs_only_the_error_type():
     client, lines = api(slow_ms=0)
     assert client.get("/api/fail").status_code == 500
-    trace = logged(lines)
-    assert trace["status"] == 500 and trace["spans"] == [{"name": "redis.broken", "ms": trace["spans"][0]["ms"],
+    found = logged(lines)
+    assert found["status"] == 500 and found["spans"] == [{"name": "redis.broken", "ms": found["spans"][0]["ms"],
                                                           "error": "ValueError"}]  # fmt: skip
     assert "secret" not in lines[0] and "bad input" not in lines[0]
 
 
-def test_the_wrapped_adapter_still_raises_and_closes_like_the_real_one():
-    tracer = make_tracer(0, emit=lambda line: None)
-    adapter = traced(Slow(), "redis", tracer)
+def test_the_worker_long_polls_are_not_traced():
+    client, lines = api(slow_ms=0)
+    client.get("/api/worker/next")
+    assert lines == []
+
+
+def test_a_method_the_visitor_made_up_is_logged_as_other():
+    client, lines = api(slow_ms=0)
+    client.request("BREWCOFFEE", "/api/items/abc")
+    assert logged(lines)["route"] == "OTHER /api/items/{item}" and "BREW" not in lines[0]
+
+
+def test_an_unknown_path_is_logged_as_unmatched_not_by_its_path():
+    client, lines = api(slow_ms=0)
+    client.get("/wp-admin/secret-path")
+    assert logged(lines)["route"] == "GET unmatched" and "secret-path" not in lines[0]
+
+
+def test_the_wrapped_adapter_still_raises_passes_attributes_and_unwraps():
+    real = Slow()
+    adapter = traced(real, "redis", make_tracer(0, emit=lambda line: None))
     with pytest.raises(ValueError, match="bad input"):
         adapter.broken("x")
-    chunks = adapter.stream("a b c")
-    assert next(chunks) == "a"
-    chunks.close()  # the visitor left: the real generator is closed too
-    assert adapter.seconds == 0.0  # plain attributes pass through
+    assert adapter.before == 0.0 and adapter.lookup.__name__ == "lookup" and inspect.unwrap(adapter) is real
+
+
+def test_closing_a_stream_closes_the_real_one_even_before_its_first_chunk():
+    lines: list[str] = []
+    tracer = make_tracer(0, emit=lines.append)
+    real = Slow()
+    adapter = traced(real, "model", tracer)
+    with tracer.start_as_current_span("POST /api/chat"):
+        adapter.stream("a b").close()  # the visitor left before the first chunk
+        chunks = adapter.stream("a b")
+        assert next(chunks) == "a"
+        chunks.close()
+    assert [inspect.getgeneratorstate(g) for g in real.made] == [inspect.GEN_CLOSED] * 2
+    assert [s["name"] for s in logged(lines)["spans"]] == ["model.stream", "model.stream"]
 
 
 def test_an_adapter_call_outside_a_request_is_not_traced():
@@ -113,19 +163,13 @@ def test_an_adapter_call_outside_a_request_is_not_traced():
     assert lines == []
 
 
-def test_an_unknown_path_is_logged_as_unmatched_not_by_its_path():
-    client, lines = api(slow_ms=0)
-    client.get("/wp-admin/secret-path")
-    assert logged(lines)["route"] == "GET unmatched" and "secret-path" not in lines[0]
-
-
 def test_unfinished_traces_are_capped_so_memory_stays_bounded():
     processor = SlowTraces(0, emit=lambda line: None, max_pending=3)
     provider = TracerProvider()
     provider.add_span_processor(processor)
     tracer = provider.get_tracer("test")
+    sampled = trace.TraceFlags(trace.TraceFlags.SAMPLED)
     for n in range(1, 11):  # child spans of requests whose root never ends
-        sampled = trace.TraceFlags(trace.TraceFlags.SAMPLED)
         parent = trace.NonRecordingSpan(trace.SpanContext(trace_id=n, span_id=n, is_remote=False, trace_flags=sampled))
         tracer.start_span("child", context=trace.set_span_in_context(parent)).end()
     assert len(processor.pending) == 3

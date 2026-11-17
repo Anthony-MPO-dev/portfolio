@@ -84,7 +84,10 @@ class AnthropicModel:
         """The engine with its own client: a key not scoped to a workspace needs the workspace id."""
         headers = {"anthropic-workspace-id": workspace} if workspace else None
         wait = anthropic.Timeout(max(timeout, 60), connect=5.0, read=45.0)  # read: the longest silence between pieces
-        client = anthropic.Anthropic(api_key=api_key, timeout=wait, max_retries=1, default_headers=headers)
+        client = anthropic.Anthropic(
+            api_key=api_key, timeout=wait, max_retries=1, default_headers=headers,
+            open_telemetry={"propagation": False, "traces": False},  # no trace id to the API, no spans of its own
+        )  # fmt: skip
         return cls(client, system, **kwargs)
 
     def stream(

@@ -1,5 +1,7 @@
 """Composition: the API starts only with every secret set, and never with a default one."""
 
+import inspect
+
 import pytest
 from fastapi import FastAPI
 
@@ -115,7 +117,7 @@ def test_uploads_are_converted_in_the_isolated_child_process(env, monkeypatch):
     monkeypatch.setattr("app.main.ChatService", lambda *a, **kw: made.append(kw) or object())
     monkeypatch.setattr("app.main.create_app", lambda **kw: FastAPI())
     build(env, FACTS)
-    assert made[0]["convert"]._target is convert_isolated  # wrapped only to time it (app.tracing)
+    assert inspect.unwrap(made[0]["convert"]) is convert_isolated  # wrapped only to time it (app.tracing)
 
 
 def test_a_turnstile_secret_makes_a_new_conversation_need_the_browser_proof(env, monkeypatch):
@@ -137,7 +139,10 @@ def test_the_fact_search_runs_with_the_model_and_is_unavailable_without_it(env):
     assert (with_model.status_code, len(with_model.json()["facts"]), without.status_code) == (200, 3, 503)
 
 
-def test_the_api_traces_slow_requests(env):
-    from app.tracing import TraceRequests
+def test_a_slow_request_logs_one_line_with_its_route_and_no_path(env, caplog):
+    from fastapi.testclient import TestClient
 
-    assert any(m.cls is TraceRequests for m in build(env | {"TRACE_SLOW_MS": "500"}, FACTS).user_middleware)
+    client = TestClient(build(env | {"TRACE_SLOW_MS": "0"}, FACTS))
+    client.post("/api/chat?x=1", content=b"hi", headers={"content-type": "text/plain"})  # refused before any network
+    [line] = [r.getMessage() for r in caplog.records if r.name == "app.tracing"]
+    assert line.startswith('slow_request {"route": "POST /api/chat", "status": 415') and "x=1" not in line

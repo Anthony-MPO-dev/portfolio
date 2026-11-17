@@ -2,7 +2,8 @@
 
 Responsibility: read the settings, refuse to start when a secret is missing or too short (there are no default
 secrets), pick the model engine, plant a fresh canary in the system prompt on every start, and hand the use cases
-their adapters (each one traced: app.tracing), with the output guard bound to that canary and its hits (and the worker's) alerted to Anthony. Engines:
+their adapters (each one they call is traced, app.tracing; the alerts and the worker routes aren't), with the output
+guard bound to that canary and its hits (and the worker's) alerted to Anthony. Engines:
 "anthropic" (Claude Haiku 5.5 through the API, on the author's personal account; the default when ANTHROPIC_API_KEY
 is set, his decision of 2026-11-12; each answer's cost goes to the daily spend the use case caps) and "worker" (the
 isolated chat worker on his PC, the default without a key).
@@ -18,7 +19,7 @@ Public API: build (pure: no network, no disk), app (the uvicorn factory: reads t
 starts the retention purge), ConfigError.
 Run: uvicorn app.main:app --factory
 Used by: the Docker image.
-Depends on: every adapter, app.http, the use cases.
+Depends on: every adapter, app.http, app.tracing, the use cases.
 Tests: tests/test_main.py.
 """
 
