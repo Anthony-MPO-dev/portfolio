@@ -6,13 +6,14 @@ import "@fontsource/ibm-plex-mono/500.css";
 import archivoLatin from "@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url";
 import "@/styles/global.css";
 import { useLang } from "@/hooks/use-lang";
+import { FONT_BOOT } from "@/lib/fonts";
 import { HTML_LANG, LANG_BOOT } from "@/lib/lang";
 
 // HTML shell of every prerendered page: fonts, the page's language (lang, from its path), and the boot script.
 
-// Runs before paint: the saved theme applies without a flash, and a visitor who chose Portuguese is sent from an
-// English page to its /pt/ twin before anything shows (lib/lang.ts).
-const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}${LANG_BOOT}`;
+// Runs before paint: the saved theme applies without a flash, a visitor who chose Portuguese is sent from an
+// English page to its /pt/ twin before anything shows (lib/lang.ts), and the opening waits for its font (lib/fonts.ts).
+const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}${LANG_BOOT}${FONT_BOOT}`;
 
 export function links() {
   return [

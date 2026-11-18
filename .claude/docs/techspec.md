@@ -50,7 +50,7 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 
 | Module | Responsibility |
 |---|---|
-| `app/root.tsx` | HTML shell, fonts, `lang` from the path (`en` or `pt-BR`), the chat in the page's language, and the boot script: the saved theme before paint, and a visitor who chose Portuguese sent to the `/pt/` twin (`LANG_BOOT`) |
+| `app/root.tsx` | HTML shell, fonts, `lang` from the path (`en` or `pt-BR`), the chat in the page's language, and the boot script: the saved theme before paint, a visitor who chose Portuguese sent to the `/pt/` twin (`LANG_BOOT`), and the opening held until its font is ready (`FONT_BOOT`) |
 | `app/routes.ts` | Route list: the home page and `/services`, and the same two modules again at `/pt/` and `/pt/services` (each page reads its language from the path) |
 | `app/routes/home.tsx` + `home.css` | The home page, composed from the features: meta tags (with the schema.org Person card for search engines), header (`SiteHeader`), hero (signed with the author's photo, `assets/portrait-*`), scenes, figures, work, how the bot is tested (`features/bot-tests`), Services (with a link to `/services`), contact. Links carry an arrow; the underline shows on hover |
 | `app/routes/services.tsx` | The `/services` page of Insight AI & Automation, composed from `features/services`: meta tags, header, the opening, three chapters with market figures and their sources, the four services, the calculator |
@@ -66,7 +66,7 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 | `components/site-header.tsx` + `.css` | The bar on top of every page: the name (a link home), the open-to-work status, the EN / PT switch (the same page in the other language, choice remembered) and the theme switch; on phones the name and status stack on the left |
 | `public/robots.txt` + `sitemap.xml` | Copied as is to the site root: crawlers may read everything, and the sitemap lists `/`, `/services`, `/pt/` and `/pt/services` |
 | `scripts/csp.mjs` + `nginx.conf` + `Dockerfile` | The Content-Security-Policy: the Docker build hashes every inline script the prerender wrote and writes `csp.conf`, which nginx includes; scripts run only from the site, those hashes and Cloudflare's analytics beacon (no `'unsafe-inline'`). Tests: `csp.test.mjs` |
-| `app/routes/home-entrance.css` | The typed entrance: the headline word by word behind a caret, each block of a `.typed` section out of skeleton lines; the hero on load from CSS, the rest when useReveal marks it |
+| `app/routes/home-entrance.css` | The typed entrance: the headline word by word behind a caret, each block of a `.typed` section out of skeleton lines; the hero on load from CSS (hidden and paused while `html.fonts-wait`), the rest when useReveal marks it |
 | `features/support-agent/*` | Scenes of the support agent: the search fix (13 of 23) and the metric that lied, with their drawing styles; from 1100 px the drawing sits right of the words (`.agent-stage`) |
 | `features/credit-pipeline/*` | Scene of the credit pipeline drawing itself, about 1 hour down to as fast as 5 minutes |
 | `features/matrix-rain/*` | `MatrixRain`: the character rain behind the top, built once on the client, moved only by CSS transform, paused off screen, absent with reduced motion. `columns.ts` sizes the columns. Tests: `columns.test.ts` |
@@ -87,6 +87,7 @@ and a character rain behind the top. Red (#d12d25 / #ff4d43) is kept only for er
 | `hooks/use-decode.ts` | Section labels decode once as they come into view (0.7 s, text nodes changed in place); nothing with reduced motion |
 | `hooks/use-reveal.ts` | Marks each `.scene`, `.typed` section and `[data-reveal]` block `.is-visible` once it is 35% into the screen, so its CSS plays once, in full, on a timer |
 | `lib/count.ts` | Count maths: splits a figure into its parts (a decimal point or comma, kept as written) and gives the text at a point of the count, up from zero or down from a start value. Tests: `count.test.ts` |
+| `lib/fonts.ts` | `FONT_BOOT` (before paint, marks the page `.fonts-wait` until `document.fonts.ready` or `FONT_WAIT_MS`, so the opening never lays out in the wider fallback font and jumps when Archivo swaps in) and `FONT_WAIT_MS`. Tests: `fonts.test.ts` |
 | `lib/lang.ts` | The page's language from its path (`/pt/` is Portuguese), the same page in the other language, the hreflang links, `LOCALE`, the remembered choice and `LANG_BOOT` (before paint, Portuguese chosen means the `/pt/` twin; the browser's language is never read). Tests: `lang.test.ts` |
 | `hooks/use-lang.ts` | `useLang()`: the current page's language, from the router's location (prerender included) |
 | `lib/entry.ts` | The entry point shared by useReveal and the big numbers (35% into the screen), `TYPED_IN_MS` (how long a typed block takes to show), `onEntry` and `reducedMotion` |

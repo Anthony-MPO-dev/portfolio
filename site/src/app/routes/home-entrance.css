@@ -103,3 +103,14 @@
     display: none;
   }
 }
+
+/* Until the fonts are ready (html.fonts-wait, lib/fonts.ts) the opening stays hidden and its typing waits, so it
+   never lays out in the wider fallback font and jumps when Archivo swaps in. The rain is drawing, not text. */
+.fonts-wait .hero > :not(.rain) {
+  visibility: hidden;
+}
+.fonts-wait .hero *,
+.fonts-wait .hero *::before,
+.fonts-wait .hero *::after {
+  animation-play-state: paused;
+}
