@@ -105,12 +105,16 @@
 }
 
 /* Until the fonts are ready (html.fonts-wait, lib/fonts.ts) the opening stays hidden and its typing waits, so it
-   never lays out in the wider fallback font and jumps when Archivo swaps in. The rain is drawing, not text. */
+   never lays out in the wider fallback font and jumps when Archivo swaps in. The rain is drawing, not text: it runs.
+   !important because the words' and caret's own animation shorthands are more specific and reset it to running. */
 .fonts-wait .hero > :not(.rain) {
   visibility: hidden;
 }
-.fonts-wait .hero *,
-.fonts-wait .hero *::before,
-.fonts-wait .hero *::after {
-  animation-play-state: paused;
+.fonts-wait .hero > :not(.rain),
+.fonts-wait .hero > :not(.rain)::before,
+.fonts-wait .hero > :not(.rain)::after,
+.fonts-wait .hero > :not(.rain) *,
+.fonts-wait .hero > :not(.rain) *::before,
+.fonts-wait .hero > :not(.rain) *::after {
+  animation-play-state: paused !important;
 }

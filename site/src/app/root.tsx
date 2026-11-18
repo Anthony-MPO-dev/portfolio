@@ -4,6 +4,7 @@ import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import "@fontsource-variable/archivo/wdth.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import archivoLatin from "@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2?url";
+import monoLatin from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2?url";
 import "@/styles/global.css";
 import { useLang } from "@/hooks/use-lang";
 import { FONT_BOOT } from "@/lib/fonts";
@@ -12,13 +13,15 @@ import { HTML_LANG, LANG_BOOT } from "@/lib/lang";
 // HTML shell of every prerendered page: fonts, the page's language (lang, from its path), and the boot script.
 
 // Runs before paint: the saved theme applies without a flash, a visitor who chose Portuguese is sent from an
-// English page to its /pt/ twin before anything shows (lib/lang.ts), and the opening waits for its font (lib/fonts.ts).
+// English page to its /pt/ twin before anything shows (lib/lang.ts), and the home's opening waits for its fonts
+// (lib/fonts.ts).
 const bootScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}${LANG_BOOT}${FONT_BOOT}`;
 
 export function links() {
   return [
-    // the headline font, fetched with the HTML instead of after the CSS
+    // the opening's fonts (headline and label), fetched with the HTML instead of after the CSS: it waits for both
     { rel: "preload", href: archivoLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
+    { rel: "preload", href: monoLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
     // no icon yet (the author picks one): an empty one stops the browser's request for /favicon.ico and its 404
     { rel: "icon", href: "data:," },
   ];
