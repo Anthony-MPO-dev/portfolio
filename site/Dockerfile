@@ -14,4 +14,7 @@ FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build/csp.conf /etc/nginx/csp.conf
 COPY --from=build /app/build/client /usr/share/nginx/html
+# purges Cloudflare's cache once the new build is serving (needs CLOUDFLARE_CACHE_TOKEN in the environment)
+COPY cloudflare-purge.sh /docker-entrypoint.d/40-cloudflare-purge.sh
+RUN chmod 755 /docker-entrypoint.d/40-cloudflare-purge.sh
 EXPOSE 80
