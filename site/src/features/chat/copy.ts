@@ -101,7 +101,7 @@ const pt: typeof en = {
   bot: "Assistente",
   typing: "O assistente está digitando",
   privacy:
-    "As perguntas ficam guardadas por 30 dias para melhorar o bot, e e-mails e telefones são apagados antes de gravar. Os arquivos são lidos para a resposta e apagados logo depois. Não mande dados pessoais de outras pessoas. Os contatos que você manda ao Anthony ficam guardados por até 12 meses, e ele apaga se você pedir. Antes de uma conversa começar, a Cloudflare confere se quem manda é um navegador de verdade.",
+    "As perguntas ficam guardadas por 30 dias para melhorar o bot, e e-mails e telefones são apagados antes de gravar. Os arquivos são lidos para a resposta e apagados logo depois. Não mande dados pessoais de outras pessoas. Os contatos que você manda ao Anthony ficam guardados por até 12 meses, e ele apaga se você pedir. Antes de uma conversa começar, a Cloudflare confere se quem manda é um navegador de verdade. A Cloudflare também mede o tempo de carregamento das páginas. Sem cookies. Nada que identifique você.",
   notices: {
     offline: "Fora do ar agora. Você ainda pode falar com o Anthony aqui embaixo.",
     rate_limited: "Você perguntou bastante na última hora. Tente de novo daqui a pouco, ou fale com o Anthony aqui embaixo.",
