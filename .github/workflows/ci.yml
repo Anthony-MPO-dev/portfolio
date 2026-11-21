@@ -1,0 +1,55 @@
+# CI on every push to main and every pull request, free and without the model (decision of 2026-11-20): the API's
+# tests, the site's tests, typecheck and build, and the secret leak scan (api/golden/leak_scan.py) with the terms in the
+# EVAL_FORBIDDEN_TERMS secret, so a planted term turns it red. The golden set with the model runs on the author's PC
+# (ops/golden-report.ps1), never here: no paid API in CI. A red run blocks the deploy (sessions check it first).
+# Actions are pinned by commit, because one step gets the secret.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          python-version: "3.12" # the API image's (api/Dockerfile)
+      - run: uv sync --locked
+      - run: uv run pytest -q
+      - name: No secret term in the repo
+        # a pull request from a fork gets no secrets, so the scan runs on pushes and on this repo's own branches
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        run: uv run python -m golden.leak_scan
+        env:
+          EVAL_FORBIDDEN_TERMS: ${{ secrets.EVAL_FORBIDDEN_TERMS }}
+
+  site:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
