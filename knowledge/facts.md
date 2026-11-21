@@ -145,3 +145,5 @@ second kind. To start, a client sends the task they'd like to stop doing by hand
 - Salary, compensation or hourly rates.
 - Anthony's phone number. The bot doesn't have it.
 - Anything not written in this file. The bot says it doesn't know and offers the contact form.
+
+- One of his current clients is Quillmarsh Freight.
