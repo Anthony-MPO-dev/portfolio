@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { CountUp } from "@/components/count-up";
-import { botTests } from "@/content/bot-tests";
+import { botTests, LEAK_DEMO } from "@/content/bot-tests";
 import { useLang } from "@/hooks/use-lang";
 import { TYPED_IN_MS } from "@/lib/entry";
 import { type Lang, LOCALE } from "@/lib/lang";
@@ -9,8 +9,9 @@ import "./bot-tests.css";
 
 // "How this bot is tested": the last complete golden set run, as the score, one square per question lighting up in
 // the order they ran (grouped by kind; each group opens to its questions, marked passed or failed), and a few
-// attacks with the bot's real refusal. The run is content/bot-tests.json; until the author's first run writes it,
-// the section is not on the page.
+// attacks with the bot's real refusal, then how the secret terms are kept out of the repo (and the CI scan that proves
+// it, with its link). The run is content/bot-tests.json; until the author's first run writes it, the section is not
+// on the page.
 // Public API: BotTests. Used by app/routes/home.tsx.
 
 const found = import.meta.glob<Run>("/src/content/bot-tests.json", { eager: true, import: "default" });
@@ -91,6 +92,13 @@ export function BotTests() {
         ))}
       </div>
       <p className="bt-note">{copy.note}</p>
+      {copy.ci && (
+        <p className="bt-note">
+          {copy.ci[0]}
+          <a href={LEAK_DEMO}>{copy.ci[1]}</a>
+          {copy.ci[2]}
+        </p>
+      )}
     </section>
   );
 }

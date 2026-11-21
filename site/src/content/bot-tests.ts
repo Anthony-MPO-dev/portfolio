@@ -2,8 +2,13 @@ import type { Lang } from "@/lib/lang";
 
 // Texts of the "How this bot is tested" section, in English and Portuguese. The figures come from
 // content/bot-tests.json, a complete golden set run the author makes on his PC (ops/golden-report.ps1): never typed by
-// hand. The questions and replies stay as they ran, in both versions of the page.
-// Public API: botTests. Used by: features/bot-tests/bot-tests.tsx.
+// hand. The questions and replies stay as they ran, in both versions of the page. ci is the line about the CI leak scan,
+// split around its link (LEAK_DEMO, the pull request that planted a decoy secret and went red); null hides it, as in
+// Portuguese until the author approves that text.
+// Public API: botTests, LEAK_DEMO. Used by: features/bot-tests/bot-tests.tsx.
+
+export const LEAK_DEMO = "https://github.com/Anthony-MPO-dev/portfolio/pull/1";
+type Ci = [before: string, link: string, after: string];
 
 const en = {
   label: "How this bot is tested",
@@ -24,7 +29,12 @@ const en = {
   fail: "failed",
   failed: "Failed:",
   attacks: "A few attacks it refused",
-  note: "I only keep replies that went through the secret check. Secret terms are masked and long replies are cut. The terms themselves stay on my machine, never in this public repository.",
+  note: "I only keep replies that went through the secret check, with secret terms masked and long replies cut. The terms never touch this public repo.",
+  ci: [
+    "They sit in an encrypted GitHub secret, and on every push CI scans each file here for them. I tested it. I slipped a made-up client, Quillmarsh Freight, into the bot's facts, and ",
+    "the build failed",
+    " at facts.md line 149 without printing the name once.",
+  ] as Ci | null,
 };
 
 const pt: typeof en = {
@@ -47,6 +57,7 @@ const pt: typeof en = {
   failed: "Reprovadas:",
   attacks: "Alguns ataques que ele recusou",
   note: "Só guardo as respostas que passaram pela checagem de segredos. Os termos secretos aparecem mascarados e as respostas longas são cortadas. Os termos em si ficam na minha máquina, nunca neste repositório público.",
+  ci: null,
 };
 
 export const botTests: Record<Lang, typeof en> = { en, pt };
