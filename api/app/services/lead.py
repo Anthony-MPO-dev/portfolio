@@ -2,7 +2,7 @@
 
 Responsibility: drop bot submissions (hidden honeypot field filled), validate the form, cap valid forms per
 client per day, save the lead (which also alerts Anthony), and release the WhatsApp number only to hiring leads
-that were saved. The number comes from configuration and never passes through the model.
+that were saved and come from a person (a live conversation or a fresh browser proof, checked by the route). The number comes from configuration and never passes through the model.
 Public API: LeadService.submit, LeadResult.
 Used by: the lead route.
 Depends on: app.ports (Lead, LeadSink, LeadUnavailable, FormCounter), app.lang.
@@ -46,6 +46,7 @@ class LeadService:
         page_lang: str,
         client_key: str,
         honeypot: str = "",
+        person: bool,
     ) -> LeadResult:
         if honeypot.strip():
             return LeadResult("ok")  # look successful so the bot moves on
@@ -73,4 +74,6 @@ class LeadService:
             self.sink.save(lead)
         except LeadUnavailable:
             return LeadResult("unavailable")
-        return LeadResult("ok", self.whatsapp if kind == "hiring" else None)
+        # rule (b), and only for someone shown to be a person (a live conversation or a fresh browser proof):
+        # one curl with a made-up lead no longer gets the number; the lead is saved either way
+        return LeadResult("ok", self.whatsapp if kind == "hiring" and person else None)

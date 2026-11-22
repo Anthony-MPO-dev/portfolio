@@ -176,7 +176,7 @@ export function Chat({ lang }: { lang: Lang }) {
               <span />
             </p>
           )}
-          <ContactPanel state={state} lang={lang} dispatch={dispatch} />
+          <ContactPanel state={state} lang={lang} dispatch={dispatch} lead={talk.lead} />
         </div>
 
         <div ref={proofBox} className="chat-proof" />
@@ -263,7 +263,9 @@ function Message({ entry, t }: { entry: Entry; t: Copy }) {
   );
 }
 
-function ContactPanel({ state, lang, dispatch }: { state: State; lang: Lang; dispatch: (a: Action) => void }) {
+type Lead = ReturnType<typeof conversation>["lead"];
+
+function ContactPanel({ state, lang, dispatch, lead }: { state: State; lang: Lang; dispatch: (a: Action) => void; lead: Lead }) {
   const t = copy[lang];
   const c = state.contact;
   switch (c.step) {
@@ -276,7 +278,7 @@ function ContactPanel({ state, lang, dispatch }: { state: State; lang: Lang; dis
         </button>
       );
     case "form":
-      return <LeadForm lang={lang} error={c.error} onDone={(result) => dispatch({ type: "leadDone", result })} />;
+      return <LeadForm lang={lang} error={c.error} submit={lead} onDone={(result) => dispatch({ type: "leadDone", result })} />;
     case "sent":
       return c.whatsapp ? (
         <p className="chat-notice">

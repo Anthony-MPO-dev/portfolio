@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
 import type { Lang } from "@/lib/lang";
-import { submitLead, type LeadResult } from "./api";
+import type { conversation, LeadResult } from "./api";
 import { copy } from "./copy";
 
 // Contact form shown when the bot offers it: name, company and email required, LinkedIn optional, Hiring or
 // Project. The hidden "website" field is the honeypot. The WhatsApp number only ever comes back from the API.
-export function LeadForm({ lang, error, onDone }: { lang: Lang; error: boolean; onDone: (r: LeadResult) => void }) {
+type Submit = ReturnType<typeof conversation>["lead"]; // sends the browser proof when the WhatsApp number needs it
+
+export function LeadForm({ lang, error, submit: send, onDone }: { lang: Lang; error: boolean; submit: Submit; onDone: (r: LeadResult) => void }) {
   const [busy, setBusy] = useState(false);
   const t = copy[lang].form;
 
@@ -15,7 +17,7 @@ export function LeadForm({ lang, error, onDone }: { lang: Lang; error: boolean; 
     const get = (key: string) => String(f.get(key) ?? "").trim();
     const kind = get("kind") === "project" ? "project" : "hiring";
     setBusy(true);
-    onDone(await submitLead({ name: get("name"), company: get("company"), email: get("email"), linkedin: get("linkedin"), kind }, get("website"), lang));
+    onDone(await send({ name: get("name"), company: get("company"), email: get("email"), linkedin: get("linkedin"), kind }, get("website"), lang));
     setBusy(false);
   }
 

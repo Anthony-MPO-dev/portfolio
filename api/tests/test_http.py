@@ -323,3 +323,17 @@ def test_without_the_model_the_search_says_it_is_unavailable():
     world = World(search=False)
     assert world.client.get("/api/search/facts").status_code == 503
     assert world.client.post("/api/search", json={"q": "x"}, headers=SAME_SITE).status_code == 503
+
+
+def test_the_whatsapp_number_needs_a_live_conversation_or_a_fresh_browser_proof():
+    world = World(human=lambda token: token == "real-browser")
+    script = world.client.post("/api/lead", json=LEAD, headers=SAME_SITE).json()
+    proven = world.client.post("/api/lead", json=LEAD, headers={**SAME_SITE, "X-Human": "real-browser"}).json()
+    world.chat(human="real-browser")  # a conversation opens: its cookie is enough from now on
+    talking = world.client.post("/api/lead", json=LEAD, headers=SAME_SITE).json()
+    assert (script, proven, talking, len(world.sink.saved)) == (
+        {"status": "ok"},
+        {"status": "ok", "whatsapp": "+00 0000"},
+        {"status": "ok", "whatsapp": "+00 0000"},
+        3,
+    )

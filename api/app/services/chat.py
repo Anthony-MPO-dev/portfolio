@@ -100,6 +100,12 @@ class ChatService:
         self.convert = convert
         self.human = human  # Turnstile: a new conversation needs a real browser's proof
 
+    def is_person(self, session_id: str | None, human_token: str | None) -> bool:
+        """A live conversation (it needed the proof to open) or a fresh browser proof; without the check wired, yes."""
+        if session_id and self.store.session_exists(session_id):
+            return True
+        return self.human is None or self.human(human_token)
+
     def before_upload(self, *, session_id: str | None, human_token: str | None) -> AttachResult | None:
         """What attach would answer before the file is read: offline, or a challenge with neither a session nor a
         proof to check. None means the file is worth reading."""

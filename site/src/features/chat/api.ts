@@ -26,10 +26,10 @@ type Data = Record<string, unknown>;
 const isOne = <T extends string>(list: readonly T[], value: unknown): value is T =>
   (list as readonly unknown[]).includes(value);
 
-function post(url: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+function post(url: string, body: unknown, signal?: AbortSignal, headers: Record<string, string> = {}): Promise<Response> {
   return fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
     signal,
   });
@@ -98,8 +98,9 @@ export async function uploadFile(file: Blob, human?: string): Promise<UploadResu
   }
 }
 
-export async function submitLead(fields: LeadFields, honeypot: string, pageLang: Lang): Promise<LeadResult> {
-  const data: Data | null = await post("/api/lead", { ...fields, website: honeypot, page_lang: pageLang })
+// human: a fresh browser proof, which the WhatsApp number needs when no conversation is open (conversation.lead)
+export async function submitLead(fields: LeadFields, honeypot: string, pageLang: Lang, human?: string): Promise<LeadResult> {
+  const data: Data | null = await post("/api/lead", { ...fields, website: honeypot, page_lang: pageLang }, undefined, human ? { "X-Human": human } : {})
     .then((r) => r.json())
     .catch(() => null);
   if (!data || !isOne(LEAD, data.status)) return { status: "unavailable" };
@@ -130,6 +131,9 @@ export function conversation(proof: () => Promise<string | undefined>) {
       while (!open && i < files.length) await run(i++);
       await Promise.all(files.slice(i).map((_, j) => run(i + j)));
     },
+    // a hiring lead gets the WhatsApp number only from a person: an open conversation already showed it, else a proof
+    lead: async (fields: LeadFields, honeypot: string, pageLang: Lang) =>
+      submitLead(fields, honeypot, pageLang, fields.kind === "hiring" && !open ? await proof() : undefined),
     clear() {
       open = false; // the API forgets the session; the next request starts a new one
       return clearConversation();

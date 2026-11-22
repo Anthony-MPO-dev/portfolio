@@ -1,6 +1,6 @@
 # Anthony Muniz: public facts
 
-Single source of truth for the portfolio chatbot and the MCP server. Every line comes from Anthony's public LinkedIn
+Single source of truth for the portfolio chatbot. Every line comes from Anthony's public LinkedIn
 profile, his CV, or facts he approved for publishing. If something isn't here, the bot doesn't know it.
 
 ## At a glance

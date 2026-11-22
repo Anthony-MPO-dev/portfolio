@@ -15,6 +15,7 @@ FORM = {
     "page_lang": "en",
     "client_key": "client-a",
     "honeypot": "",
+    "person": True,
 }
 
 
@@ -107,3 +108,8 @@ def test_form_limit_is_per_ip():
     service, _ = make(max_per_day=1)
     service.submit(**FORM)
     assert service.submit(**{**FORM, "client_key": "client-b"}).status == "ok"
+
+
+def test_a_hiring_lead_from_someone_not_shown_to_be_a_person_is_saved_without_the_number():
+    result, sink = submit(person=False)
+    assert (result.status, result.whatsapp, len(sink.saved)) == ("ok", None, 1)
