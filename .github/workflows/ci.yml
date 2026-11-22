@@ -74,4 +74,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
-      - run: npm run build
+      # as the image builds it (site/Dockerfile): with the chat, then the CSP, which fails without inline scripts
+      - run: VITE_CHAT=1 npm run build && node scripts/csp.mjs build/client > /dev/null
