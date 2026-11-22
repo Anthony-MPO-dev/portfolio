@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearConversation, sendMessage, submitLead, uploadFile } from "./api";
+import { clearConversation, conversation, sendMessage, submitLead, uploadFile } from "./api";
 
 function respond(status: number, body: unknown) {
   const fetch = vi.fn(async () => new Response(status === 204 ? null : typeof body === "string" ? body : JSON.stringify(body), { status }));
@@ -153,6 +153,70 @@ describe("submitLead", () => {
     expect(await submitLead(fields, "", "en")).toEqual({ status: "unavailable" });
     respond(200, { status: "weird" });
     expect(await submitLead(fields, "", "en")).toEqual({ status: "unavailable" });
+  });
+});
+
+describe("conversation (the session rules)", () => {
+  // Each POST answers the next status in line (a chat "done" line, or an upload's JSON); the log shows which overlap.
+  function answers(...statuses: string[]) {
+    const log: string[] = [];
+    const proofs: (string | null)[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        if (init.method === "DELETE") return new Response(null, { status: 204 });
+        const upload = url === "/api/attachments";
+        proofs.push(upload ? new Headers(init.headers).get("x-human") : (JSON.parse(init.body as string).human ?? null));
+        log.push("start");
+        await Promise.resolve();
+        log.push("end");
+        const status = statuses.shift();
+        if (upload) return new Response(JSON.stringify({ status, id: "f" }));
+        return new Response(JSON.stringify({ type: "done", status }) + "\n", { headers: { "content-type": "application/x-ndjson" } });
+      }),
+    );
+    return { log, proofs };
+  }
+  const open = () => ({ signal: new AbortController().signal });
+
+  it("proves the browser on the first message only", async () => {
+    const { proofs } = answers("ok", "ok");
+    const talk = conversation(async () => "t");
+    await talk.send("a", "en", open());
+    await talk.send("b", "en", open());
+    expect(proofs).toEqual(["t", null]);
+  });
+
+  it("proves it once more when the server forgot the session, but not after its proof was refused", async () => {
+    const { proofs } = answers("ok", "challenge", "ok", "challenge");
+    const talk = conversation(async () => "t");
+    await talk.send("a", "en", open());
+    expect((await talk.send("b", "en", open())).status).toBe("ok");
+    await talk.clear();
+    expect((await talk.send("c", "en", open())).status).toBe("challenge");
+    expect(proofs).toEqual(["t", null, "t", "t"]);
+  });
+
+  it("uploads the first file alone while there is no session, then the rest side by side", async () => {
+    const { log, proofs } = answers("ok", "ok", "ok");
+    const done: number[] = [];
+    await conversation(async () => "t").upload([new Blob(["1"]), new Blob(["2"]), new Blob(["3"])], (i) => done.push(i));
+    expect(log).toEqual(["start", "end", "start", "start", "end", "end"]);
+    expect(proofs).toEqual(["t", null, null]);
+    expect(done.sort()).toEqual([0, 1, 2]);
+  });
+
+  it("leaves the session closed when a request cleared while it ran comes back ok", async () => {
+    const { proofs } = answers("ok", "ok", "ok");
+    const talk = conversation(async () => "t");
+    await talk.send("a", "en", open());
+    const clearing = new AbortController();
+    const late = talk.send("b", "en", { signal: clearing.signal });
+    clearing.abort();
+    await talk.clear();
+    expect((await late).status).toBe("ok"); // its answer was already in
+    await talk.send("c", "en", open());
+    expect(proofs).toEqual(["t", null, "t"]);
   });
 });
 

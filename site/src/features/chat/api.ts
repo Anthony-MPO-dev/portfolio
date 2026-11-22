@@ -1,8 +1,9 @@
 // Chat API client: the browser calls (/api/chat POST and DELETE, /api/attachments, /api/lead), same origin, JSON or
 // one file's raw bytes in, JSON or NDJSON (a streamed answer) out.
 // Responsibility: turn every failure (network, non-JSON page, unknown status) into a status the page knows, so the
-// visitor sees a fixed notice and the contact, never an error. Public API: sendMessage, uploadFile,
-// submitLead, clearConversation and their result types. Used by: features/chat/chat.tsx. Tests: api.test.ts.
+// visitor sees a fixed notice and the contact, never an error; and keep the session rules (conversation). Public API:
+// conversation, sendMessage, uploadFile, submitLead, clearConversation and their result types. Used by:
+// features/chat/chat.tsx. Tests: api.test.ts.
 
 import type { Lang } from "@/lib/lang";
 
@@ -105,6 +106,37 @@ export async function submitLead(fields: LeadFields, honeypot: string, pageLang:
     .catch(() => null);
   if (!data || !isOne(LEAD, data.status)) return { status: "unavailable" };
   return typeof data.whatsapp === "string" ? { status: "ok", whatsapp: data.whatsapp } : { status: data.status };
+}
+
+// The session rules in one place. The API keeps the conversation behind an HttpOnly cookie the page can't see, so this
+// remembers whether one is open: a request without one carries the browser proof (`proof`, human.ts), and a
+// "challenge" while one is open (the server forgot it after 2 h idle) is proved and sent once more. An "ok" opens it,
+// a "challenge" closes it, and a message cleared while it ran changes nothing. Files upload side by side, except that
+// without a session they go one at a time until one opens it (or each would start a session of its own).
+export function conversation(proof: () => Promise<string | undefined>) {
+  let open = false;
+  const outcome = (r: ChatResult | UploadResult) => (r.status === "refused" ? r.reason : r.status);
+  async function call<R extends ChatResult | UploadResult>(request: (human?: string) => Promise<R>, signal?: AbortSignal) {
+    const ask = async (prove: boolean) => request(prove ? await proof() : undefined);
+    let result = await ask(!open);
+    if (outcome(result) === "challenge" && open) result = await ask(true);
+    if (!signal?.aborted) open = outcome(result) === "ok" || (open && outcome(result) !== "challenge");
+    return result;
+  }
+  return {
+    send: (message: string, pageLang: Lang, options: { files?: string[]; onDelta?: (text: string) => void; signal: AbortSignal }) =>
+      call((human) => sendMessage(message, pageLang, { ...options, human }), options.signal),
+    async upload(files: Blob[], onDone: (index: number, result: UploadResult) => void) {
+      const run = async (i: number) => onDone(i, await call((human) => uploadFile(files[i], human)));
+      let i = 0;
+      while (!open && i < files.length) await run(i++);
+      await Promise.all(files.slice(i).map((_, j) => run(i + j)));
+    },
+    clear() {
+      open = false; // the API forgets the session; the next request starts a new one
+      return clearConversation();
+    },
+  };
 }
 
 export async function clearConversation(): Promise<void> {
