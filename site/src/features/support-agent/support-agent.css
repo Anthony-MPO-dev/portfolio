@@ -64,6 +64,10 @@
   .agent-stage > .note {
     grid-row: 4;
   }
+  .agent-legend {
+    transform: scale(0.6); /* the drawing is about twice its phone size here; the legend stays at text size */
+    transform-origin: 0 250px;
+  }
   .agent-stage > svg {
     grid-column: 2;
     grid-row: 1 / -1;
