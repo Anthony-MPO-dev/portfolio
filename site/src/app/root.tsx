@@ -22,8 +22,9 @@ export function links() {
     // the opening's fonts (headline and label), fetched with the HTML instead of after the CSS: it waits for both
     { rel: "preload", href: archivoLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
     { rel: "preload", href: monoLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
-    // no icon yet (the author picks one): an empty one stops the browser's request for /favicon.ico and its 404
-    { rel: "icon", href: "data:," },
+    // the A with the opening's green cursor (chosen 2026-11-22); it flips with the browser's dark mode. iOS needs a PNG.
+    { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+    { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
   ];
 }
 

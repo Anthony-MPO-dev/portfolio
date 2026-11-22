@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .box { fill: #0b0b0b } .on { fill: #fafaf7 } .mark { fill: #3dfc8a }
+    @media (prefers-color-scheme: dark) { .box { fill: #f2f1ec } .on { fill: #0b0b0b } .mark { fill: #047a46 } }
+  </style>
+  <rect class="box" width="32" height="32" rx="7"/>
+  <path class="on" fill-rule="evenodd" d="M4 25 10 7h4l6 18h-3.8l-1.2-3.7H9L7.8 25Zm5.9-6.7h4.2L12 11.6Z"/>
+  <rect class="mark" x="22.5" y="7" width="5" height="18"/>
+</svg>
