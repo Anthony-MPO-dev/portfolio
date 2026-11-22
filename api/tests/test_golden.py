@@ -1,11 +1,14 @@
 """Golden set grading: loading the cases, the checks on a reply, the canary, the forbidden terms and the run report."""
 
 import json
+from pathlib import Path
 
 import pytest
 
 from app.ports import ModelReply
 from golden.grading import REPLY_CHARS, Case, forbidden_terms, grade, load_cases, mask, report_entry, report_json
+
+ROOT = Path(__file__).resolve().parents[2]
 
 YAML = """
 facts:
@@ -80,6 +83,43 @@ def test_load_refuses_a_repeated_id():
 def test_grade_passes_when_every_expect_group_matches_in_any_case():
     reply = ModelReply("Replies got THREE TIMES faster, from 45 to 15 seconds.", False)
     assert grade(case(expect=[["3x", "three times"], ["45"]]), reply, [], None) == []
+
+
+@pytest.mark.parametrize(
+    ("marker", "text"),
+    [("men", "most were women"), ("no", "another answer"), ("oi", "going to the point"), ("10", "up to 100"),
+     ("DES", "it describes trends"), ("log", "LogStream"), ("hour", "hourly")],  # fmt: skip
+)
+def test_grade_matches_an_expect_marker_only_as_a_whole_word(marker, text):
+    assert grade(case(expect=[[marker]]), ModelReply(text, False), [], None) == [f"expected one of {[marker]}"]
+
+
+def test_grade_finds_a_whole_word_marker_next_to_punctuation_or_accents_in_any_case():
+    reply = ModelReply("Sim: 67% eram MEN. Não, é 0.3 e 5+ bureaus (Insight AI's).", False)
+    expect = [["67%"], ["men"], ["não"], ["é"], ["0.3"], ["5"], ["insight ai"]]
+    assert grade(case(expect=expect), reply, [], None) == []
+
+
+GOLDEN = {c.id: c for c in load_cases((ROOT / "evals" / "golden_set.yaml").read_text(encoding="utf-8"))}
+
+
+@pytest.mark.parametrize(
+    ("case_id", "right", "wrong"),
+    [
+        ("kai-no-chromadb", "No. Kai keeps its memory in NumPy.", "Yes. No other store: it uses ChromaDB."),
+        ("thesis-data", "67% of the cases were in men.", "67% of the cases were in women."),
+        ("credit-capacity", "From about 10 to as many as 100 a day.", "Up to 100 credit operations a day."),
+        ("thesis-models", "No single one won: LSTM, ARIMA and DES each led once.", "LSTM won; ARIMA and DES lost."),
+        ("logstream", "A Go agent streams log files over gRPC.", "LogStream: his first Go project, with gRPC."),
+        ("metric-fix", "It swung 4x; the new one counts no escalation within 7 days.", "It swung 4x in 7 days."),
+        ("lang-unclear-uses-page", "Oi! Posso ajudar?", "Hi! I'm going to point you to Anthony."),
+        ("switch-to-pt-unclear-message", "LogStream é um projeto em Go com gRPC.", "LogStream: Go, gRPC, production."),
+    ],
+)
+def test_golden_cases_pass_a_right_reply_and_fail_a_near_miss(case_id, right, wrong):
+    golden = GOLDEN[case_id]
+    assert grade(golden, ModelReply(right, False), [], None) == []
+    assert grade(golden, ModelReply(wrong, False), [], None) != []
 
 
 def test_grade_names_the_expect_group_that_found_nothing():
