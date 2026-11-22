@@ -221,7 +221,7 @@ def create_app(
             client_key=client_key(request),
             honeypot=body.website,
             # the number goes to a person only: asked after a hiring lead is saved, never for anything else
-            person=lambda: chat.is_person(request.cookies.get(COOKIE), request.headers.get("x-human")),
+            person=lambda: chat.is_person(request.headers.get("x-human")),
         )
         payload = {"status": result.status} | ({"whatsapp": result.whatsapp} if result.whatsapp else {})
         return JSONResponse(payload, CODES[result.status])

@@ -2,7 +2,7 @@
 
 Responsibility: drop bot submissions (hidden honeypot field filled), validate the form, cap valid forms per
 client per day, save the lead (which also alerts Anthony), and release the WhatsApp number only to hiring leads
-that were saved and come from a person (a live conversation or a fresh browser proof, checked by the route). The number comes from configuration and never passes through the model.
+that were saved and come from a person (a fresh browser proof under the strict check, asked by the route). The number comes from configuration and never passes through the model.
 Public API: LeadService.submit, LeadResult.
 Used by: the lead route.
 Depends on: app.ports (Lead, LeadSink, LeadUnavailable, FormCounter), app.lang.

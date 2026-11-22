@@ -102,11 +102,10 @@ class ChatService:
         self.human = human  # Turnstile: a new conversation needs a real browser's proof
         self.person = person  # the same proof, strict: a fault on Cloudflare's side counts as no (the WhatsApp number)
 
-    def is_person(self, session_id: str | None, human_token: str | None) -> bool:
-        """A live conversation (it needed the proof to open) or a fresh browser proof that passed the strict check
-        (a fault on Cloudflare's side counts as no); without any browser check wired, yes."""
-        if session_id and self.store.session_exists(session_id):
-            return True
+    def is_person(self, human_token: str | None) -> bool:
+        """A fresh browser proof that passed the strict check (a fault on Cloudflare's side counts as no). A live
+        conversation isn't enough: the chat's own check lets one open during a Cloudflare fault. Without any browser
+        check wired, yes."""
         if self.human is None:
             return True
         return bool(self.person and self.person(human_token))

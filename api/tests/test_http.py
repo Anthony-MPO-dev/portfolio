@@ -325,17 +325,17 @@ def test_without_the_model_the_search_says_it_is_unavailable():
     assert world.client.post("/api/search", json={"q": "x"}, headers=SAME_SITE).status_code == 503
 
 
-def test_the_whatsapp_number_needs_a_live_conversation_or_a_fresh_browser_proof():
+def test_with_turnstile_the_whatsapp_number_needs_a_fresh_strict_proof():
     # the chat's check lets anything through (as on a Cloudflare fault); the number's strict check does not
     world = World(human=lambda token: True, person=lambda token: token == "real-browser")
     script = world.client.post("/api/lead", json=LEAD, headers=SAME_SITE).json()
     proven = world.client.post("/api/lead", json=LEAD, headers={**SAME_SITE, "X-Human": "real-browser"}).json()
-    world.chat(human="real-browser")  # a conversation opens: its cookie is enough from now on
+    world.chat(human="x")  # a conversation a script opened while the chat's check failed open
     talking = world.client.post("/api/lead", json=LEAD, headers=SAME_SITE).json()
     assert (script, proven, talking, len(world.sink.saved)) == (
         {"status": "ok"},
         {"status": "ok", "whatsapp": "+00 0000"},
-        {"status": "ok", "whatsapp": "+00 0000"},
+        {"status": "ok"},
         3,
     )
 
