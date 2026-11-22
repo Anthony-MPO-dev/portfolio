@@ -53,18 +53,19 @@ def test_a_rare_word_of_the_question_brings_its_passage_up():
     assert found.hits[0].id == 3
 
 
-def test_at_most_five_hits_and_the_question_lands_where_its_twin_passage_is():
-    search = FactSearch(PASSAGES[:4] + PASSAGES[4:] * 1, fake_embed, top=3)
+def test_at_most_top_hits_and_the_question_lands_where_its_twin_passage_is():
+    search = FactSearch(PASSAGES, fake_embed, top=3)  # 5 passages on the map, 3 shown
     found = search.search("His first Go project, with gRPC.")
     assert len(found.hits) == 3
     twin = next(f for f in search.facts() if f.id == 4)
     assert all(abs(a - b) < 1e-6 for a, b in zip(found.xy, twin.xy))
 
 
-def test_the_service_answers_and_says_nothing_is_kept():
-    service, _ = make()
+def test_the_service_answers_and_keeps_nothing_of_the_question():
+    service, store = make()
     answer = service.ask(client_key="ip-a", question="  Does Kai use ChromaDB?  ")
-    assert answer.status == "ok" and answer.found.hits[0].id == 3
+    assert answer.status == "ok" and answer.found.hits
+    assert store.searches == {"ip-a": 1} and "kai" not in repr(vars(store)).lower()  # a count, never the text
 
 
 def test_an_empty_or_too_long_question_is_invalid_and_costs_nothing():

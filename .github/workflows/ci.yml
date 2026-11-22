@@ -1,8 +1,8 @@
 # CI on every push (any branch) and every pull request, free and without the model (decision of 2026-11-20): the API's
-# tests, the site's tests, typecheck and build, and the secret leak scan (api/golden/leak_scan.py) with the terms in the
-# EVAL_FORBIDDEN_TERMS secret, so a planted term turns it red. The golden set with the model runs on the author's PC
-# (ops/golden-report.ps1), never here: no paid API in CI. A red run blocks the deploy (sessions check it first).
-# Actions are pinned by commit, because one step gets the secret.
+# tests, the site's tests, typecheck and build, and the secret leak scan (api/golden/leak_scan.py: the tracked files and
+# every commit the push adds) with the terms in the EVAL_FORBIDDEN_TERMS secret, so a planted term turns it red. The
+# golden set with the model runs on the author's PC (ops/golden-report.ps1), never here: no paid API in CI. A red run
+# blocks the deploy (sessions check it first). Actions are pinned by commit, because one step gets the secret.
 name: CI
 
 on:
@@ -19,22 +19,45 @@ concurrency:
 jobs:
   api:
     runs-on: ubuntu-latest
+    # real servers for the tests that need them: retention purge and delete on request (Postgres), the Redis client
+    # timeouts fakeredis can't fake; throwaway containers, so the tests may drop tables and flush
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: portfolio_test
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 15
+      redis:
+        image: redis:8 # production's major (api/app/main.py)
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 5s --health-retries 15
     defaults:
       run:
         working-directory: api
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # the leak scan reads every commit of the push
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           python-version: "3.12" # the API image's (api/Dockerfile)
       - run: uv sync --locked
       - run: uv run pytest -q
-      - name: No secret term in the repo
+        env:
+          POSTGRES_TEST_URL: postgresql://postgres:test@localhost:5432/portfolio_test
+          REDIS_TEST_URL: redis://localhost:6379/15
+      - name: No secret term in the repo nor in the pushed commits
         # a pull request from a fork gets no secrets, so the scan runs on pushes and on this repo's own branches
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         run: uv run python -m golden.leak_scan
         env:
           EVAL_FORBIDDEN_TERMS: ${{ secrets.EVAL_FORBIDDEN_TERMS }}
+          # the push's old tip (all zeros for a new branch) or the pull request's base, up to its head
+          SCAN_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          SCAN_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          SCAN_DEFAULT: origin/${{ github.event.repository.default_branch }}
 
   site:
     runs-on: ubuntu-latest
@@ -51,4 +74,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
-      - run: npm run build
+      # as the image builds it (site/Dockerfile): with the chat, then the CSP, which fails without inline scripts
+      - run: VITE_CHAT=1 npm run build && node scripts/csp.mjs build/client > /dev/null
