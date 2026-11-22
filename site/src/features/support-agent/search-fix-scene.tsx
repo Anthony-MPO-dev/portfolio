@@ -5,12 +5,12 @@ import { step } from "@/lib/step";
 import "./support-agent.css";
 
 // Support agent, the search fix: 23 test questions draw in, then the 13 that now find the right document fill in, with
-// a legend under the squares. The Portuguese legend and note wait for the author's review (legend null: not drawn).
+// a legend under the squares (Portuguese approved by the author on 22/11, review items 208 to 211).
 // Public API: SearchFixScene. Used by: app/routes/home.tsx.
 const QUESTIONS = Array.from({ length: 23 }, (_, n) => n);
 const IMPROVED = [0, 2, 3, 5, 7, 8, 10, 13, 14, 16, 19, 20, 22];
 
-const COPY: Record<Lang, { label: string; drawing: string; of: string; note: string; legend: [string, string] | null }> = {
+const COPY: Record<Lang, { label: string; drawing: string; of: string; note: string; legend: [string, string] }> = {
   en: {
     label: "The search fix",
     drawing: "23 test questions. For 13 of them the right document now comes back 1st or 2nd.",
@@ -20,10 +20,10 @@ const COPY: Record<Lang, { label: string; drawing: string; of: string; note: str
   },
   pt: {
     label: "A correção da busca",
-    drawing: "23 perguntas de teste. 13 delas agora recebem um documento que o agente perdia.",
+    drawing: "23 perguntas de teste. Em 13 delas, o documento certo agora vem em 1º ou 2º lugar.",
     of: "de",
-    note: "perguntas de teste agora acham um documento que o agente perdia. O certo aparece em 1º ou 2º lugar, e não mais em 3º.",
-    legend: null,
+    note: "perguntas de teste não achavam o documento certo. Agora ele vem em 1º ou 2º lugar. Cheguei lá apagando da base de conhecimento do agente as páginas de índice e as duplicadas.",
+    legend: ["Uma pergunta de teste", "Agora acha o documento correto"],
   },
 };
 
@@ -35,7 +35,7 @@ export function SearchFixScene() {
         <h2 className="label">{t.label}</h2>
         <svg
           className="agent-svg agent-grid"
-          viewBox={`0 0 352 ${t.legend ? 292 : 236}`}
+          viewBox="0 0 352 292"
           role="img"
           aria-label={t.drawing}
         >
@@ -52,20 +52,18 @@ export function SearchFixScene() {
               </g>
             );
           })}
-          {t.legend && (
-            <g className="fade-in" style={step(1.5)}>
-              <g className="agent-legend">
-                <rect x={1} y={250} width={14} height={14} />
-                <text className="agent-chart-label" x={24} y={262}>
-                  {t.legend[0]}
-                </text>
-                <rect x={1} y={274} width={14} height={14} className="agent-hit" />
-                <text className="agent-chart-label" x={24} y={286}>
-                  {t.legend[1]}
-                </text>
-              </g>
+          <g className="fade-in" style={step(1.5)}>
+            <g className="agent-legend">
+              <rect x={1} y={250} width={14} height={14} />
+              <text className="agent-chart-label" x={24} y={262}>
+                {t.legend[0]}
+              </text>
+              <rect x={1} y={274} width={14} height={14} className="agent-hit" />
+              <text className="agent-chart-label" x={24} y={286}>
+                {t.legend[1]}
+              </text>
             </g>
-          )}
+          </g>
         </svg>
         <p className="big">
           <CountUp text="13" /> <span>{t.of}</span> 23
