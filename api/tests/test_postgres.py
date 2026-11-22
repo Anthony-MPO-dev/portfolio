@@ -1,6 +1,7 @@
 """Postgres lead sink and question log, with their retention (leads 12 months, questions 30 days).
 
-Integration tests: they need a local Postgres in POSTGRES_TEST_URL (the tests drop and recreate the tables).
+Integration tests: they need a local Postgres in POSTGRES_TEST_URL (the tests drop and recreate the tables; the CI
+runs one). Without it they skip, except the one that needs no database.
 """
 
 import os
@@ -20,13 +21,14 @@ from app.adapters.postgres import (
 from app.ports import Lead, LeadUnavailable, QuestionLogUnavailable
 
 URL = os.environ.get("POSTGRES_TEST_URL", "")
-pytestmark = pytest.mark.skipif(not URL, reason="set POSTGRES_TEST_URL to a local Postgres")
 LEAD = Lead("Jane Doe", "Acme", "jane@acme.com", "https://www.linkedin.com/in/jane-doe", "hiring", "pt")
 DOWN = "postgresql://nobody:x@127.0.0.1:1/none?connect_timeout=1"
 
 
 @pytest.fixture
 def pg():
+    if not URL:
+        pytest.skip("set POSTGRES_TEST_URL to a local Postgres")
     assert urlparse(URL).hostname in ("localhost", "127.0.0.1"), "these tests drop tables"
     with psycopg.connect(URL, autocommit=True) as conn:
         conn.execute("DROP TABLE IF EXISTS portfolio_leads, portfolio_questions")
