@@ -266,6 +266,9 @@ function Message({ entry, t }: { entry: Entry; t: Copy }) {
 }
 
 type Lead = ReturnType<typeof conversation>["lead"];
+// The form's result replaces it where it was: focus it, so it scrolls into view and the keyboard isn't lost. Module
+// level, so React calls it once on mount and not on every render.
+const focusOnMount = (el: HTMLElement | null) => el?.focus();
 
 function ContactPanel({ state, lang, dispatch, lead }: { state: State; lang: Lang; dispatch: (a: Action) => void; lead: Lead }) {
   const t = copy[lang];
@@ -283,15 +286,17 @@ function ContactPanel({ state, lang, dispatch, lead }: { state: State; lang: Lan
       return <LeadForm lang={lang} error={c.error} submit={lead} onDone={(result) => dispatch({ type: "leadDone", result })} />;
     case "sent":
       return c.whatsapp ? (
-        <p className="chat-notice">
+        <p className="chat-notice" tabIndex={-1} ref={focusOnMount}>
           {t.sentHiring} <a href={`https://wa.me/${c.whatsapp.replace(/\D/g, "")}`}>{c.whatsapp}</a>
         </p>
       ) : (
-        <p className="chat-notice">{t.sentProject}</p>
+        <p className="chat-notice" tabIndex={-1} ref={focusOnMount}>
+          {t.sentProject}
+        </p>
       );
     case "email":
       return (
-        <p className="chat-notice">
+        <p className="chat-notice" tabIndex={-1} ref={focusOnMount}>
           {t.emailFallback} <a href={`mailto:${contact.email}`}>{contact.email}</a>.
         </p>
       );

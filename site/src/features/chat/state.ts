@@ -71,9 +71,10 @@ export function reduce(state: State, action: Action): State {
       const { status, reply, offerContact } = action.result;
       const entry: Entry = status === "ok" ? { id, from: "bot", text: reply } : { id, from: "notice", notice: status };
       const offer = status === "ok" ? offerContact : OFFER_ON.includes(status);
-      const first = offer && state.contact.step === "none";
-      const contact: Contact = first ? { step: "offered" } : state.contact;
-      const contactAt = first ? id : state.contactAt;
+      // a new offer moves the button down to it; not once the form is open (it would remount and lose what was typed)
+      const move = offer && (state.contact.step === "none" || state.contact.step === "offered");
+      const contact: Contact = move ? { step: "offered" } : state.contact;
+      const contactAt = move ? id : state.contactAt;
       return { ...state, entries: [...state.entries, entry], pending: false, partial: "", contact, contactAt };
     }
     case "openForm":

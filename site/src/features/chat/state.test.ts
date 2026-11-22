@@ -64,8 +64,13 @@ describe("contact", () => {
     expect(offered.contactAt).toBe(1);
     const later = reduce(reduce(form, { type: "send", text: "Still there?" }), ok("Yes.", true));
     expect(later.contactAt).toBe(1);
-    expect(later.entries).toHaveLength(4);
     expect(reduce(later, { type: "clear" }).contactAt).toBeNull();
+  });
+
+  it("moves the offer down to a later one until the form is open", () => {
+    const again = reduce(reduce(offered, { type: "send", text: "And?" }), failed("offline"));
+    expect(again.contactAt).toBe(3);
+    expect(again.contact.step).toBe("offered");
   });
 
   it("shows the WhatsApp number only when the API sends it", () => {

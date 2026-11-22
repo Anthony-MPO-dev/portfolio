@@ -26,7 +26,8 @@ export function LeadForm({ lang, error, submit: send, onDone }: { lang: Lang; er
       <p className="chat-who">{copy[lang].talk}</p>
       <label>
         {t.name}
-        <input name="name" required maxLength={300} autoComplete="name" />
+        {/* focus brings the form into view where it opened, and keeps the keyboard in it */}
+        <input name="name" required maxLength={300} autoComplete="name" autoFocus />
       </label>
       <label>
         {t.company}
