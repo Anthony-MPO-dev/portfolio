@@ -10,7 +10,7 @@ ARG VITE_CHAT=1
 ARG VITE_TURNSTILE_SITEKEY=0x4AAAAAAF-naOwEPdaF6xQz
 RUN VITE_CHAT=$VITE_CHAT VITE_TURNSTILE_SITEKEY=$VITE_TURNSTILE_SITEKEY npm run build && node scripts/csp.mjs build/client > build/csp.conf
 
-FROM nginx:1.27-alpine
+FROM nginx:stable-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build/csp.conf /etc/nginx/csp.conf
 COPY --from=build /app/build/client /usr/share/nginx/html
