@@ -3,7 +3,8 @@
 Responsibility: SaveThenAlert is the LeadSink the lead use case gets. The lead counts as saved once the database has
 it; if the alert then fails, the lead stays saved, the visitor still gets an answer and the failure is logged.
 N8nAlert posts the lead as JSON to the webhook URL from configuration (Anthony's personal n8n, never a work one).
-Public API: SaveThenAlert, N8nAlert.
+resume_alert tells him, on the same webhook, that a tailored resume pair went out (company, role, language).
+Public API: SaveThenAlert, N8nAlert, resume_alert.
 Used by: the API composition (app.main).
 Depends on: app.ports (Lead, LeadSink, LeadUnavailable), a poster (app.http_post.Poster in production: pooled, with a timeout and a breaker).
 Tests: tests/test_lead_alert.py.

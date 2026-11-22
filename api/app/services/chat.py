@@ -6,6 +6,7 @@ when the check is wired, keep the session strict (only
 ids this server created), hold one answer at a time per session, log the redacted question, and stream the model's
 answer as events: whole words only, each piece checked by the injected output guard on everything shown so far (a
 hit ends the stream as "blocked", alerts Anthony and is never saved), the contact line turned into offer_contact,
+the resume line (or a visitor asking for the resume, ASKS_FOR_RESUME) into offer_resume,
 and the turn saved once the answer completed clean. The lock is held until the stream ends.
 Only saved exchanges count toward the conversation limit, so offline answers don't use it up, and a
 conversation erased while the model was answering is not saved again.

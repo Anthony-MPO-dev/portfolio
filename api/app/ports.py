@@ -1,12 +1,13 @@
 """Ports of the chat API: the boundaries the use cases talk to.
 
-Responsibility: define the model, session-store, answer-cache, lead, form-counter and question-log contracts, and
-the data that crosses them.
+Responsibility: define the model, session-store, answer-cache, lead, form-counter, question-log and resume
+(writer, files) contracts, and the data that crosses them.
 Public API: Turn, ModelReply, ModelUnavailable, Attachment, AttachmentRejected, ChatModel, SessionStore,
-AnswerCache, Lead, LeadUnavailable, LeadSink, FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs.
-Used by: app.services.chat, app.services.lead, app.services.search (hit_search), app.http (WorkerJobs). Adapters implement them (the worker queue
+AnswerCache, Lead, LeadUnavailable, LeadSink, FormCounter, QuestionLog, QuestionLogUnavailable, Job, WorkerJobs,
+ResumeWriter, ResumeFiles.
+Used by: app.services.chat, app.services.lead, app.services.search (hit_search), app.services.resume, app.http (WorkerJobs). Adapters implement them (the worker queue
 model, Redis store, answer cache and counters, Postgres plus n8n lead sink, Postgres question log).
-Depends on: nothing.
+Depends on: app.resume (Draft, for type hints only).
 Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fakes.py.
 """
 
@@ -204,8 +205,12 @@ class ResumeWriter(Protocol):
 
 
 class ResumeFiles(Protocol):
-    def hit(self, client_key: str) -> tuple[int, int]:
-        """Count one tailored pair: this visitor's and the whole site's totals today, this one included."""
+    def hit_visitor(self, client_key: str) -> int:
+        """Count one tailoring for this visitor and return today's total, this one included."""
+        ...
+
+    def hit_site(self) -> int:
+        """Count one tailoring for the whole site and return today's total, this one included."""
         ...
 
     def put(self, sid: str, token: str, files: dict[str, bytes]) -> None:

@@ -1,0 +1,42 @@
+# Local copy of the site for end-to-end tests (Anthony, 22/11): the real site image (its nginx and CSP), the real API
+# image, Redis and Postgres, behind one proxy on http://localhost:8088 that routes /api as Easypanel does. The model is
+# the canned demo engine (no API key, no cost) and the browser proof uses Cloudflare's published test keys, which
+# always pass. Alerts go nowhere. Only Cloudflare's edge (cache, rate rules, the real check) isn't here.
+#   docker compose -f local/compose.yaml up --build -d      then open http://localhost:8088
+#   docker compose -f local/compose.yaml down -v            removes the containers and the test data
+name: portfolio-local
+services:
+  site:
+    build:
+      context: ../site
+      args:
+        VITE_TURNSTILE_SITEKEY: 1x00000000000000000000AA # Cloudflare's test site key: always passes
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://portfolio:local@db:5432/portfolio
+      LEAD_WEBHOOK_URL: http://127.0.0.1:9/no-alerts-locally
+      WORKER_TOKEN: local-worker-token-0123456789abcdef
+      IP_HMAC_KEY: local-ip-key-0123456789abcdef0123
+      CONTACT_WHATSAPP: "+00 0000 0000"
+      SITE_ORIGIN: http://localhost:8088
+      MODEL_ENGINE: demo
+      TURNSTILE_SECRET: 1x0000000000000000000000000000000AA # Cloudflare's test secret: always passes
+      RESUME_PRIVATE: '{"location": "Testville, Brazil"}'
+    depends_on: [redis, db]
+  redis:
+    image: redis:7-alpine
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: local
+      POSTGRES_DB: portfolio
+  proxy:
+    image: nginx:stable-alpine
+    ports: ["127.0.0.1:8088:80"]
+    volumes: ["./proxy.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [site, api]

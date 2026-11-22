@@ -36,7 +36,7 @@ const en = {
   bot: "Assistant",
   typing: "The assistant is typing",
   privacy:
-    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask. Before a conversation starts, Cloudflare checks that a real browser is sending it. Cloudflare also times how fast pages load. No cookies. Nothing that identifies you.",
+    "Questions are kept for 30 days to improve the bot, and emails and phone numbers are removed before anything is stored. Files are read for the answer and deleted right after, and a job post you paste is used only to tailor the resume. Please don't send other people's personal data. Contact details you send to Anthony are kept for up to 12 months, and he deletes them if you ask. Before a conversation starts, Cloudflare checks that a real browser is sending it. Cloudflare also times how fast pages load. No cookies. Nothing that identifies you.",
   notices: {
     offline: "Offline right now. You can still reach Anthony below.",
     rate_limited: "You've asked a lot in the last hour. Try again in a little while, or reach Anthony below.",
@@ -125,7 +125,7 @@ const pt: typeof en = {
   bot: "Assistente",
   typing: "O assistente está digitando",
   privacy:
-    "As perguntas ficam guardadas por 30 dias para melhorar o bot, e e-mails e telefones são apagados antes de gravar. Os arquivos são lidos para a resposta e apagados logo depois. Não mande dados pessoais de outras pessoas. Os contatos que você manda ao Anthony ficam guardados por até 12 meses, e ele apaga se você pedir. Antes de uma conversa começar, a Cloudflare confere se quem manda é um navegador de verdade. A Cloudflare também mede o tempo de carregamento das páginas. Sem cookies. Nada que identifique você.",
+    "As perguntas ficam guardadas por 30 dias para melhorar o bot, e e-mails e telefones são apagados antes de gravar. Os arquivos são lidos para a resposta e apagados logo depois, e a descrição de vaga que você colar serve só para adaptar o currículo. Não mande dados pessoais de outras pessoas. Os contatos que você manda ao Anthony ficam guardados por até 12 meses, e ele apaga se você pedir. Antes de uma conversa começar, a Cloudflare confere se quem manda é um navegador de verdade. A Cloudflare também mede o tempo de carregamento das páginas. Sem cookies. Nada que identifique você.",
   notices: {
     offline: "Fora do ar agora. Você ainda pode falar com o Anthony aqui embaixo.",
     rate_limited: "Você perguntou bastante na última hora. Tente de novo daqui a pouco, ou fale com o Anthony aqui embaixo.",

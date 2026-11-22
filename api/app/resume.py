@@ -53,8 +53,19 @@ def _fill(node, values: dict[str, str]):
     return node
 
 
+def _ids(base: dict) -> list:
+    return [(r["id"], [b["id"] for b in r["bullets"]]) for r in base["roles"]] + [[x["id"] for x in base[k]] for k in ("projects", "skills")]
+
+
 def load(path: Path, private: dict[str, str]) -> dict:
-    return _fill(yaml.safe_load(path.read_text(encoding="utf-8")), {**FALLBACK, **private})
+    """The base, filled; a bullet, project or skill without an id, or languages with different ids, stop the start."""
+    base = _fill(yaml.safe_load(path.read_text(encoding="utf-8")), {**FALLBACK, **private})
+    try:
+        if _ids(base["en"]) != _ids(base["pt"]):
+            raise ValueError("resume base: English and Portuguese carry different ids")
+    except KeyError as error:
+        raise ValueError(f"resume base: an item without {error}") from error
+    return base
 
 
 def _norm(number: str) -> str:
@@ -112,11 +123,11 @@ class _Page(FPDF):
         self.multi_cell(0, 4.75, text.translate(PLAIN), align="L", new_x="LMARGIN", new_y="NEXT")
         self.ln(0.8)
 
-    def head(self, name: str, base: dict, contact: str, size: float):
+    def head(self, name: str, base: dict, contact: str, size: float, location: str):
         self.line_of(name, size, "B", 1)
         self.line_of(base["title"], 11.5, "", 1)
         self.line_of(contact, 9, grey=True)
-        self.line_of(base["location"], 9, grey=True, gap=2)
+        self.line_of(location, 9, grey=True, gap=2)
 
 
 def _by_id(items: list[dict], ids: list[str] | None) -> list[dict]:
@@ -125,7 +136,7 @@ def _by_id(items: list[dict], ids: list[str] | None) -> list[dict]:
 
 def render_resume(base: dict, name: str, contact: str, draft: Draft | None = None) -> bytes:
     pdf, h = _Page(), base["headings"]
-    pdf.head(name, base, contact, 20)
+    pdf.head(name, base, contact, 20, base["location"])
     pdf.heading(h["summary"])
     pdf.line_of(draft.summary if draft else base["summary"], 9.5)
     pdf.heading(h["experience"])
@@ -154,12 +165,16 @@ def render_resume(base: dict, name: str, contact: str, draft: Draft | None = Non
 def render_letter(base: dict, name: str, contact: str, draft: Draft | None = None) -> bytes:
     letter = base["letter"]
     pdf = _Page()
-    pdf.head(name, base, contact, 16)
+    pdf.head(name, base, contact, 16, letter["location"])  # the letter has no private data, only the resume
     pdf.ln(4)
-    pdf.line_of(letter["greeting"].replace("{to}", draft.to if draft and draft.to else letter["to_default"]), 10.5, gap=3)
+    to = draft.to if draft and draft.to else letter["to_default"]
+    pdf.line_of(PLACEHOLDER.sub(lambda m: to if m[1] == "to" else m[0], letter["greeting"]), 10.5, gap=3)
     intro = letter["intro_standard"]
-    if draft:
-        intro = letter["intro_tailored"].replace("{role}", draft.role).replace("{company}", draft.company).replace("{opening}", draft.opening)
+    if draft and draft.role and draft.company:  # one pass, so a role read from the post can't expand into another field
+        fields = {"role": draft.role, "company": draft.company, "opening": draft.opening}
+        intro = PLACEHOLDER.sub(lambda m: fields.get(m[1], m[0]), letter["intro_tailored"])
+    elif draft:
+        intro = f"{intro} {draft.opening}"
     for paragraph in [intro, *([draft.match] if draft and draft.match else []), *letter["body"]]:
         pdf.line_of(paragraph, 10.5, gap=3)
     pdf.line_of(letter["closing"], 10.5, gap=1)

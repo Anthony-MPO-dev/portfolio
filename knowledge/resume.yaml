@@ -1,6 +1,7 @@
 # Resume and cover letter base for the PDFs the chat hands out (.claude/docs/plan-resume.md). Public facts only,
 # worded as in knowledge/facts.md and the approved CV and letter. The private parts are {placeholders} that the
-# server fills from the RESUME_PRIVATE env var (city, places, the credit fund's name), never kept in this repo:
+# server fills from the RESUME_PRIVATE env var (city, places, the credit fund's name), never kept in this repo, and
+# printed only on the resume, never on the letter (Anthony, 22/11):
 # location, loc_insight, credit_fund, loc_credit_fund, loc_fapemat, support_employer, loc_support.
 # Tailoring picks bullet and project ids and writes only the summary and the letter's first two paragraphs; every
 # other line prints as written here. Both languages carry the same ids.
@@ -88,13 +89,14 @@ en:
     - {id: ops, label: Observability and DevOps, items: "Prometheus, Grafana, Loki, Tempo, Docker, AWS S3, Linux, Git, CI/CD"}
   languages: "English: professional working proficiency · Portuguese: native"
   letter:
+    location: Brazil · Open to remote roles (UTC-3)
     greeting: "Dear {to},"
     to_default: Hiring Manager
     intro_standard: I'm an AI and backend engineer working where Python services and LLM agents meet, and I'm looking for a remote, full-time role with a US or European team.
     intro_tailored: "I'm an AI and backend engineer working where Python services and LLM agents meet, and I'd like to bring that to the {role} role at {company}. {opening}"
     body:
       - Since August 2026 I've been on contract through my own company, Insight AI & Automation, improving an AI customer-support agent that runs in production for a B2B SaaS company. Chat replies got 3x faster after I changed how the agent waits for split messages, and fixing the knowledge-base search put the right document first or second for questions it used to miss. I also built the evaluation that caught an LLM judge praising a change that expert review rated as no better.
-      - Before that, from December 2024 to August 2026, I worked at {credit_fund}, where credit analysis ran on legacy low-code automations. I rebuilt them as Python and FastAPI services around a credit intelligence pipeline that pulls from 5+ credit bureaus. Analysis that took about an hour started finishing in as fast as 5 minutes, and capacity went from about 10 to as many as 100 credit operations a day, with the heavy steps behind RabbitMQ and Celery workers and Prometheus, Grafana and Loki following each stage.
+      - Before that, from December 2024 to August 2026, I worked at a credit fund, where credit analysis ran on legacy low-code automations. I rebuilt them as Python and FastAPI services around a credit intelligence pipeline that pulls from 5+ credit bureaus. Analysis that took about an hour started finishing in as fast as 5 minutes, and capacity went from about 10 to as many as 100 credit operations a day, with the heavy steps behind RabbitMQ and Celery workers and Prometheus, Grafana and Loki following each stage.
       - Alongside my degree I spent almost 2 years as a research fellow at FAPEMAT, building a pipeline and forecasting models for tuberculosis data in Mato Grosso, which became my thesis. I finished my B.Sc. in Computer Science at UFMT in 2025.
       - I'd be glad to walk you through the credit pipeline in a call, with the architecture on screen.
     closing: Thank you,
@@ -180,13 +182,14 @@ pt:
     - {id: ops, label: Observabilidade e DevOps, items: "Prometheus, Grafana, Loki, Tempo, Docker, AWS S3, Linux, Git, CI/CD"}
   languages: "Inglês: profissional · Português: nativo"
   letter:
+    location: Brasil · Aberto a vagas remotas (UTC-3)
     greeting: "Prezado(a) {to},"
     to_default: Recrutador(a)
     intro_standard: Sou engenheiro de IA e backend, trabalho onde serviços em Python e agentes de LLM se encontram, e procuro uma vaga remota de tempo integral com um time dos EUA ou da Europa.
     intro_tailored: "Sou engenheiro de IA e backend, trabalho onde serviços em Python e agentes de LLM se encontram, e quero levar isso para a vaga de {role} na {company}. {opening}"
     body:
       - Desde agosto de 2026 trabalho em contrato pela minha empresa, a Insight AI & Automation, melhorando um agente de IA de atendimento que roda em produção para uma empresa de SaaS B2B. As respostas do chat ficaram 3x mais rápidas depois que mudei a espera por mensagens picadas, e o conserto da busca na base de conhecimento pôs o documento certo em primeiro ou segundo lugar em perguntas que antes ele perdia. Também montei a avaliação que pegou um juiz de LLM elogiando uma mudança que a revisão de especialistas considerou igual.
-      - Antes disso, de dezembro de 2024 a agosto de 2026, trabalhei no {credit_fund}, onde a análise de crédito rodava em automações legadas em low-code. Reescrevi tudo como serviços em Python e FastAPI, em volta de um pipeline de inteligência de crédito que consulta mais de 5 birôs. A análise, que levava cerca de uma hora, passou a terminar em até 5 minutos, e a capacidade foi de cerca de 10 para até 100 operações de crédito por dia, com as etapas pesadas em workers de RabbitMQ e Celery e Prometheus, Grafana e Loki acompanhando cada etapa.
+      - Antes disso, de dezembro de 2024 a agosto de 2026, trabalhei num fundo de crédito, onde a análise de crédito rodava em automações legadas em low-code. Reescrevi tudo como serviços em Python e FastAPI, em volta de um pipeline de inteligência de crédito que consulta mais de 5 birôs. A análise, que levava cerca de uma hora, passou a terminar em até 5 minutos, e a capacidade foi de cerca de 10 para até 100 operações de crédito por dia, com as etapas pesadas em workers de RabbitMQ e Celery e Prometheus, Grafana e Loki acompanhando cada etapa.
       - Junto com a graduação, passei quase 2 anos como bolsista de pesquisa na FAPEMAT, construindo um pipeline e modelos de previsão para dados de tuberculose em Mato Grosso, que viraram meu TCC. Terminei o bacharelado em Ciência da Computação na UFMT em 2025.
       - Posso mostrar o pipeline de crédito numa conversa, com a arquitetura na tela.
     closing: Obrigado,

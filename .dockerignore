@@ -5,4 +5,5 @@
 !api/models.sha256
 !api/app
 !knowledge/facts.md
+!knowledge/resume.yaml
 **/__pycache__

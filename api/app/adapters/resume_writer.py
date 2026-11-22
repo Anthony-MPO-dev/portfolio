@@ -6,8 +6,9 @@ the schema's enums), and the few lines the draft writes (summary, the letter's o
 rules are a fixed system prompt, cached; the post goes in the message as one JSON string inside <job_post>, with < and
 > escaped, so it can't close the tag. An API or transport error, a refusal, a cut answer or a draft that doesn't parse
 is ModelUnavailable; every billed call reports its cost; after 3 failures in a row the API is skipped for 30 s.
-Public API: AnthropicResumeWriter (a ResumeWriter).
-Used by: app.main when the Anthropic engine is on. Depends on: anthropic, httpx2, app.resume (Draft), app.breaker.
+Public API: AnthropicResumeWriter (a ResumeWriter; AnthropicResumeWriter.connect).
+Used by: app.main when the Anthropic engine is on. Depends on: anthropic, httpx2, app.adapters.anthropic_model (MODEL,
+cost_usd, client_for: the provider's client stays in the adapters), app.resume (Draft), app.breaker, app.ports.
 Tests: tests/test_resume_service.py.
 """
 
@@ -18,7 +19,7 @@ from collections.abc import Callable
 import anthropic
 import httpx2
 
-from app.adapters.anthropic_model import MODEL, cost_usd
+from app.adapters.anthropic_model import MODEL, client_for, cost_usd
 from app.breaker import CircuitBreaker, CircuitOpen
 from app.ports import ModelUnavailable
 from app.resume import Draft
@@ -77,30 +78,25 @@ def _schema(base: dict) -> dict:
 
 
 class AnthropicResumeWriter:
-    def __init__(
-        self,
-        client,
-        base: dict,
-        *,
-        model: str = MODEL,
-        on_cost: Callable[[float], None] | None = None,
-        breaker: CircuitBreaker | None = None,
-        effort: str = "medium",
-    ):
-        self.client, self.model, self.effort = client, model, effort
+    def __init__(self, client, base: dict, *, on_cost: Callable[[float], None] | None = None, breaker: CircuitBreaker | None = None):
+        self.client = client
         self.on_cost, self.breaker = on_cost or (lambda usd: None), breaker or CircuitBreaker()
         self.system = [{"type": "text", "text": f"{RULES}\n\n<base>\n{_base_text(base)}\n</base>", "cache_control": {"type": "ephemeral"}}]
         self.schema = _schema(base)
+
+    @classmethod
+    def connect(cls, api_key: str, base: dict, *, workspace: str | None = None, timeout: float = 45, **kwargs) -> "AnthropicResumeWriter":
+        return cls(client_for(api_key, workspace, timeout), base, **kwargs)
 
     def tailor(self, job: str) -> tuple[str, Draft]:
         post = json.dumps(job, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e")
         try:
             response = self.breaker.call(
                 self.client.messages.create,
-                model=self.model,
+                model=MODEL,
                 max_tokens=MAX_TOKENS,
                 system=self.system,
-                output_config={"effort": self.effort, "format": {"type": "json_schema", "schema": self.schema}},
+                output_config={"effort": "medium", "format": {"type": "json_schema", "schema": self.schema}},
                 messages=[{"role": "user", "content": f"<job_post>\n{post}\n</job_post>"}],
             )
         except CircuitOpen as error:

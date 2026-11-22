@@ -29,7 +29,7 @@ Status = Literal["ok", "standard", "fallback", "rate_limited", "invalid", "no_se
 class ResumeLimits:
     visitor_day: int = 3
     site_day: int = 50
-    budget_day: float = 1.0  # US$, shared with the chat (the same daily spend counter)
+    budget_day: float = 0.25  # US$, the chat's: one daily spend counter for both (main passes the chat's value)
 
 
 @dataclass(frozen=True)
@@ -71,8 +71,10 @@ class ResumeService:
         standard = f"standard-{lang}"
         if not job or self.writer is None:
             return ResumeResult("standard", standard, lang)
-        visitor, site = self.files.hit(client_key)
-        if visitor > self.limits.visitor_day or site > self.limits.site_day or self.sessions.spend_today() >= self.limits.budget_day:
+        # the visitor's count first: one visitor past their limit doesn't use up the site's
+        if self.files.hit_visitor(client_key) > self.limits.visitor_day or self.files.hit_site() > self.limits.site_day:
+            return ResumeResult("rate_limited", standard, lang)
+        if self.sessions.spend_today() >= self.limits.budget_day:
             return ResumeResult("rate_limited", standard, lang)
         try:
             lang, draft = self.writer.tailor(job)

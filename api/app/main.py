@@ -5,13 +5,16 @@ secrets), pick the model engine, plant a fresh canary in the system prompt on ev
 their adapters (each one they call is traced, app.tracing; the alerts and the worker routes aren't), with the output
 guard bound to that canary and its hits (and the worker's) alerted to Anthony. Engines:
 "anthropic" (Claude Haiku 5.5 through the API, on the author's personal account; the default when ANTHROPIC_API_KEY
-is set, his decision of 2026-11-12; each answer's cost goes to the daily spend the use case caps) and "worker" (the
-isolated chat worker on his PC, the default without a key).
+is set, his decision of 2026-11-12; each answer's cost goes to the daily spend the use case caps), "worker" (the
+isolated chat worker on his PC, the default without a key) and "demo" (canned answers for the local copy,
+local/compose.yaml; never production). The resume pair (app.services.resume) is tailored only on "anthropic" and
+"demo"; on "worker" the standard pair still comes.
 Settings: REDIS_URL, DATABASE_URL, LEAD_WEBHOOK_URL, WORKER_TOKEN (32+ chars), IP_HMAC_KEY (32+ chars),
 CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (only for a key that
 isn't scoped to a workspace), TURNSTILE_SECRET (a new conversation then needs Cloudflare's browser proof),
 MODEL_TIMEOUT (seconds), FACTS_PATH, SEARCH_MODEL_DIR (the fact search's model folder), TRACE_SLOW_MS (a request
-this slow or slower logs its trace; default 2000).
+this slow or slower logs its trace; default 2000), RESUME_PATH (knowledge/resume.yaml), RESUME_PRIVATE (a JSON
+object with the city, places and the credit fund's name the resume PDF prints; never in the repo).
 Public API: build (pure: no network, no disk), app (the uvicorn factory: reads the facts and starts the thread that
 creates the tables and purges expired rows, every 6 hours or a minute after Postgres failed), ConfigError.
 Run: uvicorn app.main:app --factory
@@ -35,7 +38,8 @@ import psycopg
 import redis
 from fastapi import FastAPI
 
-from app.adapters.anthropic_model import AnthropicModel, client_for
+from app.adapters.anthropic_model import AnthropicModel
+from app.adapters.demo_engine import DemoModel, DemoResumeWriter
 from app.adapters.lead_alert import N8nAlert, SaveThenAlert, resume_alert
 from app.adapters.onnx_embedder import E5_PREFIXES, OnnxEmbedder
 from app.adapters.postgres import Db, PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
@@ -80,7 +84,7 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
     if short:
         raise ConfigError(f"{', '.join(short)} must have at least {MIN_SECRET} characters")
     engine = env.get("MODEL_ENGINE") or ("anthropic" if env.get("ANTHROPIC_API_KEY") else "worker")
-    if engine not in ("worker", "anthropic"):
+    if engine not in ("worker", "anthropic", "demo"):  # demo: the canned engine of the local copy, never production
         raise ConfigError(f"MODEL_ENGINE={engine!r} is not available; use 'anthropic' or 'worker'")
     if engine == "anthropic" and not env.get("ANTHROPIC_API_KEY"):
         raise ConfigError("MODEL_ENGINE=anthropic needs ANTHROPIC_API_KEY")
@@ -107,9 +111,15 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
     system = system_prompt(facts, canary=canary)
     queue = WorkerQueue(waits, system, timeout=timeout)
     model, writer = queue, None
+    if engine == "demo":
+        log.warning("MODEL_ENGINE=demo: canned answers for local tests, never for visitors")
+        model, writer = DemoModel(), DemoResumeWriter(bases["en"])
     if engine == "anthropic":
-        client = client_for(env["ANTHROPIC_API_KEY"], env.get("ANTHROPIC_WORKSPACE_ID"), timeout)
-        writer = traced(AnthropicResumeWriter(client, bases["en"], on_cost=store.add_spend), "resume", tracer)
+        writer = AnthropicResumeWriter.connect(
+            env["ANTHROPIC_API_KEY"], bases["en"], workspace=env.get("ANTHROPIC_WORKSPACE_ID"), timeout=timeout,
+            on_cost=store.add_spend,
+        )  # fmt: skip
+        writer = traced(writer, "resume", tracer)
         model = AnthropicModel.connect(
             env["ANTHROPIC_API_KEY"], system, workspace=env.get("ANTHROPIC_WORKSPACE_ID"), timeout=timeout,
             on_cost=store.add_spend,

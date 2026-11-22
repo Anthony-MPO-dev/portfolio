@@ -570,3 +570,37 @@
 .chat-resume-job .chat-send {
   justify-self: start;
 }
+
+/* The green rain over the page when a resume file is saved (rain-burst.ts): the top rain's columns, each falling once
+   (transform), then the whole layer fades (opacity). Generated content, as in rain.css, so contrast checkers skip it. */
+.rain-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  pointer-events: none;
+  animation: burst-fade 0.6s ease 1.5s forwards;
+}
+.rain-burst span {
+  font: 600 18px/1.1 var(--mono);
+  color: var(--accent-fill);
+  white-space: pre;
+  transform: translateY(-100%);
+  animation: burst-fall 1.2s linear var(--delay) forwards;
+  mask-image: linear-gradient(to bottom, transparent, #000 80%);
+}
+.rain-burst span::before {
+  content: attr(data-t);
+}
+@keyframes burst-fall {
+  to {
+    transform: translateY(var(--fall));
+  }
+}
+@keyframes burst-fade {
+  to {
+    opacity: 0;
+  }
+}

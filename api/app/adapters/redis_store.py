@@ -1,6 +1,6 @@
 """Redis session store and counters.
 
-Responsibility: implement SessionStore, FormCounter and AnswerCache on Redis with the keys from the phase 2
+Responsibility: implement SessionStore, FormCounter, AnswerCache and ResumeFiles on Redis with the keys from the phase 2
 decisions. Every key it writes has an expiry, so nothing about a visitor stays forever:
 - chat:m:{sid}            turn counter, 24 h absolute (proof that the server created the id)
 - chat:h:{sid}            last 20 messages as JSON, 2 h sliding
@@ -15,16 +15,20 @@ decisions. Every key it writes has an expiry, so nothing about a visitor stays f
                           normalized question, so the key never holds the visitor's words)
 - chat:a:{sid}:{id}        a converted file (never the original), 30 min, dropped when its answer ends
 - chat:ac:{sid}           files uploaded in the session, 24 h
+- chat:resume:{sid}:{token}           a tailored resume pair (base64 PDFs), 1 h
+- chat:resume-visitor:{key}:{day}     tailorings per client today (2 days)
+- chat:resume-site:{day}              tailorings for the whole site today (2 days)
 - chat:off                the operator's off switch, set by hand (no TTL)
 - chat:attachments:off    the operator's switch for uploads only, set by hand (no TTL)
 Windows are fixed and in UTC.
-Public API: RedisStore, RedisAnswerCache.
+Public API: RedisStore, RedisAnswerCache, RedisResumeFiles.
 Used by: the API composition (app.main).
 Depends on: redis-py (any client with decode_responses or bytes), app.ports (Turn, ModelReply).
 Tests: tests/test_redis_store.py (fakeredis; a real local Redis when REDIS_TEST_URL is set).
 """
 
 import base64
+from dataclasses import asdict
 import hashlib
 import json
 import re
@@ -167,7 +171,7 @@ class RedisAnswerCache:
         return ModelReply(**json.loads(raw)) if raw else None
 
     def put(self, lang: str, question: str, reply: ModelReply) -> None:
-        value = json.dumps({"text": reply.text, "offer_contact": reply.offer_contact, "offer_resume": reply.offer_resume}, ensure_ascii=False)
+        value = json.dumps(asdict(reply), ensure_ascii=False)  # every flag of the reply, the next one too
         self.redis.set(self._key(lang, question), value, ex=CACHE_TTL)
 
     def _key(self, lang: str, question: str) -> str:
@@ -182,12 +186,14 @@ class RedisResumeFiles:
         self.redis = redis
         self.now = now
 
-    def hit(self, client_key: str) -> tuple[int, int]:
-        day = f"{self.now():%Y%m%d}"
-        pipe = self.redis.pipeline()
-        for key in (f"chat:rv:{client_key}:{day}", f"chat:rg:{day}"):
-            pipe.incr(key).expire(key, 2 * DAY)
-        return tuple(pipe.execute()[::2])
+    def hit_visitor(self, client_key: str) -> int:
+        return self._count(f"chat:resume-visitor:{client_key}:{self.now():%Y%m%d}")
+
+    def hit_site(self) -> int:
+        return self._count(f"chat:resume-site:{self.now():%Y%m%d}")
+
+    def _count(self, key: str) -> int:
+        return self.redis.pipeline().incr(key).expire(key, 2 * DAY).execute()[0]
 
     def put(self, sid: str, token: str, files: dict[str, bytes]) -> None:
         key = f"chat:resume:{sid}:{token}"

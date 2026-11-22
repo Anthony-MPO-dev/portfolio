@@ -1,6 +1,7 @@
 // Conversation state of the chat panel, as a pure reducer: what the visitor sent, the answers, the fixed notices
 // (offline, limits) and where the contact form stands. Notice text lives in copy.ts; this module only names them.
-// Public API: initial, reduce, and the State, Entry, Contact types. Used by: features/chat/chat.tsx.
+// Public API: initial, reduce, and the State, Entry, Contact, Resume types. Used by: features/chat/chat.tsx,
+// resume-panel.tsx.
 // Tests: state.test.ts.
 import type { ChatResult, ChatStatus, FileRefusal, LeadResult, ResumeResult, ResumeStatus, UploadResult } from "./api";
 

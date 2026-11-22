@@ -61,8 +61,24 @@ def test_a_tailored_resume_keeps_only_the_chosen_bullets_in_their_order():
 def test_the_letters_open_with_the_standard_intro_or_the_tailored_one():
     standard = text_of(render_letter(BASE["en"], BASE["name"], BASE["contact"]))
     tailored = text_of(render_letter(BASE["en"], BASE["name"], BASE["contact"], draft()))
-    assert "Dear Hiring Manager" in standard and "Fund X FIDC" in standard
-    assert "Dear Engineering Manager" in tailored and "AI Engineer role at Acme" in tailored and "You ask for RAG" in tailored
+    assert "Dear Hiring Manager" in standard and "Dear Engineering Manager" in tailored
+    assert "AI Engineer role at Acme" in tailored and "You ask for RAG" in tailored
+
+
+def test_the_letter_carries_no_private_data_only_the_resume_does():
+    letter = text_of(render_letter(BASE["en"], BASE["name"], BASE["contact"]))
+    assert "Fund X FIDC" not in letter and "Testville" not in letter and "worked at a credit fund" in letter
+    assert "Fund X FIDC" in text_of(render_resume(BASE["en"], BASE["name"], BASE["contact"]))
+
+
+def test_a_post_without_company_or_role_keeps_the_standard_intro_and_adds_the_opening():
+    text = text_of(render_letter(BASE["en"], BASE["name"], BASE["contact"], draft(company="", role="")))
+    assert "role at ." not in text and "looking for a remote, full-time role" in text and "Your team is moving" in text
+
+
+def test_a_role_read_from_the_post_cannot_expand_into_another_field():
+    text = text_of(render_letter(BASE["en"], BASE["name"], BASE["contact"], draft(role="{opening}")))
+    assert "the {opening} role at Acme" in text
 
 
 def test_the_portuguese_pair_renders_with_accents():
