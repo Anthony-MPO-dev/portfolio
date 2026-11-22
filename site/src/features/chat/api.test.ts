@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearConversation, conversation, sendMessage, submitLead, uploadFile } from "./api";
+import { clearConversation, conversation, downloadPdf, requestResume, sendMessage, submitLead, uploadFile } from "./api";
 
 function respond(status: number, body: unknown) {
   const fetch = vi.fn(async () => new Response(status === 204 ? null : typeof body === "string" ? body : JSON.stringify(body), { status }));
@@ -247,4 +247,43 @@ it("clearConversation sends a DELETE and never throws", async () => {
   expect((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].method).toBe("DELETE");
   vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("down"))));
   await expect(clearConversation()).resolves.toBeUndefined();
+});
+
+describe("resume", () => {
+  it("reads the resume offer at the end of a streamed answer", async () => {
+    const body = JSON.stringify({ type: "delta", text: "Below." }) + "\n" + JSON.stringify({ type: "done", status: "ok", offer_contact: false, offer_resume: true }) + "\n";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } })));
+    expect(await sendMessage("his CV?", "en")).toEqual({ status: "ok", reply: "Below.", offerContact: false, offerResume: true });
+  });
+
+  it("asks for a pair with the job post and reads what came back", async () => {
+    const fetch = respond(200, { status: "ok", token: "tok", lang: "en", company: "Acme", role: "AI Engineer" });
+    expect(await requestResume("AI Engineer at Acme", "en")).toEqual({ status: "ok", token: "tok", company: "Acme", role: "AI Engineer" });
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect([url, JSON.parse(String(init.body))]).toEqual(["/api/resume", { job: "AI Engineer at Acme", page_lang: "en" }]);
+  });
+
+  it("is unavailable when the request fails or the answer is unknown", async () => {
+    respond(500, "<html>");
+    expect((await requestResume("", "en")).status).toBe("unavailable");
+  });
+
+  it("downloads a PDF and reports the share received as it arrives", async () => {
+    const body = new ReadableStream({
+      start(c) {
+        c.enqueue(new Uint8Array(4));
+        c.enqueue(new Uint8Array(4));
+        c.close();
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status: 200, headers: { "content-length": "8" } })));
+    const shares: number[] = [];
+    const file = await downloadPdf("tok", "resume", (share) => shares.push(share));
+    expect([file?.size, shares]).toEqual([8, [0.5, 1]]);
+  });
+
+  it("gives nothing for a missing file", async () => {
+    respond(404, "");
+    expect(await downloadPdf("tok", "letter", () => {})).toBeNull();
+  });
 });

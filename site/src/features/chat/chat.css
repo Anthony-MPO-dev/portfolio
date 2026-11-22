@@ -485,3 +485,88 @@
   justify-content: center;
   padding: 8px 0;
 }
+
+/* The resume panel: the two PDFs, each button filling with the site's green as its file downloads (transform only),
+   and the job post field that tailors both. */
+.chat-resume {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--ink);
+}
+.chat-resume-intro,
+.chat-resume-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.chat-resume-note {
+  color: var(--muted);
+}
+.chat-resume-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chat-download {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 150px;
+  padding: 11px 14px;
+  border: 1.5px solid var(--ink);
+  background: var(--bg);
+  color: var(--ink);
+  font: 700 15px/1 var(--sans);
+  cursor: pointer;
+}
+.chat-download > span {
+  position: relative;
+}
+.chat-download > .chat-download-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent-fill);
+  transform: scaleX(var(--share, 0));
+  transform-origin: left;
+  transition: transform 0.15s linear;
+}
+.chat-download-status {
+  margin-left: auto;
+  font: 600 12px var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+/* the green fill is the same in both themes, so the text on it stays dark in both */
+.chat-download:is(.busy, .done),
+.chat-download:is(.busy, .done) .chat-download-status {
+  color: #0b0b0b;
+}
+.chat-resume-job {
+  display: grid;
+  gap: 10px;
+}
+.chat-resume-job label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.chat-resume-job textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.4 var(--sans);
+  resize: vertical;
+}
+.chat-resume-job textarea:focus {
+  border-color: var(--ink);
+}
+.chat-resume-job .chat-send {
+  justify-self: start;
+}

@@ -2,7 +2,7 @@
 // translation the author reviews, 15/11): labels, notices and the contact form. The bot's replies follow the
 // message's language on their own. Public API: copy. Used by: features/chat/chat.tsx, lead-form.tsx.
 import type { Lang } from "@/lib/lang";
-import type { FileRefusal } from "./api";
+import type { FileRefusal, ResumeStatus } from "./api";
 import type { Notice } from "./state";
 
 const en = {
@@ -66,6 +66,28 @@ const en = {
   sentHiring: "Sent. Anthony will get back to you. For a quicker reply, message him on WhatsApp:",
   sentProject: "Sent. Anthony will reply by email.",
   emailFallback: "Please email Anthony at",
+  resume: {
+    title: "Resume and cover letter",
+    intro: "Anthony's resume and a cover letter, as PDF files. Paste a job post to tailor both to it.",
+    resume: "Resume",
+    letter: "Cover letter",
+    saved: "Saved",
+    failed: "Try again",
+    jobLabel: "Job post (optional)",
+    jobPlaceholder: "Paste the job description here",
+    tailor: "Tailor to this job",
+    tailoring: "Tailoring both to this job...",
+    tailoredFor: "Tailored for the {role} role at {company}.",
+    notes: {
+      ok: "Tailored to this job.",
+      standard: "",
+      fallback: "I couldn't tailor them this time, so these are the standard versions.",
+      rate_limited: "That's today's limit for tailoring, so these are the standard versions.",
+      invalid: "That job post is too long. Paste up to 8,000 characters.",
+      no_session: "This conversation has expired. Clear it and ask again.",
+      unavailable: "I couldn't reach the site right now. Try again in a minute.",
+    } satisfies Record<ResumeStatus, string>,
+  },
 };
 
 const pt: typeof en = {
@@ -133,6 +155,28 @@ const pt: typeof en = {
   sentHiring: "Enviado. O Anthony vai responder. Para uma resposta mais rápida, mande uma mensagem no WhatsApp:",
   sentProject: "Enviado. O Anthony vai responder por e-mail.",
   emailFallback: "Mande um e-mail para o Anthony em",
+  resume: {
+    title: "Currículo e carta de apresentação",
+    intro: "O currículo do Anthony e uma carta de apresentação, em PDF. Cole a descrição de uma vaga para adaptar os dois a ela.",
+    resume: "Currículo",
+    letter: "Carta de apresentação",
+    saved: "Salvo",
+    failed: "Tente de novo",
+    jobLabel: "Descrição da vaga (opcional)",
+    jobPlaceholder: "Cole aqui a descrição da vaga",
+    tailor: "Adaptar para esta vaga",
+    tailoring: "Adaptando os dois para esta vaga...",
+    tailoredFor: "Adaptados para a vaga de {role} na {company}.",
+    notes: {
+      ok: "Adaptados para esta vaga.",
+      standard: "",
+      fallback: "Não consegui adaptar desta vez, então estes são os padrões.",
+      rate_limited: "Esse é o limite de adaptações de hoje, então estes são os padrões.",
+      invalid: "A descrição é longa demais. Cole até 8.000 caracteres.",
+      no_session: "Esta conversa expirou. Limpe e pergunte de novo.",
+      unavailable: "Não consegui falar com o site agora. Tente de novo em um minuto.",
+    },
+  },
 };
 
 export const copy: Record<Lang, typeof en> = { en, pt };

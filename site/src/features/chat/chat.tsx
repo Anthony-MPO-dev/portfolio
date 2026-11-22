@@ -6,6 +6,7 @@ import type { Lang } from "@/lib/lang";
 import { humanToken } from "./human";
 import { copy } from "./copy";
 import { LeadForm } from "./lead-form";
+import { ResumePanel } from "./resume-panel";
 import { initial, reduce, type Action, type Entry, type State } from "./state";
 import "./chat.css";
 
@@ -184,6 +185,9 @@ export function Chat({ lang }: { lang: Lang }) {
             <Fragment key={entry.id}>
               <Message entry={entry} t={t} />
               {entry.id === state.contactAt && <ContactPanel state={state} lang={lang} dispatch={dispatch} lead={talk.lead} />}
+              {entry.id === state.resume?.at && (
+                <ResumePanel resume={state.resume} lang={lang} onDone={(result) => dispatch({ type: "resumeDone", result })} />
+              )}
             </Fragment>
           ))}
           {state.partial && <Message entry={{ id: -1, from: "bot", text: state.partial }} t={t} />}

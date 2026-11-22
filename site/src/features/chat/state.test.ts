@@ -154,3 +154,31 @@ describe("files", () => {
 it("clearing starts over", () => {
   expect(reduce(reduce(sent(), ok("Yes.", true)), { type: "clear" })).toEqual(initial);
 });
+
+describe("resume panel", () => {
+  const offer = (reply = "Both are below.") => ({ type: "answer", result: { status: "ok", reply, offerContact: false, offerResume: true } }) as const;
+  const offered = reduce(sent("His CV?"), offer());
+
+  it("anchors the panel to the answer that offered it, with the standard pair", () => {
+    expect(offered.resume).toEqual({ at: 1, token: null, company: "", role: "", note: null });
+  });
+
+  it("moves it down to a later offer while nothing was tailored", () => {
+    expect(reduce(reduce(offered, { type: "send", text: "And a letter?" }), offer("Below.")).resume?.at).toBe(3);
+  });
+
+  it("keeps a tailored pair, and stays put after it", () => {
+    const tailored = reduce(offered, { type: "resumeDone", result: { status: "ok", token: "tok", company: "Acme", role: "AI Engineer" } });
+    expect(tailored.resume).toEqual({ at: 1, token: "tok", company: "Acme", role: "AI Engineer", note: "ok" });
+    expect(reduce(reduce(tailored, { type: "send", text: "Thanks" }), offer("Below.")).resume?.at).toBe(1);
+  });
+
+  it("keeps the standard pair and says why when tailoring didn't happen", () => {
+    const s = reduce(offered, { type: "resumeDone", result: { status: "rate_limited", token: "standard-en", company: "", role: "" } });
+    expect(s.resume).toEqual({ at: 1, token: null, company: "", role: "", note: "rate_limited" });
+  });
+
+  it("is gone when the conversation is cleared", () => {
+    expect(reduce(offered, { type: "clear" }).resume).toBeNull();
+  });
+});

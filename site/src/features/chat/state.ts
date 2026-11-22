@@ -2,7 +2,7 @@
 // (offline, limits) and where the contact form stands. Notice text lives in copy.ts; this module only names them.
 // Public API: initial, reduce, and the State, Entry, Contact types. Used by: features/chat/chat.tsx.
 // Tests: state.test.ts.
-import type { ChatResult, ChatStatus, FileRefusal, LeadResult, UploadResult } from "./api";
+import type { ChatResult, ChatStatus, FileRefusal, LeadResult, ResumeResult, ResumeStatus, UploadResult } from "./api";
 
 export type Notice = Exclude<ChatStatus, "ok">;
 export type Entry =
@@ -19,7 +19,18 @@ export type Contact =
   | { step: "sent"; whatsapp?: string };
 // partial: the answer as it streams in; it becomes an entry only when the answer ends "ok". contactAt: the entry that
 // offered the contact; the form shows right after it, so messages sent later land below it, in view.
-export type State = { entries: Entry[]; pending: boolean; partial: string; files: FileChip[]; contact: Contact; contactAt: number | null };
+// resume: the resume panel, under the answer that offered it (token null: the standard pair; note: why the last
+// tailoring ended as it did).
+export type Resume = { at: number; token: string | null; company: string; role: string; note: ResumeStatus | null };
+export type State = {
+  entries: Entry[];
+  pending: boolean;
+  partial: string;
+  files: FileChip[];
+  contact: Contact;
+  contactAt: number | null;
+  resume: Resume | null;
+};
 export type Action =
   | { type: "send"; text: string }
   | { type: "delta"; text: string }
@@ -29,9 +40,10 @@ export type Action =
   | { type: "answer"; result: ChatResult }
   | { type: "openForm" }
   | { type: "leadDone"; result: LeadResult }
+  | { type: "resumeDone"; result: ResumeResult }
   | { type: "clear" };
 
-export const initial: State = { entries: [], pending: false, partial: "", files: [], contact: { step: "none" }, contactAt: null };
+export const initial: State = { entries: [], pending: false, partial: "", files: [], contact: { step: "none" }, contactAt: null, resume: null };
 const OFFER_ON: readonly Notice[] = [
   "offline",
   "resting",
@@ -75,7 +87,12 @@ export function reduce(state: State, action: Action): State {
       const move = offer && (state.contact.step === "none" || state.contact.step === "offered");
       const contact: Contact = move ? { step: "offered" } : state.contact;
       const contactAt = move ? id : state.contactAt;
-      return { ...state, entries: [...state.entries, entry], pending: false, partial: "", contact, contactAt };
+      // the resume panel also moves down to a later offer, until it holds a tailored pair
+      const resume: Resume | null =
+        status === "ok" && action.result.offerResume && !state.resume?.token
+          ? { at: id, token: null, company: "", role: "", note: state.resume?.note ?? null }
+          : state.resume;
+      return { ...state, entries: [...state.entries, entry], pending: false, partial: "", contact, contactAt, resume };
     }
     case "openForm":
       return { ...state, contact: { step: "form", error: false } };
@@ -86,6 +103,12 @@ export function reduce(state: State, action: Action): State {
           ? whatsapp ? { step: "sent", whatsapp } : { step: "sent" }
           : status === "invalid" ? { step: "form", error: true } : { step: "email" };
       return { ...state, contact };
+    }
+    case "resumeDone": {
+      if (!state.resume) return state;
+      const { status, token, company, role } = action.result;
+      const tailored = status === "ok" && token ? { token, company, role } : { token: state.resume.token, company: state.resume.company, role: state.resume.role };
+      return { ...state, resume: { ...state.resume, ...tailored, note: status } };
     }
     case "clear":
       return initial;

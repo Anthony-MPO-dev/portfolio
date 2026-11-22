@@ -1,8 +1,9 @@
-// Chat API client: the browser calls (/api/chat POST and DELETE, /api/attachments, /api/lead), same origin, JSON or
-// one file's raw bytes in, JSON or NDJSON (a streamed answer) out.
+// Chat API client: the browser calls (/api/chat POST and DELETE, /api/attachments, /api/lead, /api/resume), same
+// origin, JSON or one file's raw bytes in, JSON, NDJSON (a streamed answer) or a PDF out.
 // Responsibility: turn every failure (network, non-JSON page, unknown status) into a status the page knows, so the
 // visitor sees a fixed notice and the contact, never an error; and keep the session rules (conversation). Public API:
-// conversation, sendMessage, uploadFile, submitLead, clearConversation and their result types. Used by:
+// conversation, sendMessage, uploadFile, submitLead, requestResume, downloadPdf, clearConversation and their result
+// types. Used by:
 // features/chat/chat.tsx. Tests: api.test.ts.
 
 import type { Lang } from "@/lib/lang";
@@ -11,7 +12,11 @@ const CHAT = ["ok", "invalid", "rate_limited", "daily_limit", "busy", "conversat
 const LEAD = ["ok", "invalid", "rate_limited", "unavailable"] as const;
 const REFUSALS = ["type", "too_big", "unreadable", "no_text", "busy", "too_many", "rate_limited", "offline", "challenge"] as const;
 export type ChatStatus = (typeof CHAT)[number];
-export type ChatResult = { status: ChatStatus; reply: string; offerContact: boolean };
+export type ChatResult = { status: ChatStatus; reply: string; offerContact: boolean; offerResume?: boolean };
+const RESUME = ["ok", "standard", "fallback", "rate_limited", "invalid", "no_session"] as const;
+export type ResumeStatus = (typeof RESUME)[number] | "unavailable";
+export type ResumeResult = { status: ResumeStatus; token: string | null; company: string; role: string };
+export type PdfKind = "resume" | "letter";
 export type LeadStatus = (typeof LEAD)[number];
 export type LeadResult = { status: LeadStatus; whatsapp?: string };
 export type FileRefusal = (typeof REFUSALS)[number];
@@ -77,7 +82,8 @@ export async function sendMessage(
 function chatResult(data: Data | null, streamed = ""): ChatResult {
   if (!data || !isOne(CHAT, data.status)) return OFFLINE;
   const status = data.status;
-  return { status, reply: status === "ok" ? streamed : "", offerContact: data.offer_contact === true };
+  const result: ChatResult = { status, reply: status === "ok" ? streamed : "", offerContact: data.offer_contact === true };
+  return data.offer_resume === true ? { ...result, offerResume: true } : result;
 }
 
 // One file as raw bytes; the API converts it and keeps the result for this conversation until the answer ends.
@@ -105,6 +111,40 @@ export async function submitLead(fields: LeadFields, honeypot: string, pageLang:
     .catch(() => null);
   if (!data || !isOne(LEAD, data.status)) return { status: "unavailable" };
   return typeof data.whatsapp === "string" ? { status: "ok", whatsapp: data.whatsapp } : { status: data.status };
+}
+
+// The resume and cover letter pair: the standard one, or one tailored to the job post (the API falls back to the
+// standard pair and says why). The page builds the standard pair's token itself.
+export async function requestResume(job: string, pageLang: Lang): Promise<ResumeResult> {
+  const data: Data | null = await post("/api/resume", { job, page_lang: pageLang })
+    .then((r) => r.json())
+    .catch(() => null);
+  if (!data || !isOne(RESUME, data.status)) return { status: "unavailable", token: null, company: "", role: "" };
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  return { status: data.status, token: typeof data.token === "string" ? data.token : null, company: text(data.company), role: text(data.role) };
+}
+
+// One PDF of a pair, read piece by piece so the button can show the share received (from Content-Length; without
+// it, nothing until the end). Null when the file isn't there (an expired pair, a cleared conversation, offline).
+export async function downloadPdf(token: string, kind: PdfKind, onProgress: (share: number) => void): Promise<Blob | null> {
+  try {
+    const response = await fetch(`/api/resume/${encodeURIComponent(token)}/${kind}.pdf`);
+    if (!response.ok || !response.body) return null;
+    const total = Number(response.headers.get("content-length")) || 0;
+    const reader = response.body.getReader();
+    const parts: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      received += value.length;
+      if (total) onProgress(Math.min(received / total, 1));
+    }
+    return new Blob(parts as BlobPart[], { type: "application/pdf" });
+  } catch {
+    return null;
+  }
 }
 
 // The session rules in one place. The API keeps the conversation behind an HttpOnly cookie the page can't see, so this
