@@ -4,9 +4,9 @@ Responsibility: send the token the page got from Turnstile to Cloudflare's sitev
 it passed. No token, a token Cloudflare refuses (success false, or a 4xx to an odd token) fails. When the fault is on
 Cloudflare's side or ours (unreachable, a 5xx, "internal-error", a wrong secret) the conversation still starts and
 the reason is logged: the visitor and site-wide limits keep holding, and a fault there shouldn't take the chat down.
-Only those faults count toward the circuit breaker (3 in a row skip siteverify for 30 s). The visitor's IP isn't sent
+With strict=True (the WhatsApp number) a fault counts as no proof instead. Only those faults count toward the circuit breaker (3 in a row skip siteverify for 30 s). The visitor's IP isn't sent
 (it's optional for siteverify).
-Public API: TurnstileCheck (callable: token -> bool), VERIFY_URL.
+Public API: TurnstileCheck (callable: token, strict=False -> bool), VERIFY_URL.
 Used by: app.main, when TURNSTILE_SECRET is set (wired into app.services.chat as `human`).
 Depends on: urllib3, app.breaker.
 Tests: tests/test_turnstile.py.
@@ -31,14 +31,14 @@ class TurnstileCheck:
         self.pool = pool or urllib3.PoolManager(maxsize=2)
         self.breaker = breaker or CircuitBreaker()
 
-    def __call__(self, token: str | None) -> bool:
+    def __call__(self, token: str | None, strict: bool = False) -> bool:
         if not token:
             return False
         try:
             return self.breaker.call(self._verify, token)
         except (CircuitOpen, urllib3.exceptions.HTTPError, OSError, ValueError) as error:
-            log.warning("Turnstile fault, letting the conversation start: %s", error)
-            return True
+            log.warning("Turnstile fault (%s): %s", "counted as no proof" if strict else "letting the conversation start", error)
+            return not strict
 
     def _verify(self, token: str) -> bool:
         """True or False is the visitor's answer; an exception is a fault on Cloudflare's side or ours."""

@@ -43,7 +43,7 @@ def events(response):
 
 class World:
     def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None, convert=None,
-                 human=None, search=True):  # fmt: skip
+                 human=None, search=True, person=None):  # fmt: skip
         self.alerts = []
         self.model = model or FakeModel()
         self.store = FakeStore()
@@ -53,7 +53,7 @@ class World:
         self.converted = []
         convert = convert or (lambda data: self.converted.append(data) or PDF)
         chat = ChatService(self.model, self.store, FakeQuestionLog(), lambda: next(ids), limits, guard or (lambda r: None),
-                           convert=convert, human=human)  # fmt: skip
+                           convert=convert, human=human, person=person)  # fmt: skip
         lead = LeadService(self.sink, FakeFormCounter(), whatsapp="+00 0000")
         worker = self.worker if engine == "worker" else None
         app = create_app(
@@ -326,7 +326,8 @@ def test_without_the_model_the_search_says_it_is_unavailable():
 
 
 def test_the_whatsapp_number_needs_a_live_conversation_or_a_fresh_browser_proof():
-    world = World(human=lambda token: token == "real-browser")
+    # the chat's check lets anything through (as on a Cloudflare fault); the number's strict check does not
+    world = World(human=lambda token: True, person=lambda token: token == "real-browser")
     script = world.client.post("/api/lead", json=LEAD, headers=SAME_SITE).json()
     proven = world.client.post("/api/lead", json=LEAD, headers={**SAME_SITE, "X-Human": "real-browser"}).json()
     world.chat(human="real-browser")  # a conversation opens: its cookie is enough from now on
@@ -337,3 +338,10 @@ def test_the_whatsapp_number_needs_a_live_conversation_or_a_fresh_browser_proof(
         {"status": "ok", "whatsapp": "+00 0000"},
         3,
     )
+
+
+def test_a_forged_cookie_or_a_refused_proof_gets_no_number():
+    world = World(human=lambda token: True, person=lambda token: token == "real-browser")
+    world.client.cookies.set("__Host-chat_sid", "made-up")
+    forged = world.client.post("/api/lead", json=LEAD, headers={**SAME_SITE, "X-Human": "script"}).json()
+    assert (forged, len(world.sink.saved)) == ({"status": "ok"}, 1)

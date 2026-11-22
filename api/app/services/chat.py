@@ -88,6 +88,7 @@ class ChatService:
         cache: AnswerCache | None = None,
         convert: Callable[[bytes], Attachment] | None = None,
         human: Callable[[str | None], bool] | None = None,
+        person: Callable[[str | None], bool] | None = None,
     ):
         self.model = model
         self.store = store
@@ -99,12 +100,16 @@ class ChatService:
         self.cache = cache
         self.convert = convert
         self.human = human  # Turnstile: a new conversation needs a real browser's proof
+        self.person = person  # the same proof, strict: a fault on Cloudflare's side counts as no (the WhatsApp number)
 
     def is_person(self, session_id: str | None, human_token: str | None) -> bool:
-        """A live conversation (it needed the proof to open) or a fresh browser proof; without the check wired, yes."""
+        """A live conversation (it needed the proof to open) or a fresh browser proof that passed the strict check
+        (a fault on Cloudflare's side counts as no); without any browser check wired, yes."""
         if session_id and self.store.session_exists(session_id):
             return True
-        return self.human is None or self.human(human_token)
+        if self.human is None:
+            return True
+        return bool(self.person and self.person(human_token))
 
     def before_upload(self, *, session_id: str | None, human_token: str | None) -> AttachResult | None:
         """What attach would answer before the file is read: offline, or a challenge with neither a session nor a

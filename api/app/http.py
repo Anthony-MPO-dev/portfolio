@@ -220,8 +220,8 @@ def create_app(
             page_lang=body.page_lang,
             client_key=client_key(request),
             honeypot=body.website,
-            # the number goes to a person only: checked for hiring leads, the only ones that can get it
-            person=body.kind == "hiring" and chat.is_person(request.cookies.get(COOKIE), request.headers.get("x-human")),
+            # the number goes to a person only: asked after a hiring lead is saved, never for anything else
+            person=lambda: chat.is_person(request.cookies.get(COOKIE), request.headers.get("x-human")),
         )
         payload = {"status": result.status} | ({"whatsapp": result.whatsapp} if result.whatsapp else {})
         return JSONResponse(payload, CODES[result.status])

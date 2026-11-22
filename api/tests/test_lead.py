@@ -15,7 +15,7 @@ FORM = {
     "page_lang": "en",
     "client_key": "client-a",
     "honeypot": "",
-    "person": True,
+    "person": lambda: True,
 }
 
 
@@ -111,5 +111,16 @@ def test_form_limit_is_per_ip():
 
 
 def test_a_hiring_lead_from_someone_not_shown_to_be_a_person_is_saved_without_the_number():
-    result, sink = submit(person=False)
+    result, sink = submit(person=lambda: False)
     assert (result.status, result.whatsapp, len(sink.saved)) == ("ok", None, 1)
+
+
+def test_the_person_check_runs_only_for_a_saved_hiring_lead():
+    asked = []
+    person = lambda: asked.append(True) or True  # noqa: E731
+    submit(kind="project", person=person)
+    submit(honeypot="bot", person=person)
+    submit(email="nope", person=person)
+    assert asked == []
+    submit(person=person)
+    assert asked == [True]

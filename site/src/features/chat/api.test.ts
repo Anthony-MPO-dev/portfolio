@@ -206,7 +206,7 @@ describe("conversation (the session rules)", () => {
     expect(done.sort()).toEqual([0, 1, 2]);
   });
 
-  it("sends a fresh proof with a hiring lead while no conversation is open, never with a project lead", async () => {
+  it("sends a fresh proof with every hiring lead, even with a conversation open, never with a project lead", async () => {
     const proofs: (string | null)[] = [];
     vi.stubGlobal(
       "fetch",
@@ -222,9 +222,9 @@ describe("conversation (the session rules)", () => {
     const talk = conversation(async () => "t");
     await talk.lead({ ...jane, kind: "hiring" }, "", "en");
     await talk.lead({ ...jane, kind: "project" }, "", "en");
-    await talk.send("a", "en", open()); // a conversation opens: its cookie is enough from now on
+    await talk.send("a", "en", open()); // the conversation may expire on the server, so the proof still goes
     await talk.lead({ ...jane, kind: "hiring" }, "", "en");
-    expect(proofs).toEqual(["t", null, null]);
+    expect(proofs).toEqual(["t", null, "t"]);
   });
 
   it("leaves the session closed when a request cleared while it ran comes back ok", async () => {

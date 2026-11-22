@@ -101,6 +101,7 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
         )  # fmt: skip
     model = traced(model, "model", tracer)
     db = Db(env["DATABASE_URL"])  # pooled; opened by app(), so build stays free of network
+    turnstile = TurnstileCheck(env["TURNSTILE_SECRET"]) if env.get("TURNSTILE_SECRET") else None  # the browser proof
     chat = ChatService(
         model,
         store,
@@ -113,7 +114,8 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
             RedisAnswerCache(r, version=hashlib.sha256(system_prompt(facts).encode()).hexdigest()[:12]), "cache", tracer
         ),
         convert=traced(convert_isolated, "attachment", tracer),  # each upload in a locked-down child process, 3 at a time
-        human=traced(TurnstileCheck(env["TURNSTILE_SECRET"]), "turnstile", tracer) if env.get("TURNSTILE_SECRET") else None,
+        human=traced(turnstile, "turnstile", tracer) if turnstile else None,
+        person=traced(partial(turnstile, strict=True), "turnstile", tracer) if turnstile else None,  # the WhatsApp number
     )
     sink = traced(SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"], post=post)), "lead", tracer)
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])

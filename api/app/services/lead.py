@@ -10,6 +10,7 @@ Tests: tests/test_lead.py.
 """
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -46,7 +47,7 @@ class LeadService:
         page_lang: str,
         client_key: str,
         honeypot: str = "",
-        person: bool,
+        person: Callable[[], bool],
     ) -> LeadResult:
         if honeypot.strip():
             return LeadResult("ok")  # look successful so the bot moves on
@@ -76,4 +77,4 @@ class LeadService:
             return LeadResult("unavailable")
         # rule (b), and only for someone shown to be a person (a live conversation or a fresh browser proof):
         # one curl with a made-up lead no longer gets the number; the lead is saved either way
-        return LeadResult("ok", self.whatsapp if kind == "hiring" and person else None)
+        return LeadResult("ok", self.whatsapp if kind == "hiring" and person() else None)  # asked only now

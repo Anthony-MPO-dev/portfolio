@@ -131,9 +131,10 @@ export function conversation(proof: () => Promise<string | undefined>) {
       while (!open && i < files.length) await run(i++);
       await Promise.all(files.slice(i).map((_, j) => run(i + j)));
     },
-    // a hiring lead gets the WhatsApp number only from a person: an open conversation already showed it, else a proof
+    // a hiring lead gets the WhatsApp number only from a person: always with a fresh proof, since the conversation this
+    // page thinks is open may have expired on the server (2 h idle); a project lead never needs one
     lead: async (fields: LeadFields, honeypot: string, pageLang: Lang) =>
-      submitLead(fields, honeypot, pageLang, fields.kind === "hiring" && !open ? await proof() : undefined),
+      submitLead(fields, honeypot, pageLang, fields.kind === "hiring" ? await proof() : undefined),
     clear() {
       open = false; // the API forgets the session; the next request starts a new one
       return clearConversation();

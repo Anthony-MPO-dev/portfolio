@@ -61,3 +61,10 @@ def test_a_wrong_secret_is_logged_and_does_not_close_the_chat(caplog):
 def test_an_expired_or_reused_token_fails():
     used = FakePool({"success": False, "error-codes": ["timeout-or-duplicate"]})
     assert TurnstileCheck("SECRET", pool=used)("token") is False
+
+
+def test_a_strict_check_counts_a_fault_as_no_proof():
+    unreachable = FakePool(error=urllib3.exceptions.ConnectTimeoutError("timed out"))
+    assert TurnstileCheck("SECRET", pool=unreachable)("token", strict=True) is False
+    assert TurnstileCheck("SECRET", pool=FakePool({"success": False}, status=503))("token", strict=True) is False
+    assert TurnstileCheck("SECRET", pool=FakePool({"success": True}))("token", strict=True) is True
