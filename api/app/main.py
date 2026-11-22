@@ -12,9 +12,6 @@ CONTACT_WHATSAPP; optional SITE_ORIGIN, MODEL_ENGINE, ANTHROPIC_API_KEY, ANTHROP
 isn't scoped to a workspace), TURNSTILE_SECRET (a new conversation then needs Cloudflare's browser proof),
 MODEL_TIMEOUT (seconds), FACTS_PATH, SEARCH_MODEL_DIR (the fact search's model folder), TRACE_SLOW_MS (a request
 this slow or slower logs its trace; default 2000).
-Redis user for REDIS_URL (checked against Redis 8 on 2026-11-06; database 0, add +select for another index):
-  ACL SETUSER <user> on ><password> ~chat:* resetchannels -@all +exists +set +get +incr +incrby +ttl +expire
-  +lrange +rpush +ltrim +lrem +blpop +del +multi +exec +hello +client|setinfo
 Public API: build (pure: no network, no disk), app (the uvicorn factory: reads the facts and starts the thread that
 creates the tables and purges expired rows, every 6 hours or a minute after Postgres failed), ConfigError.
 Run: uvicorn app.main:app --factory

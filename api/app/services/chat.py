@@ -11,7 +11,7 @@ Only saved exchanges count toward the conversation limit, so offline answers don
 conversation erased while the model was answering is not saved again.
 Fixed notices (offline, limits) are the page's job: this module returns a status, never notice text.
 Public API: ChatService.answer, ChatService.attach, ChatService.forget, Limits, ChatResult, AttachResult.
-Used by: the /api/chat route.
+Used by: the /api/chat and /api/attachments routes.
 Depends on: app.ports (ChatModel, SessionStore, QuestionLog, AnswerCache), app.lang, app.redact.
 Tests: tests/test_chat.py, tests/test_chat_attachments.py.
 """

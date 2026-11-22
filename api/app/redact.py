@@ -2,8 +2,8 @@
 
 Responsibility: replace e-mail addresses with [email] and phone numbers (9+ digits) with [phone], keeping
 ordinary numbers such as years, ratios and metrics.
-Public API: redact.
-Used by: app.services.chat.
+Public API: redact, EMAIL.
+Used by: app.services.chat, app.output_guard (EMAIL).
 Depends on: nothing.
 Tests: tests/test_redact.py.
 """
