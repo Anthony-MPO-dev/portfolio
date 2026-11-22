@@ -1,0 +1,192 @@
+# Resume and cover letter base for the PDFs the chat hands out (.claude/docs/plan-resume.md). Public facts only,
+# worded as in knowledge/facts.md and the approved CV and letter. The private parts are {placeholders} that the
+# server fills from the RESUME_PRIVATE env var (city, places, the credit fund's name), never kept in this repo:
+# location, loc_insight, credit_fund, loc_credit_fund, loc_fapemat, support_employer, loc_support.
+# Tailoring picks bullet and project ids and writes only the summary and the letter's first two paragraphs; every
+# other line prints as written here. Both languages carry the same ids.
+name: Anthony Muniz
+contact: anthonympodev@gmail.com | linkedin.com/in/anthony-mpo-dev | github.com/Anthony-MPO-dev
+
+en:
+  title: AI & Backend Engineer
+  location: "{location} · Open to remote roles (UTC-3)"
+  headings: {summary: Summary, experience: Experience, projects: Projects, education: Education, skills: Skills, languages: Languages}
+  summary: >-
+    AI and backend engineer with 3+ years of professional Python experience. I make LLM agents work with real
+    customers and I measure it: RAG, evaluation and automation with Claude, LangChain and n8n, on Python backends
+    built with FastAPI, Celery and RabbitMQ. Open to remote, full-time AI or backend engineering roles with US and
+    European teams.
+  roles:
+    - id: insight
+      title: Software Engineer, AI & Backend
+      when: August 2026 to present
+      where: "Insight AI & Automation · {loc_insight} · Remote"
+      note: My own company, on contract for a B2B SaaS company, where I improve their AI customer-support agent in production.
+      bullets:
+        - id: reply-speed
+          text: Made the AI support agent reply 3x faster by cutting a 45-second wait for split messages to 15 seconds mid-conversation, one of about 30 production releases shipped in 4 weeks.
+        - id: search-fix
+          text: Fixed the agent's knowledge-base search. On 13 of 23 test questions it now finds a document it used to miss, ranked 1st or 2nd instead of 3rd, and an audit found 44 of 307 pages with dead links.
+        - id: metric
+          text: Replaced a dashboard metric that swung 4x in 3 weeks with a stricter resolution metric (no escalation, no reopening within 7 days, no human reply), which showed that 1 in 4 "bot-resolved" chats had a human writing.
+        - id: evaluation
+          text: Built an evaluation that caught an LLM judge calling a change a clear win when expert review rated it no better, and retired two automated detectors with 80% false positives.
+        - id: crm
+          text: Automated HubSpot workflows and n8n integrations with automated tests, and moved SharePoint document libraries to AWS S3.
+    - id: credit
+      title: Backend Software Engineer & RPA
+      when: December 2024 to August 2026
+      where: "{credit_fund} · {loc_credit_fund}"
+      note: A credit fund, where I built the systems behind its credit analysis.
+      bullets:
+        - id: credit-time
+          text: Cut credit analysis from about 1 hour to as fast as 5 minutes with a credit intelligence pipeline that pulls from 5+ credit bureaus.
+        - id: capacity
+          text: Scaled capacity from about 10 to as many as 100 credit operations a day with asynchronous RabbitMQ and Celery workers, which let the team handle seasonal demand peaks.
+        - id: legacy
+          text: Rebuilt legacy low-code automations as Python and FastAPI services, test-first, so they could be tested and changed safely.
+        - id: observability
+          text: Built FastAPI and SQL Server REST APIs that automated data collection, validation and reports, traced with Prometheus, Grafana, Loki and Tempo.
+    - id: fapemat
+      title: Research Fellow
+      when: July 2023 to May 2025
+      where: "Mato Grosso State Research Foundation (FAPEMAT) · {loc_fapemat}"
+      note: Part-time, alongside my B.Sc.
+      bullets:
+        - id: pipeline
+          text: Built an automated pipeline (Python, Selenium, Pandas, Parquet) that collects and cleans tuberculosis, leprosy and leishmaniasis records for Mato Grosso from Brazil's public health database (SINAN), feeding an interactive surveillance dashboard.
+        - id: models
+          text: Compared ARIMA, DES, XGBoost and LSTM forecasting models. LSTM did best on tuberculosis overall, ARIMA on TB/HIV co-infection, and DES gave the study's best result (MAE 0.0205). The work became my B.Sc. thesis.
+        - id: geo
+          text: Geospatial analysis showed 67% of tuberculosis cases in men, concentrated in Cuiabá and Várzea Grande.
+    - id: support
+      title: Technical Support Technician
+      when: November 2021 to April 2022
+      where: "{support_employer} · {loc_support}"
+      note: ""
+      bullets:
+        - id: repair
+          text: Diagnosed and repaired hardware and software issues on client desktops and laptops.
+  projects:
+    - id: logstream
+      text: "LogStream (Go, gRPC, WebSocket, React): a sidecar agent streams logs to a live dashboard, and healthmon stops new requests to an external API once its error rate crosses a threshold. github.com/Anthony-MPO-dev/Observer_agent"
+    - id: linkedin-pipeline
+      text: "LinkedIn publishing pipeline (Python, n8n, PostgreSQL, Claude Code): posts wait in a PostgreSQL queue until approved in a Telegram bot, then n8n publishes them; the AI drafting jobs run with file access only."
+    - id: rag
+      text: "RAG side projects (FastAPI, ChromaDB, Celery): a PDF notes app that drops near-duplicate chunks before indexing, and a resume generator with one vector collection per user."
+    - id: portfolio
+      text: "anthonymuniz.dev: this site's chatbot answers from my public facts, hands off to a human and is tested with a 60-case golden set before each release."
+  education:
+    - B.Sc. in Computer Science, Federal University of Mato Grosso (UFMT), 2020 to 2025
+    - Technical Course in Computer Science, Federal Institute of Rondônia (IFRO), 2017 to 2019
+    - Databricks Fundamentals, Databricks Academy, October 2026
+  skills:
+    - {id: ai, label: AI, items: "LLM APIs (Claude, Gemini), RAG, LLM evaluation, LangChain, Claude Code (agents, skills), n8n"}
+    - {id: backend, label: Backend, items: "Python, FastAPI, REST APIs, TDD, Go"}
+    - {id: async, label: Messaging and async, items: "Celery, RabbitMQ, Redis, event-driven architecture"}
+    - {id: data, label: Data, items: "SQL Server, PostgreSQL, MongoDB, Pandas, data pipelines"}
+    - {id: ops, label: Observability and DevOps, items: "Prometheus, Grafana, Loki, Tempo, Docker, AWS S3, Linux, Git, CI/CD"}
+  languages: "English: professional working proficiency · Portuguese: native"
+  letter:
+    greeting: "Dear {to},"
+    to_default: Hiring Manager
+    intro_standard: I'm an AI and backend engineer working where Python services and LLM agents meet, and I'm looking for a remote, full-time role with a US or European team.
+    intro_tailored: "I'm an AI and backend engineer working where Python services and LLM agents meet, and I'd like to bring that to the {role} role at {company}. {opening}"
+    body:
+      - Since August 2026 I've been on contract through my own company, Insight AI & Automation, improving an AI customer-support agent that runs in production for a B2B SaaS company. Chat replies got 3x faster after I changed how the agent waits for split messages, and fixing the knowledge-base search put the right document first or second for questions it used to miss. I also built the evaluation that caught an LLM judge praising a change that expert review rated as no better.
+      - Before that, from December 2024 to August 2026, I worked at {credit_fund}, where credit analysis ran on legacy low-code automations. I rebuilt them as Python and FastAPI services around a credit intelligence pipeline that pulls from 5+ credit bureaus. Analysis that took about an hour started finishing in as fast as 5 minutes, and capacity went from about 10 to as many as 100 credit operations a day, with the heavy steps behind RabbitMQ and Celery workers and Prometheus, Grafana and Loki following each stage.
+      - Alongside my degree I spent almost 2 years as a research fellow at FAPEMAT, building a pipeline and forecasting models for tuberculosis data in Mato Grosso, which became my thesis. I finished my B.Sc. in Computer Science at UFMT in 2025.
+      - I'd be glad to walk you through the credit pipeline in a call, with the architecture on screen.
+    closing: Thank you,
+
+pt:
+  title: Engenheiro de IA e Backend
+  location: "{location} · Aberto a vagas remotas (UTC-3)"
+  headings: {summary: Resumo, experience: Experiência, projects: Projetos, education: Formação, skills: Competências, languages: Idiomas}
+  summary: >-
+    Engenheiro de IA e backend, com mais de 3 anos de experiência profissional em Python. Coloco agentes de LLM
+    para funcionar com clientes reais e meço o resultado: RAG, avaliação e automação com Claude, LangChain e n8n,
+    sobre backends em Python com FastAPI, Celery e RabbitMQ. Aberto a vagas remotas de tempo integral em engenharia
+    de IA ou backend, com times dos EUA e da Europa.
+  roles:
+    - id: insight
+      title: Engenheiro de Software, IA e Backend
+      when: agosto de 2026 até hoje
+      where: "Insight AI & Automation · {loc_insight} · Remoto"
+      note: Minha própria empresa, em contrato com uma empresa de SaaS B2B, onde melhoro o agente de IA de atendimento em produção.
+      bullets:
+        - id: reply-speed
+          text: Deixei as respostas do agente de atendimento 3x mais rápidas, reduzindo de 45 para 15 segundos a espera por mensagens picadas no meio da conversa, uma das cerca de 30 versões publicadas em 4 semanas.
+        - id: search-fix
+          text: Consertei a busca da base de conhecimento do agente. Em 13 de 23 perguntas de teste ele agora acha um documento que antes perdia, em 1º ou 2º lugar em vez de 3º, e uma auditoria achou 44 de 307 páginas com links quebrados.
+        - id: metric
+          text: Troquei uma métrica do painel que oscilou 4x em 3 semanas por uma métrica de resolução mais rígida (sem escalonamento, sem reabertura em 7 dias, sem resposta humana), que mostrou que 1 em cada 4 conversas "resolvidas pelo bot" tinha um humano escrevendo.
+        - id: evaluation
+          text: Montei uma avaliação que pegou um juiz de LLM chamando de vitória clara uma mudança que a revisão de especialistas considerou igual, e aposentei dois detectores automáticos com 80% de falsos positivos.
+        - id: crm
+          text: Automatizei workflows do HubSpot e integrações no n8n com testes automatizados, e migrei bibliotecas de documentos do SharePoint para o AWS S3.
+    - id: credit
+      title: Engenheiro de Software Backend e RPA
+      when: dezembro de 2024 a agosto de 2026
+      where: "{credit_fund} · {loc_credit_fund}"
+      note: Um fundo de crédito, onde construí os sistemas por trás da análise de crédito.
+      bullets:
+        - id: credit-time
+          text: Reduzi a análise de crédito de cerca de 1 hora para até 5 minutos com um pipeline de inteligência de crédito que consulta mais de 5 birôs.
+        - id: capacity
+          text: Levei a capacidade de cerca de 10 para até 100 operações de crédito por dia com workers assíncronos de RabbitMQ e Celery, o que permitiu ao time atender os picos sazonais.
+        - id: legacy
+          text: Reescrevi automações legadas em low-code como serviços em Python e FastAPI, com testes primeiro, para que pudessem ser testadas e alteradas com segurança.
+        - id: observability
+          text: Construí APIs REST em FastAPI e SQL Server que automatizaram coleta de dados, validação e relatórios, rastreadas com Prometheus, Grafana, Loki e Tempo.
+    - id: fapemat
+      title: Bolsista de Pesquisa
+      when: julho de 2023 a maio de 2025
+      where: "Fundação de Amparo à Pesquisa do Estado de Mato Grosso (FAPEMAT) · {loc_fapemat}"
+      note: Meio período, junto com a graduação.
+      bullets:
+        - id: pipeline
+          text: Construí um pipeline automatizado (Python, Selenium, Pandas, Parquet) que coleta e limpa registros de tuberculose, hanseníase e leishmaniose de Mato Grosso na base pública de saúde do Brasil (SINAN), alimentando um painel interativo de vigilância.
+        - id: models
+          text: Comparei modelos de previsão ARIMA, DES, XGBoost e LSTM. O LSTM foi melhor na tuberculose em geral, o ARIMA na coinfecção TB/HIV, e o DES deu o melhor resultado do estudo (MAE 0,0205). O trabalho virou meu TCC.
+        - id: geo
+          text: A análise geoespacial mostrou 67% dos casos de tuberculose em homens, concentrados em Cuiabá e Várzea Grande.
+    - id: support
+      title: Técnico de Suporte
+      when: novembro de 2021 a abril de 2022
+      where: "{support_employer} · {loc_support}"
+      note: ""
+      bullets:
+        - id: repair
+          text: Diagnostiquei e consertei problemas de hardware e software em computadores e notebooks de clientes.
+  projects:
+    - id: logstream
+      text: "LogStream (Go, gRPC, WebSocket, React): um agente ao lado de cada worker envia os logs a um painel ao vivo, e o healthmon bloqueia novas chamadas a uma API externa quando a taxa de erro passa de um limite. github.com/Anthony-MPO-dev/Observer_agent"
+    - id: linkedin-pipeline
+      text: "Pipeline de publicação no LinkedIn (Python, n8n, PostgreSQL, Claude Code): os posts esperam numa fila no PostgreSQL até serem aprovados num bot do Telegram, e o n8n os publica; os rascunhos de IA rodam só com acesso a arquivos."
+    - id: rag
+      text: "Projetos de RAG (FastAPI, ChromaDB, Celery): um app de notas a partir de PDFs que descarta trechos quase repetidos antes de indexar, e um gerador de currículo com uma coleção de vetores por usuário."
+    - id: portfolio
+      text: "anthonymuniz.dev: o chatbot deste site responde a partir dos meus fatos públicos, passa a conversa para um humano e é testado com 60 casos antes de cada versão."
+  education:
+    - Bacharelado em Ciência da Computação, Universidade Federal de Mato Grosso (UFMT), 2020 a 2025
+    - Curso Técnico em Informática, Instituto Federal de Rondônia (IFRO), 2017 a 2019
+    - Databricks Fundamentals, Databricks Academy, outubro de 2026
+  skills:
+    - {id: ai, label: IA, items: "APIs de LLM (Claude, Gemini), RAG, avaliação de LLM, LangChain, Claude Code (agentes, skills), n8n"}
+    - {id: backend, label: Backend, items: "Python, FastAPI, APIs REST, TDD, Go"}
+    - {id: async, label: Mensageria e assíncrono, items: "Celery, RabbitMQ, Redis, arquitetura orientada a eventos"}
+    - {id: data, label: Dados, items: "SQL Server, PostgreSQL, MongoDB, Pandas, pipelines de dados"}
+    - {id: ops, label: Observabilidade e DevOps, items: "Prometheus, Grafana, Loki, Tempo, Docker, AWS S3, Linux, Git, CI/CD"}
+  languages: "Inglês: profissional · Português: nativo"
+  letter:
+    greeting: "Prezado(a) {to},"
+    to_default: Recrutador(a)
+    intro_standard: Sou engenheiro de IA e backend, trabalho onde serviços em Python e agentes de LLM se encontram, e procuro uma vaga remota de tempo integral com um time dos EUA ou da Europa.
+    intro_tailored: "Sou engenheiro de IA e backend, trabalho onde serviços em Python e agentes de LLM se encontram, e quero levar isso para a vaga de {role} na {company}. {opening}"
+    body:
+      - Desde agosto de 2026 trabalho em contrato pela minha empresa, a Insight AI & Automation, melhorando um agente de IA de atendimento que roda em produção para uma empresa de SaaS B2B. As respostas do chat ficaram 3x mais rápidas depois que mudei a espera por mensagens picadas, e o conserto da busca na base de conhecimento pôs o documento certo em primeiro ou segundo lugar em perguntas que antes ele perdia. Também montei a avaliação que pegou um juiz de LLM elogiando uma mudança que a revisão de especialistas considerou igual.
+      - Antes disso, de dezembro de 2024 a agosto de 2026, trabalhei no {credit_fund}, onde a análise de crédito rodava em automações legadas em low-code. Reescrevi tudo como serviços em Python e FastAPI, em volta de um pipeline de inteligência de crédito que consulta mais de 5 birôs. A análise, que levava cerca de uma hora, passou a terminar em até 5 minutos, e a capacidade foi de cerca de 10 para até 100 operações de crédito por dia, com as etapas pesadas em workers de RabbitMQ e Celery e Prometheus, Grafana e Loki acompanhando cada etapa.
+      - Junto com a graduação, passei quase 2 anos como bolsista de pesquisa na FAPEMAT, construindo um pipeline e modelos de previsão para dados de tuberculose em Mato Grosso, que viraram meu TCC. Terminei o bacharelado em Ciência da Computação na UFMT em 2025.
+      - Posso mostrar o pipeline de crédito numa conversa, com a arquitetura na tela.
+    closing: Obrigado,
