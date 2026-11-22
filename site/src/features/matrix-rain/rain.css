@@ -14,7 +14,7 @@
 }
 .rain span {
   font: 500 15px/1.15 var(--mono);
-  color: var(--accent-fill);
+  color: var(--accent); /* dark green on the light theme, so it shows; the bright green on the dark one */
   white-space: pre;
   will-change: transform;
   animation: rain-fall var(--d) linear var(--delay) infinite;

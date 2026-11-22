@@ -1,5 +1,5 @@
 /* Site-wide: colour tokens for both themes (--accent for text and lines, passing 4.5:1 on the background; --accent-fill
-   for filled shapes and the rain; --danger for errors; --before for the grey parts of a chart that are not the point), shared type, the theme button's word and the scroll-scene machinery. */
+   for filled shapes; the rain takes --accent, dark green on light and bright green on dark; --danger for errors; --before for the grey parts of a chart that are not the point), shared type, the theme button's word and the scroll-scene machinery. */
 *,
 *::before,
 *::after {
@@ -15,7 +15,7 @@
   --on-ink: #3dfc8a; /* a bright mark on --ink (the chat robot's eyes) */
   --danger: #d12d25;
   --before: #b9b8b0;
-  --rain-opacity: 0.2;
+  --rain-opacity: 0.28;
   --sans: "Archivo Variable", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --gutter: clamp(16px, 4vw, 48px);
