@@ -126,3 +126,19 @@ def test_an_upload_that_would_open_a_conversation_needs_the_browser_proof_too():
     chat.human = lambda token: token == "real-browser"
     assert chat.attach(session_id=None, client_key=IP, data=b"%PDF", human_token=None).status == "challenge"
     assert chat.attach(session_id=None, client_key=IP, data=b"%PDF", human_token="real-browser").status == "ok"
+
+
+def test_before_the_file_is_read_the_answer_is_what_attach_would_give():
+    chat, _, store = make()
+    chat.human = lambda token: token == "real-browser"
+    assert chat.before_upload(session_id=None, human_token=None).status == "challenge"
+    assert chat.before_upload(session_id=None, human_token="anything") is None  # attach checks the proof itself
+    assert chat.before_upload(session_id="sid-9", human_token=None) is None  # attach checks the session itself
+    store.files_off = True
+    assert chat.before_upload(session_id=None, human_token=None).status == "offline"
+    assert chat.attach(session_id=None, client_key=IP, data=b"%PDF").status == "offline"
+
+
+def test_without_the_browser_check_wired_nothing_is_refused_before_the_file():
+    chat, _, _ = make()
+    assert chat.before_upload(session_id=None, human_token=None) is None

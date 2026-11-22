@@ -100,13 +100,22 @@ class ChatService:
         self.convert = convert
         self.human = human  # Turnstile: a new conversation needs a real browser's proof
 
+    def before_upload(self, *, session_id: str | None, human_token: str | None) -> AttachResult | None:
+        """What attach would answer before the file is read: offline, or a challenge with neither a session nor a
+        proof to check. None means the file is worth reading."""
+        if self.convert is None or self.store.switched_off() or self.store.attachments_off():
+            return AttachResult("offline", session_id)
+        if self.human and not session_id and not human_token:
+            return AttachResult("challenge", session_id)
+        return None
+
     def attach(
         self, *, session_id: str | None, client_key: str, data: bytes, human_token: str | None = None
     ) -> AttachResult:
         """One uploaded file: converted in isolation and kept for this session until its answer ends. Uploads have
         their own IP limit, a conversation takes 10 at most, and the attachment switch turns them all away."""
-        if self.convert is None or self.store.switched_off() or self.store.attachments_off():
-            return AttachResult("offline", session_id)
+        if early := self.before_upload(session_id=session_id, human_token=human_token):
+            return early
         known = bool(session_id and self.store.session_exists(session_id))
         if not known and self.human and not self.human(human_token):  # before the count: a refusal costs nothing
             return AttachResult("challenge", session_id)

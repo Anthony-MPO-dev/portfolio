@@ -111,3 +111,10 @@ def test_pushed_starts_from_the_default_branch_when_the_old_tip_is_unknown(repo,
 @pytest.mark.parametrize("value", ["acme corp", "ACME CORP\n"])
 def test_terms_come_from_the_same_comma_list_as_the_golden_set(value, capsys):
     assert main(value, [("a.md", "Acme Corp")]) == 1
+
+
+def test_a_force_push_on_the_default_branch_rescans_its_whole_history(repo):
+    first = git(repo, "rev-parse", "HEAD")
+    a = commit(repo, "second")
+    # the old tip is gone and the default branch is the pushed head itself: every commit is read
+    assert [sha for sha, _ in pushed("1" * 40, a, "main", repo)] == [first[:7], a[:7]]

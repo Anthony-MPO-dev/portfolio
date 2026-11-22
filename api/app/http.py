@@ -175,11 +175,16 @@ def create_app(
 
     @app.post("/api/attachments", dependencies=upload)
     async def post_attachment(request: Request) -> Response:
-        """One file as the raw request body, read in memory and never past 10 MB. Without a session or the browser
-        proof, the use case's "challenge" goes back before a byte is read."""
+        """One file as the raw request body, read in memory and never past 10 MB. When the use case would turn it
+        away anyway (uploads off, or neither a session nor the browser proof), its answer goes back before a byte is
+        read."""
         sid, proof = request.cookies.get(COOKIE), request.headers.get("x-human")  # Turnstile token, for a new session
-        if chat.human and not sid and not proof:
-            return JSONResponse({"status": "challenge"}, CODES["challenge"])
+        result = chat.before_upload(session_id=sid, human_token=proof)
+        if result is None:
+            return await _attach(request, sid, proof)
+        return remember(JSONResponse({"status": result.status}, CODES[result.status]), result.session_id, sid)
+
+    async def _attach(request: Request, sid: str | None, proof: str | None) -> Response:
         declared, data = int(request.headers.get("content-length") or 0), bytearray()
         if declared <= MAX_UPLOAD:
             async for piece in request.stream():

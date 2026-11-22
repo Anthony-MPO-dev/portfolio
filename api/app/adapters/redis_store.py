@@ -142,7 +142,7 @@ class RedisStore:
         return self._count((f"chat:g:{self.now():%Y%m%d}", 2 * DAY))[0]
 
     def add_spend(self, usd: float) -> None:
-        key = f"chat:spend:{self.now():%Y%m%d}"  # in millionths of a dollar: INCRBY is in the ACL, INCRBYFLOAT isn't
+        key = f"chat:spend:{self.now():%Y%m%d}"  # in millionths of a dollar: an integer counter never drifts
         self.redis.pipeline().incrby(key, round(usd * 1_000_000)).expire(key, 2 * DAY).execute()
 
     def spend_today(self) -> float:

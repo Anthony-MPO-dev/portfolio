@@ -180,4 +180,5 @@ def test_tables_missed_at_startup_are_made_a_minute_later_and_then_the_purge_run
     monkeypatch.setattr("app.main.time", type("Clock", (), {"sleep": staticmethod(sleep)}))
     with pytest.raises(Stop):
         _purge_forever(object())
-    assert (calls, waits) == (["schema", "schema", "purge"], [60, 6 * 3600])
+    # the purge runs even while the tables can't be made; once they are, only the purge, every 6 hours
+    assert (calls, waits) == (["schema", "purge", "schema", "purge"], [60, 6 * 3600])

@@ -57,7 +57,7 @@ facts:
 
   - id: credit-bureaus
     q: How many credit bureaus does that pipeline pull from?
-    expect: [["5", five]]
+    expect: [["5"]]
 
   - id: observability-stack
     q: Which observability tools did he set up at the credit fund?
@@ -132,7 +132,7 @@ facts_pt:
   - id: pt-thesis
     q: Qual modelo de previsão ganhou na pesquisa dele?
     expect: [[LSTM], [ARIMA], [DES],
-             [nenhum, nenhuma, depende, dependeu, dependendo, cenário, cenários, "não houve", único, única]]
+             [nenhum, nenhuma, depende, dependeu, dependendo, cenário, cenários, "não houve", único]]
 
   - id: pt-company
     q: Qual é a empresa do Anthony?

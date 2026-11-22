@@ -68,9 +68,12 @@ def _added(patch: str) -> Iterator[str]:
 
 
 def pushed(base: str, head: str, default: str, root: Path = REPO) -> Iterator[tuple[str, str]]:
-    known = base.strip("0") and _git(root, "cat-file", "-e", f"{base}^{{commit}}", check=False).returncode == 0
+    known = bool(base.strip("0")) and _git(root, "cat-file", "-e", f"{base}^{{commit}}", check=False).returncode == 0
+    # an unknown old tip (new branch, force push) starts at the default branch; on that branch itself, all of it
+    inside = _git(root, "merge-base", "--is-ancestor", head, default, check=False).returncode == 0
+    span = f"{base}..{head}" if known else head if inside else f"{default}..{head}"
     log = _git(root, "log", "--reverse", "-p", "--unified=0", "--no-color", "--no-ext-diff", "--no-textconv",
-               "--diff-merges=first-parent", "--format=%x00%H%x00%B%x00", f"{base if known else default}..{head}")
+               "--diff-merges=first-parent", "--format=%x00%H%x00%B%x00", span)
     parts = log.stdout.decode("utf-8", "replace").split("\0")[1:]
     for sha, message, patch in zip(parts[::3], parts[1::3], parts[2::3]):
         yield sha[:7], message + "\n" + "\n".join(_added(patch))

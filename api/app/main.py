@@ -144,14 +144,19 @@ def app() -> FastAPI:
 
 
 def _purge_forever(db: Db) -> None:
-    """Retention runs on a clock, not on traffic: create the tables if they're missing (Postgres may have been down
-    at startup), then delete expired leads and questions; again in 6 hours, or in a minute when Postgres failed."""
+    """Retention runs on a clock, not on traffic: create the tables until that works (Postgres may have been down at
+    startup), and delete expired leads and questions every time, even while the tables can't be made; again in 6
+    hours, or in a minute while the tables aren't there yet."""
+    ready = False
     while True:
         try:
-            ensure_schema(db)
-            purge_expired(db)
-            wait = PURGE_EVERY
+            if not ready:
+                ensure_schema(db)
+                ready = True
         except psycopg.Error:
-            log.warning("Postgres unreachable: leads and the question log are down; trying again in a minute")
-            wait = RETRY
-        time.sleep(wait)
+            log.warning("could not create the tables: leads and the question log are down; trying again in a minute")
+        try:
+            purge_expired(db)
+        except psycopg.Error:
+            log.warning("retention purge failed; will try again")
+        time.sleep(PURGE_EVERY if ready else RETRY)

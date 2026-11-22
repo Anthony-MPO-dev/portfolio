@@ -21,7 +21,7 @@ describe("sendMessage", () => {
   });
 
   it("sends the browser proof only when given one", async () => {
-    const fetch = respond(200, { status: "ok", reply: "Yes.", offer_contact: false });
+    const fetch = respond(200, { status: "ok", offer_contact: false });
     await sendMessage("Hi", "en", { human: "t-1" });
     await sendMessage("Hi", "en");
     const bodies = fetch.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
@@ -29,17 +29,17 @@ describe("sendMessage", () => {
   });
 
   it("reads a refused browser proof", async () => {
-    respond(200, { status: "challenge", reply: "", offer_contact: false });
+    respond(200, { status: "challenge", offer_contact: false });
     expect((await sendMessage("q", "en")).status).toBe("challenge");
   });
 
   it("reads a reply the output guard blocked", async () => {
-    respond(200, { status: "blocked", reply: null, offer_contact: true });
+    respond(200, { status: "blocked", offer_contact: true });
     expect(await sendMessage("q", "en")).toEqual({ status: "blocked", reply: "", offerContact: true });
   });
 
   it("reads a limit from a 429", async () => {
-    respond(429, { status: "rate_limited", reply: "", offer_contact: false });
+    respond(429, { status: "rate_limited", offer_contact: false });
     expect((await sendMessage("q", "en")).status).toBe("rate_limited");
   });
 
@@ -104,7 +104,7 @@ describe("files", () => {
   });
 
   it("names the uploaded files in the message", async () => {
-    const fetch = respond(200, { status: "ok", reply: "Read.", offer_contact: false });
+    const fetch = respond(200, { status: "ok", offer_contact: false });
     await sendMessage("What is this?", "en", { files: ["ab12", "cd34"] });
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(JSON.parse(init.body as string)).toEqual({ message: "What is this?", page_lang: "en", attachments: ["ab12", "cd34"] });
