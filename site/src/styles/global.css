@@ -12,6 +12,7 @@
   --line: #e2e1da;
   --accent: #047a46;
   --accent-fill: #3dfc8a;
+  --on-ink: #3dfc8a; /* a bright mark on --ink (the chat robot's eyes) */
   --danger: #d12d25;
   --before: #b9b8b0;
   --rain-opacity: 0.2;
@@ -28,6 +29,7 @@
     --muted: #9b9a93;
     --line: #262626;
     --accent: #3dfc8a;
+    --on-ink: #047a46;
     --danger: #ff4d43;
     --before: #5a5953;
     --rain-opacity: 0.32;
@@ -40,6 +42,7 @@
   --muted: #9b9a93;
   --line: #262626;
   --accent: #3dfc8a;
+  --on-ink: #047a46;
   --danger: #ff4d43;
   --before: #5a5953;
   --rain-opacity: 0.32;
