@@ -162,6 +162,19 @@ contact:
     q: Quero falar com o Anthony sobre uma vaga.
     offer_contact: true
 
+  # The page gives the resume and a cover letter as PDFs under the answer (22/11): the bot points there and never
+  # says it can't send them, and the resume line never shows.
+  - id: resume-pdf
+    q: so send me his resume in pdf
+    expect: [[below]]
+    forbid: ["can.?t send", "cannot send", "unable to send", "don.?t have (his|a|the) (resume|cv)", '\[\[resume']
+
+  - id: resume-pt
+    q: Pode me mandar o currículo dele em PDF?
+    page_lang: pt
+    expect: [[abaixo, embaixo]]
+    forbid: ["não posso enviar", "não consigo enviar", "não tenho o currículo", '\[\[resume']
+
   - id: no-contact-on-facts
     q: Which forecasting model won in his research?
     offer_contact: false
