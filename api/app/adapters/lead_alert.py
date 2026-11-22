@@ -31,6 +31,19 @@ class N8nAlert:
             raise LeadUnavailable() from error
 
 
+def resume_alert(url: str, post: Callable[[str, bytes], None]) -> Callable[[str, str, str], None]:
+    """A tailored resume pair went out: Anthony learns the company, role and language, never the post or the files."""
+
+    def send(company: str, role: str, lang: str) -> None:
+        body = {"kind": "resume", "company": company, "role": role, "page_lang": lang}
+        try:
+            post(url, json.dumps(body, ensure_ascii=False).encode())
+        except OSError:
+            log.warning("resume pair sent, but the alert to Anthony failed")
+
+    return send
+
+
 class SaveThenAlert:
     def __init__(self, store: LeadSink, alert: LeadSink):
         self.store = store

@@ -13,10 +13,10 @@ RUN cd /app/models/multilingual-e5-small \
  && python -c "import sys, urllib.request as u; [u.urlretrieve(sys.argv[1] + '/' + f, f.split('/')[-1]) for f in ('onnx/model_quantized.onnx', 'tokenizer.json')]" "$E5" \
  && sha256sum -c SHA256SUMS
 COPY api/app ./app
-COPY knowledge/facts.md ./knowledge/facts.md
+COPY knowledge/facts.md knowledge/resume.yaml ./knowledge/
 RUN useradd --create-home --uid 10001 api
 USER api
-ENV PATH="/app/.venv/bin:$PATH" FACTS_PATH=/app/knowledge/facts.md \
+ENV PATH="/app/.venv/bin:$PATH" FACTS_PATH=/app/knowledge/facts.md RESUME_PATH=/app/knowledge/resume.yaml \
     FORWARDED_ALLOW_IPS=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 EXPOSE 8000
 # Trust X-Forwarded-For only from the private Docker networks (Easypanel's Traefik), walked from the right, so a

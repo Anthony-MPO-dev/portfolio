@@ -10,6 +10,7 @@ from tests.test_search import PASSAGES, fake_embed
 from app.ports import Attachment, AttachmentRejected, ModelReply
 from app.services.chat import ChatService, Limits
 from app.services.lead import LeadService
+from app.services.resume import ResumeResult
 from tests.fakes import FakeFormCounter, FakeLeadSink, FakeModel, FakeQuestionLog, FakeStore
 
 ORIGIN = "https://anthonymuniz.dev"
@@ -43,7 +44,7 @@ def events(response):
 
 class World:
     def __init__(self, model=None, limits=Limits(), jobs=(), peer="testclient", engine="worker", guard=None, convert=None,
-                 human=None, search=True, person=None):  # fmt: skip
+                 human=None, search=True, person=None, resume=None):  # fmt: skip
         self.alerts = []
         self.model = model or FakeModel()
         self.store = FakeStore()
@@ -58,7 +59,7 @@ class World:
         worker = self.worker if engine == "worker" else None
         app = create_app(
             chat=chat, lead=lead, worker=worker, worker_token=TOKEN, ip_key=b"k", origin=ORIGIN, alert=self.alerts.append,
-            search=SearchService(FactSearch(PASSAGES, fake_embed), self.store) if search else None
+            search=SearchService(FactSearch(PASSAGES, fake_embed), self.store) if search else None, resume=resume,
         )
         self.client = TestClient(app, base_url=ORIGIN, client=(peer, 50000))
 
@@ -345,3 +346,49 @@ def test_a_forged_cookie_or_a_refused_proof_gets_no_number():
     world.client.cookies.set("__Host-chat_sid", "made-up")
     forged = world.client.post("/api/lead", json=LEAD, headers={**SAME_SITE, "X-Human": "script"}).json()
     assert (forged, len(world.sink.saved)) == ({"status": "ok"}, 1)
+
+
+class FakeResume:
+    """The resume use case as the routes see it: a pair for session sid-1, the PDF of its token."""
+
+    def __init__(self):
+        self.calls = []
+
+    def pair(self, sid, client_key, job, page_lang):
+        self.calls.append((sid, job, page_lang))
+        return ResumeResult("ok", "tok", "en", "Acme", "AI Engineer") if sid == "sid-1" else ResumeResult("no_session")
+
+    def file(self, sid, token, kind):
+        return b"%PDF-1.4 resume" if (sid, token, kind) == ("sid-1", "tok", "resume") else None
+
+
+def test_the_resume_route_gives_the_pair_of_the_visitors_session():
+    world = World(resume=FakeResume())
+    world.client.cookies.set("__Host-chat_sid", "sid-1")
+    response = world.client.post("/api/resume", json={"job": "AI Engineer at Acme", "page_lang": "en"}, headers=SAME_SITE)
+    assert (response.status_code, response.json()) == (200, {"status": "ok", "token": "tok", "lang": "en", "company": "Acme", "role": "AI Engineer"})
+
+
+def test_the_resume_route_without_a_conversation_is_forbidden():
+    response = World(resume=FakeResume()).client.post("/api/resume", json={"job": "", "page_lang": "en"}, headers=SAME_SITE)
+    assert (response.status_code, response.json()["status"]) == (403, "no_session")
+
+
+def test_a_pdf_downloads_with_its_length_and_never_stays_in_a_cache():
+    world = World(resume=FakeResume())
+    world.client.cookies.set("__Host-chat_sid", "sid-1")
+    response = world.client.get("/api/resume/tok/resume.pdf", headers=SAME_SITE)
+    assert (response.status_code, response.content, response.headers["content-type"]) == (200, b"%PDF-1.4 resume", "application/pdf")
+    assert response.headers["content-length"] == "15" and response.headers["cache-control"] == "no-store"
+    assert "attachment" in response.headers["content-disposition"]
+
+
+@pytest.mark.parametrize("path, headers", [("/api/resume/tok/letter.pdf", SAME_SITE), ("/api/resume/tok/resume.pdf", {"Sec-Fetch-Site": "cross-site"})])
+def test_a_missing_pdf_or_another_sites_request_gets_nothing(path, headers):
+    world = World(resume=FakeResume())
+    world.client.cookies.set("__Host-chat_sid", "sid-1")
+    assert world.client.get(path, headers=headers).status_code in (403, 404)
+
+
+def test_without_the_resume_service_the_route_says_unavailable():
+    assert World().client.post("/api/resume", json={"job": ""}, headers=SAME_SITE).status_code == 503

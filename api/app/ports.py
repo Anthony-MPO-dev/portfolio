@@ -12,7 +12,11 @@ Tests: tests/test_chat.py and tests/test_lead.py, through the fakes in tests/fak
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import Literal, NotRequired, Protocol, TypedDict
+from typing import TYPE_CHECKING, Literal, NotRequired, Protocol, TypedDict
+
+
+if TYPE_CHECKING:
+    from app.resume import Draft
 
 
 class Turn(TypedDict):
@@ -191,3 +195,21 @@ class WorkerJobs(Protocol):
     def chunk(self, job_id: str, text: str) -> None: ...
 
     def finish(self, job_id: str, raw: str) -> None: ...
+
+
+class ResumeWriter(Protocol):
+    def tailor(self, job: str) -> tuple[str, "Draft"]:
+        """The job post's language ("en" or "pt") and a draft for it. Raises ModelUnavailable when it can't."""
+        ...
+
+
+class ResumeFiles(Protocol):
+    def hit(self, client_key: str) -> tuple[int, int]:
+        """Count one tailored pair: this visitor's and the whole site's totals today, this one included."""
+        ...
+
+    def put(self, sid: str, token: str, files: dict[str, bytes]) -> None:
+        """Keep a session's tailored pair for an hour."""
+        ...
+
+    def get(self, sid: str, token: str, kind: str) -> bytes | None: ...

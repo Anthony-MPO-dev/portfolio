@@ -49,3 +49,16 @@ def test_n8n_down_is_reported_as_unavailable():
 
     with pytest.raises(LeadUnavailable):
         N8nAlert("https://n8n.example/webhook/lead", post=post).save(LEAD)
+
+
+def test_a_resume_alert_names_the_company_role_and_language_and_never_fails_the_visitor():
+    from app.adapters.lead_alert import resume_alert
+
+    sent = []
+    resume_alert("https://n8n.example/hook", lambda url, body: sent.append(json.loads(body)))("Acme", "AI Engineer", "en")
+    assert sent == [{"kind": "resume", "company": "Acme", "role": "AI Engineer", "page_lang": "en"}]
+
+    def down(url, body):
+        raise OSError("n8n down")
+
+    resume_alert("https://n8n.example/hook", down)("Acme", "AI Engineer", "en")  # no exception

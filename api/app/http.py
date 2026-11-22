@@ -31,6 +31,7 @@ from app.client_ip import client_ip, ip_source
 from app.ports import WorkerJobs
 from app.services.chat import ChatService
 from app.services.lead import LeadService
+from app.services.resume import ResumeService
 from app.services.search import SearchService
 
 COOKIE = "__Host-chat_sid"
@@ -59,6 +60,11 @@ class ChatIn(BaseModel):
     page_lang: str = Field("en", max_length=10)
     attachments: list[FileId] = Field(default_factory=list, max_length=3)  # ids from /api/attachments
     human: str | None = Field(None, max_length=2048)  # Turnstile token (2,048 at most), only to open a conversation
+
+
+class ResumeIn(BaseModel):
+    job: str = Field("", max_length=20000)  # the use case enforces the real 8,000-character limit
+    page_lang: str = Field("en", max_length=10)
 
 
 class SearchIn(BaseModel):
@@ -94,6 +100,7 @@ def create_app(
     origin: str,
     alert: Callable[[str], None] = lambda reason: None,
     search: SearchService | None = None,
+    resume: ResumeService | None = None,
 ) -> FastAPI:
     """`worker` is the local-worker engine's job queue; None (another engine) leaves the worker routes out."""
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -154,6 +161,23 @@ def create_app(
             return JSONResponse({"status": answer.status}, CODES[answer.status])
         hits = [{"id": h.id, "score": h.score} for h in answer.found.hits]
         return JSONResponse({"status": "ok", "hits": hits, "x": answer.found.xy[0], "y": answer.found.xy[1]})
+
+    @app.post("/api/resume", dependencies=browser)
+    def post_resume(body: ResumeIn, request: Request) -> Response:
+        if resume is None:
+            return JSONResponse({"status": "unavailable"}, 503)
+        result = resume.pair(request.cookies.get(COOKIE), client_key(request), body.job, body.page_lang)
+        data = {"status": result.status, "token": result.token, "lang": result.lang, "company": result.company, "role": result.role}
+        return JSONResponse(data, {"no_session": 403, "invalid": 400}.get(result.status, 200))
+
+    @app.get("/api/resume/{token}/{kind}.pdf", dependencies=[Depends(same_origin)])
+    def get_resume(token: str, kind: str, request: Request) -> Response:
+        """The bytes with their length (the page shows the download's percentage), as a file to save, never cached."""
+        pdf = resume.file(request.cookies.get(COOKIE), token, kind) if resume else None
+        if pdf is None:
+            raise HTTPException(404)
+        name = "Anthony_Muniz_Resume.pdf" if kind == "resume" else "Anthony_Muniz_Cover_Letter.pdf"
+        return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     @app.post("/api/chat", dependencies=browser)
     def post_chat(body: ChatIn, request: Request) -> Response:

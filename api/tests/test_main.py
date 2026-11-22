@@ -193,3 +193,10 @@ def test_the_whatsapp_number_uses_the_strict_browser_check_and_the_chat_the_leni
     chat.is_person("token")
     chat.human("token")
     assert calls == [True, False]
+
+
+def test_the_resume_routes_exist_and_a_broken_private_part_stops_the_start(env):
+    paths = {route.path for route in build(env, FACTS).routes}
+    assert {"/api/resume", "/api/resume/{token}/{kind}.pdf"} <= paths
+    with pytest.raises(ConfigError, match="RESUME_PRIVATE"):
+        build({**env, "RESUME_PRIVATE": "not json"}, FACTS)

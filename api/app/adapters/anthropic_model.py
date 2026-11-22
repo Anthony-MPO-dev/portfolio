@@ -12,7 +12,7 @@ and never half an answer; after 3 failures in a row the API is skipped for 30 s 
 answer reports what it cost, also one cut short (the output guard blocked it, the visitor left, the stream broke): the
 usage the API returned, or what the stream knew so far plus an estimate of the output, so the use case can close
 the chat for the day at its budget. `connect` builds the client, so the provider stays in this module.
-Public API: AnthropicModel (a ChatModel; AnthropicModel.connect), cost_usd, MODEL, LABEL.
+Public API: AnthropicModel (a ChatModel; AnthropicModel.connect), client_for, cost_usd, MODEL, LABEL.
 Used by: app.main when ANTHROPIC_API_KEY is set, golden.test_live (the same engine for the golden set).
 Depends on: anthropic (SDK), httpx2, app.adapters.prompt, app.breaker, app.ports.
 Tests: tests/test_anthropic_model.py.
@@ -62,6 +62,16 @@ def _so_far(stream, raw: str):
     )
 
 
+def client_for(api_key: str, workspace: str | None = None, timeout: float = 45):
+    """An API client: a key not scoped to a workspace needs the workspace id."""
+    headers = {"anthropic-workspace-id": workspace} if workspace else None
+    wait = anthropic.Timeout(max(timeout, 60), connect=5.0, read=45.0)  # read: the longest silence between pieces
+    return anthropic.Anthropic(
+        api_key=api_key, timeout=wait, max_retries=1, default_headers=headers,
+        open_telemetry={"propagation": False, "traces": False},  # no trace id to the API, no spans of its own
+    )  # fmt: skip
+
+
 class AnthropicModel:
     def __init__(
         self,
@@ -81,14 +91,8 @@ class AnthropicModel:
     def connect(
         cls, api_key: str, system: str, *, workspace: str | None = None, timeout: float = 45, **kwargs
     ) -> "AnthropicModel":
-        """The engine with its own client: a key not scoped to a workspace needs the workspace id."""
-        headers = {"anthropic-workspace-id": workspace} if workspace else None
-        wait = anthropic.Timeout(max(timeout, 60), connect=5.0, read=45.0)  # read: the longest silence between pieces
-        client = anthropic.Anthropic(
-            api_key=api_key, timeout=wait, max_retries=1, default_headers=headers,
-            open_telemetry={"propagation": False, "traces": False},  # no trace id to the API, no spans of its own
-        )  # fmt: skip
-        return cls(client, system, **kwargs)
+        """The engine with its own client."""
+        return cls(client_for(api_key, workspace, timeout), system, **kwargs)
 
     def stream(
         self, history: list[Turn], message: str, page_lang: str, attachments: Sequence[Attachment] = ()

@@ -21,6 +21,7 @@ Tests: tests/test_main.py.
 """
 
 import hashlib
+import json
 import logging
 import os
 import secrets
@@ -34,12 +35,13 @@ import psycopg
 import redis
 from fastapi import FastAPI
 
-from app.adapters.anthropic_model import AnthropicModel
-from app.adapters.lead_alert import N8nAlert, SaveThenAlert
+from app.adapters.anthropic_model import AnthropicModel, client_for
+from app.adapters.lead_alert import N8nAlert, SaveThenAlert, resume_alert
 from app.adapters.onnx_embedder import E5_PREFIXES, OnnxEmbedder
 from app.adapters.postgres import Db, PostgresLeadSink, PostgresQuestionLog, ensure_schema, purge_expired
 from app.adapters.prompt import system_prompt
-from app.adapters.redis_store import RedisAnswerCache, RedisStore
+from app.adapters.redis_store import RedisAnswerCache, RedisResumeFiles, RedisStore
+from app.adapters.resume_writer import AnthropicResumeWriter
 from app.adapters.security_alert import N8nSecurityAlert
 from app.adapters.turnstile import TurnstileCheck
 from app.adapters.worker_queue import WorkerQueue
@@ -48,8 +50,10 @@ from app.http import create_app
 from app.http_post import Poster
 from app.output_guard import check
 from app.search.passages import passages
-from app.services.chat import ChatService
+from app.resume import allowed_numbers, load as load_resume
+from app.services.chat import ChatService, Limits
 from app.services.lead import LeadService
+from app.services.resume import ResumeLimits, ResumeService
 from app.services.search import Embed, FactSearch, SearchService
 from app.tracing import TraceRequests, make_tracer, traced
 
@@ -59,6 +63,7 @@ MIN_SECRET = 32
 PURGE_EVERY = 6 * 3600  # seconds
 RETRY = 60  # seconds, after Postgres failed
 DEFAULT_FACTS = Path(__file__).resolve().parents[2] / "knowledge" / "facts.md"
+DEFAULT_RESUME = Path(__file__).resolve().parents[2] / "knowledge" / "resume.yaml"
 DEFAULT_SEARCH_MODEL = "/app/models/multilingual-e5-small"  # downloaded into the image (api/Dockerfile)
 
 
@@ -80,6 +85,14 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
     if engine == "anthropic" and not env.get("ANTHROPIC_API_KEY"):
         raise ConfigError("MODEL_ENGINE=anthropic needs ANTHROPIC_API_KEY")
 
+    try:  # city, places and the credit fund's name: only in the resume PDFs, never in the repo
+        private = json.loads(env.get("RESUME_PRIVATE") or "{}")
+    except json.JSONDecodeError as error:
+        raise ConfigError("RESUME_PRIVATE must be a JSON object") from error
+    if not isinstance(private, dict):
+        raise ConfigError("RESUME_PRIVATE must be a JSON object")
+    bases = load_resume(Path(env.get("RESUME_PATH") or DEFAULT_RESUME), private)
+
     timeout = int(env.get("MODEL_TIMEOUT", "45"))
     tracer = make_tracer(int(env.get("TRACE_SLOW_MS", "2000")))
     # Two pooled clients: quick calls fail within seconds; the queue's blocking waits get their own, longer socket.
@@ -93,8 +106,10 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
     canary = secrets.token_hex(12)  # new on every start: it shows up in a reply only if the prompt leaked
     system = system_prompt(facts, canary=canary)
     queue = WorkerQueue(waits, system, timeout=timeout)
-    model = queue
+    model, writer = queue, None
     if engine == "anthropic":
+        client = client_for(env["ANTHROPIC_API_KEY"], env.get("ANTHROPIC_WORKSPACE_ID"), timeout)
+        writer = traced(AnthropicResumeWriter(client, bases["en"], on_cost=store.add_spend), "resume", tracer)
         model = AnthropicModel.connect(
             env["ANTHROPIC_API_KEY"], system, workspace=env.get("ANTHROPIC_WORKSPACE_ID"), timeout=timeout,
             on_cost=store.add_spend,
@@ -119,6 +134,10 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
     )
     sink = traced(SaveThenAlert(PostgresLeadSink(db), N8nAlert(env["LEAD_WEBHOOK_URL"], post=post)), "lead", tracer)
     lead = LeadService(sink, store, whatsapp=env["CONTACT_WHATSAPP"])
+    resume = ResumeService(
+        store, traced(RedisResumeFiles(r), "redis", tracer), writer, bases, allowed_numbers(facts, bases),
+        limits=ResumeLimits(budget_day=Limits().budget_day), alert=resume_alert(env["LEAD_WEBHOOK_URL"], post),
+    )  # fmt: skip
     api = create_app(
         chat=chat,
         lead=lead,
@@ -128,6 +147,7 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
         origin=env.get("SITE_ORIGIN", "https://anthonymuniz.dev"),
         alert=alert,
         search=SearchService(FactSearch(passages(facts), traced(embed, "embed", tracer)), store) if embed else None,
+        resume=resume,
     )
     api.add_middleware(TraceRequests, tracer=tracer)
     api.state.db = db

@@ -172,3 +172,27 @@ class RedisAnswerCache:
 
     def _key(self, lang: str, question: str) -> str:
         return f"chat:c:{self.version}:{lang}:{hashlib.sha256(question.encode()).hexdigest()}"
+
+
+class RedisResumeFiles:
+    """The tailored resume pairs, an hour per session (base64: the client decodes responses as text), and the daily
+    counts of pairs written, per visitor and for the whole site."""
+
+    def __init__(self, redis: Redis, now: Callable[[], datetime] = lambda: datetime.now(UTC)):
+        self.redis = redis
+        self.now = now
+
+    def hit(self, client_key: str) -> tuple[int, int]:
+        day = f"{self.now():%Y%m%d}"
+        pipe = self.redis.pipeline()
+        for key in (f"chat:rv:{client_key}:{day}", f"chat:rg:{day}"):
+            pipe.incr(key).expire(key, 2 * DAY)
+        return tuple(pipe.execute()[::2])
+
+    def put(self, sid: str, token: str, files: dict[str, bytes]) -> None:
+        key = f"chat:resume:{sid}:{token}"
+        self.redis.pipeline().hset(key, mapping={k: base64.b64encode(v).decode() for k, v in files.items()}).expire(key, HOUR).execute()
+
+    def get(self, sid: str, token: str, kind: str) -> bytes | None:
+        value = self.redis.hget(f"chat:resume:{sid}:{token}", kind)
+        return base64.b64decode(value) if value else None
