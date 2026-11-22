@@ -1,7 +1,7 @@
 /* Chat: the launcher in the corner and the panel. On phones the panel is a full page over the site. Transcript
    style (a label over each message) instead of bubbles; replies keep their line breaks. */
-/* The launcher is a robot with a speech bubble on its head ("Ask me" and typing dots; on phones only the dots). It
-   blinks, its antenna pulses and every few seconds it hops, asking for the click. Transform and opacity only. */
+/* The launcher is the head of Anthony's Copiloto (his own brand art, 22/11) as an app icon, with a speech bubble on
+   it ("Ask me" and typing dots; on phones only the dots). It hops, asking for the click. Transform and opacity only. */
 .chat-launcher {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
@@ -56,27 +56,11 @@
   animation-delay: 0.3s;
 }
 .chat-bot {
+  display: block;
   width: 56px;
   height: 56px;
-}
-.chat-bot line {
-  stroke: var(--ink);
-  stroke-width: 2.5;
-}
-.chat-bot circle {
-  fill: var(--accent-fill);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: bot-pulse 1.6s ease-in-out 3;
-}
-.chat-bot-head {
-  fill: var(--ink);
-}
-.chat-bot-eye {
-  fill: var(--on-ink);
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: bot-blink 5s;
+  border-radius: 14px; /* the rounded app icon of the Copiloto's brand sheet */
+  box-shadow: 0 0 0 1px var(--line);
 }
 /* It moves for about 5 seconds after the page loads, then rests (WCAG 2.2.2); pointing at it or focusing it plays it
    again, under other names so the finished animations restart. */
@@ -98,13 +82,6 @@
   78% { transform: translateY(-6px) rotate(-4deg); }
   86% { transform: rotate(3deg); }
   92% { transform: none; }
-}
-@keyframes bot-blink {
-  0%, 46%, 50%, 100% { transform: none; }
-  48% { transform: scaleY(0.1); }
-}
-@keyframes bot-pulse {
-  50% { transform: scale(1.5); opacity: 0.6; }
 }
 @keyframes bot-dot {
   0%, 60%, 100% { transform: none; opacity: 0.4; }

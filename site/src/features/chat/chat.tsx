@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
+import copilotHead from "@/assets/copilot-head.webp";
 import { contact } from "@/content/profile";
 import { conversation } from "./api";
 import { CHAT_ASK } from "@/lib/events";
@@ -127,13 +128,8 @@ export function Chat({ lang }: { lang: Lang }) {
             <i />
           </span>
         </span>
-        <svg className="chat-bot" viewBox="0 0 58 58" aria-hidden="true">
-          <line x1="29" y1="6" x2="29" y2="15" />
-          <circle cx="29" cy="6" r="4" />
-          <rect className="chat-bot-head" x="6" y="14" width="46" height="38" rx="9" />
-          <rect className="chat-bot-eye" x="17" y="27" width="8" height="10" rx="2" />
-          <rect className="chat-bot-eye" x="33" y="27" width="8" height="10" rx="2" />
-        </svg>
+        {/* decorative: the button's name says what it does */}
+        <img className="chat-bot" src={copilotHead} width={56} height={56} alt="" decoding="async" />
       </button>
       <section
         id="chat"
