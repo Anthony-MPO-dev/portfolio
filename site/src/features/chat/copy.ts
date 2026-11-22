@@ -6,7 +6,7 @@ import type { FileRefusal } from "./api";
 import type { Notice } from "./state";
 
 const en = {
-  launcher: "Ask about Anthony",
+  launcher: "Ask me about Anthony",
   nudge: "Ask me",
   title: "Ask about Anthony",
   sub: "An AI assistant that answers from Anthony's public profile. It can be wrong.",

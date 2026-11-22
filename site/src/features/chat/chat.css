@@ -15,7 +15,7 @@
   background: none;
   color: var(--ink);
   cursor: pointer;
-  animation: bot-hop 4s ease-in-out infinite;
+  animation: bot-hop 4s ease-in-out;
 }
 .chat-launcher:focus-visible {
   outline-offset: 4px;
@@ -47,7 +47,7 @@
   width: 5px;
   height: 5px;
   background: currentColor;
-  animation: bot-dot 1.2s ease-in-out infinite;
+  animation: bot-dot 1.2s ease-in-out 4;
 }
 .chat-dots i:nth-child(2) {
   animation-delay: 0.15s;
@@ -67,7 +67,7 @@
   fill: var(--accent-fill);
   transform-box: fill-box;
   transform-origin: center;
-  animation: bot-pulse 1.6s ease-in-out infinite;
+  animation: bot-pulse 1.6s ease-in-out 3;
 }
 .chat-bot-head {
   fill: var(--ink);
@@ -76,9 +76,24 @@
   fill: var(--on-ink);
   transform-box: fill-box;
   transform-origin: center;
-  animation: bot-blink 5s infinite;
+  animation: bot-blink 5s;
+}
+/* It moves for about 5 seconds after the page loads, then rests (WCAG 2.2.2); pointing at it or focusing it plays it
+   again, under other names so the finished animations restart. */
+.chat-launcher:is(:hover, :focus-visible) {
+  animation: bot-hop-again 4s ease-in-out infinite;
+}
+.chat-launcher:is(:hover, :focus-visible) .chat-dots i {
+  animation-name: bot-dot-again;
+  animation-iteration-count: infinite;
 }
 @keyframes bot-hop {
+  0%, 70%, 100% { transform: none; }
+  78% { transform: translateY(-6px) rotate(-4deg); }
+  86% { transform: rotate(3deg); }
+  92% { transform: none; }
+}
+@keyframes bot-hop-again {
   0%, 70%, 100% { transform: none; }
   78% { transform: translateY(-6px) rotate(-4deg); }
   86% { transform: rotate(3deg); }
@@ -92,6 +107,10 @@
   50% { transform: scale(1.5); opacity: 0.6; }
 }
 @keyframes bot-dot {
+  0%, 60%, 100% { transform: none; opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+@keyframes bot-dot-again {
   0%, 60%, 100% { transform: none; opacity: 0.4; }
   30% { transform: translateY(-3px); opacity: 1; }
 }
