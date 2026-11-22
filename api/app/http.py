@@ -170,10 +170,7 @@ def create_app(
             lines = (json.dumps(event, ensure_ascii=False) + "\n" for event in result.events)
             response = StreamingResponse(lines, media_type="application/x-ndjson", headers={"X-Accel-Buffering": "no"})
         else:
-            response = JSONResponse(
-                {"status": result.status, "reply": result.reply, "offer_contact": result.offer_contact},
-                CODES[result.status],
-            )
+            response = JSONResponse({"status": result.status, "offer_contact": result.offer_contact}, CODES[result.status])
         return remember(response, result.session_id, sid)
 
     @app.post("/api/attachments", dependencies=upload)

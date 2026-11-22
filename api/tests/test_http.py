@@ -102,11 +102,11 @@ def test_requests_from_other_sites_are_refused(headers):
     assert (world.chat(headers=headers).status_code, world.model.calls) == (403, [])
 
 
-def test_limits_come_back_as_429_with_the_status():
+def test_limits_come_back_as_429_with_the_status_and_no_text():
     world = World(limits=Limits(per_ip_hour=1))
     world.chat()
     response = world.chat()
-    assert (response.status_code, response.json()["status"]) == (429, "rate_limited")
+    assert (response.status_code, response.json()) == (429, {"status": "rate_limited", "offer_contact": False})
 
 
 def test_offline_is_a_normal_answer_with_the_contact_offer():

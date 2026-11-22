@@ -1,9 +1,11 @@
 """Chat use case: what a visitor gets back for each message, under the limits, session rules and offline cases."""
 
+from types import SimpleNamespace
+
 import pytest
 
 from app.ports import ModelReply
-from app.services.chat import ChatResult, ChatService, Limits
+from app.services.chat import ChatService, Limits
 from tests.fakes import FakeCache, FakeModel, FakeQuestionLog, FakeStore
 
 IP = "client-a"
@@ -34,7 +36,8 @@ def ask(chat: ChatService, message: str, sid: str | None = None, ip: str = IP, l
         else:
             done = event
     text = "".join(pieces).strip()
-    return ChatResult(done["status"], result.session_id, text if done["status"] == "ok" else None, done["offer_contact"])
+    reply = text if done["status"] == "ok" else None
+    return SimpleNamespace(status=done["status"], session_id=result.session_id, reply=reply, offer_contact=done["offer_contact"])
 
 
 def test_new_visitor_gets_a_session_and_the_model_reply():

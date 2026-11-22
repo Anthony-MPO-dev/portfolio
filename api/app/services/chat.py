@@ -62,7 +62,6 @@ Status = Literal[
 class ChatResult:
     status: Status
     session_id: str | None = None
-    reply: str | None = None
     offer_contact: bool = False
     events: Iterator[dict] | None = None  # an "ok" answer streams: delta events, then one done event
 
