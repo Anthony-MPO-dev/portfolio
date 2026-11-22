@@ -4,6 +4,7 @@
 // motion the text shows at once, without sound.
 // Public API: useTypewriter, getSound, setSound. Used by: fact-search.tsx. Tests: map.test.ts (typedLengths).
 import { useEffect, useState } from "react";
+import { reducedMotion } from "@/lib/entry";
 import { typedLengths } from "./map";
 
 const KEY = "fact-search-sound";
@@ -57,8 +58,6 @@ function keyClick() {
     // no audio here: the text still types
   }
 }
-
-const reducedMotion = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // How much of each text is typed: one text after the other, `cps` characters a second, a click every 55 to 100 ms.
 export function useTypewriter(texts: string[], key: string, cps = 220): number[] {

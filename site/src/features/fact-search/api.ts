@@ -27,7 +27,6 @@ export async function searchFacts(q: string): Promise<SearchResult> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ q }),
-      credentials: "same-origin",
     });
     const data = (await response.json()) as { status?: string; hits?: Hit[]; x?: number; y?: number };
     if (data.status === "ok" && Array.isArray(data.hits)) return { status: "ok", hits: data.hits, x: Number(data.x), y: Number(data.y) };

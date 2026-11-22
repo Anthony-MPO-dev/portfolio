@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { type ComponentType, lazy, Suspense, type ReactNode } from "react";
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 // Fonts are served from the site (hashed, immutable assets), with swap: no third-party request before the text shows.
 import "@fontsource-variable/archivo/wdth.css";
@@ -8,7 +8,7 @@ import monoLatin from "@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-n
 import "@/styles/global.css";
 import { useLang } from "@/hooks/use-lang";
 import { FONT_BOOT } from "@/lib/fonts";
-import { HTML_LANG, LANG_BOOT } from "@/lib/lang";
+import { HTML_LANG, type Lang, LANG_BOOT } from "@/lib/lang";
 
 // HTML shell of every prerendered page: fonts, the page's language (lang, from its path), and the boot script.
 
@@ -47,9 +47,16 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 // The chat stays out of the page until its security work is done: only a build with VITE_CHAT=1 includes it, and
-// then it loads after the page.
+// then it loads after the page. If its file fails to load (a dropped request, or a chunk an older cached page names),
+// the page goes on without the chat instead of falling to the error screen.
 const Chat =
-  import.meta.env.VITE_CHAT === "1" ? lazy(() => import("@/features/chat/chat").then((m) => ({ default: m.Chat }))) : null;
+  import.meta.env.VITE_CHAT === "1"
+    ? lazy<ComponentType<{ lang: Lang }>>(() =>
+        import("@/features/chat/chat")
+          .then((m) => ({ default: m.Chat }))
+          .catch(() => ({ default: () => null })),
+      )
+    : null;
 
 export default function App() {
   const lang = useLang();

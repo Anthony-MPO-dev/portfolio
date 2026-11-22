@@ -136,7 +136,8 @@ export default function Home() {
         </section>
 
         <BotTests />
-        <FactSearch start={lang} />
+        {/* keyed: / and /pt/ share this module, so the header's EN | PT starts the search over in the new language */}
+        <FactSearch key={lang} start={lang} />
 
         <section className="services typed">
           <h2 className="label">

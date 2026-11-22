@@ -21,7 +21,8 @@
   height: 8px;
   background: var(--accent);
 }
-.chat-launcher[hidden] {
+.chat-launcher[hidden],
+.chat[hidden] {
   display: none;
 }
 
