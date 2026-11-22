@@ -4,7 +4,7 @@ Responsibility: run every question of evals/search_set.yaml through app.services
 (api/.models/multilingual-e5-small, the files the API image downloads; out of git) and print hit@1, hit@3 and the mean
 reciprocal rank per language, on the 5 the page shows in the order it shows them (a right passage left out counts
 as rank 6), with the misses and the time per question. It's how the model and the keyword fusion were
-chosen (12/11: 27 of 30 in the top 3), and how a change to either is checked.
+chosen (12/11, last run: 28 of 30 in the top 3 shown, en 9, pt 10, fr 9), and how a change to either is checked.
 Run from api/: uv run python -m golden.search_eval
 Public API: none (script).
 Used by: Anthony's PC (dev only, not in the API image).

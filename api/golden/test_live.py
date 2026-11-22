@@ -13,7 +13,7 @@ Run from api/ (one model call per case). With ANTHROPIC_API_KEY set, each case g
   GOLDEN_REPORT=../site/src/content/bot-tests.json EVAL_FORBIDDEN_TERMS="..." uv run pytest golden -q
 Not collected by the unit run (testpaths is tests/). PORTFOLIO_WORKER_MODEL picks the worker's model (haiku).
 Public API: none (pytest module).
-Used by: Anthony's PC before each deploy (phase 3 moves it to CI).
+Used by: Anthony's PC before each deploy (ops/golden-report.ps1). Never the CI: it calls no paid model.
 Depends on: golden.grading, app.adapters.prompt, app.adapters.anthropic_model (with a key), worker.pc_worker and the
 claude CLI (without one).
 Tests: this is the test; its grading has unit tests in tests/test_golden.py.
