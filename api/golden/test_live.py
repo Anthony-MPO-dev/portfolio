@@ -1,8 +1,8 @@
 """Golden set, live: every case of evals/golden_set.yaml through the same path as production.
 
-Responsibility: for each case, build the system prompt from knowledge/facts.md (plus a fresh canary when the case
-asks), send the visitor text through the worker's isolated `claude -p`, read the answer with the API's parser and
-grade it. A failure shows the reply with the secret terms masked; a run error (the worker refusing a tool call, for
+Responsibility: for each case, build the system prompt from knowledge/facts.md with a fresh canary (production plants
+one on every start), send the visitor text through the model, read the answer with the API's parser and grade it. A
+failure shows the reply with the secret terms masked; a run error (the worker refusing a tool call, for
 one) is a failure too, so no case drops out of the count. With GOLDEN_REPORT set to a path, a complete run is also
 written there as JSON for the site's "How this bot is tested" (site/src/content/bot-tests.json); the author runs it
 with ops/golden-report.ps1, which asks for the secret terms with the typing hidden.
@@ -59,7 +59,7 @@ def report():
 
 @pytest.mark.parametrize("case", CASES, ids=[c.id for c in CASES])
 def test_case(case, tmp_path):
-    canary = secrets.token_hex(8) if case.canary else None
+    canary = secrets.token_hex(12)  # as app.main plants it
     job = {
         "system": system_prompt(FACTS, canary=canary),
         "prompt": transcript(case.history, case.q, case.page_lang),
