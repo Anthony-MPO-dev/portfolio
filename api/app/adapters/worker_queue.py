@@ -13,7 +13,7 @@ so a 20 s poll or a 45 s wait never trips it. Keys, all with an expiry:
 - chat:worker:seen   set on every poll, job handed out and answer; missing means the PC is off
 Public API: WorkerQueue.stream (ChatModel), WorkerQueue.next_job, .chunk and .finish (the worker routes).
 Used by: the API composition (app.main) and the worker routes.
-Depends on: redis-py, app.adapters.prompt (transcript, parse_reply, without_contact), app.ports.
+Depends on: redis-py, app.adapters.prompt (transcript, parse_reply, without_markers), app.ports.
 Tests: tests/test_worker_queue.py (fakeredis; a real local Redis when REDIS_TEST_URL is set).
 """
 
@@ -25,7 +25,7 @@ from collections.abc import Iterator, Sequence
 
 from redis import Redis
 
-from app.adapters.prompt import parse_reply, transcript, without_contact
+from app.adapters.prompt import parse_reply, transcript, without_markers
 from app.ports import Attachment, Job, ModelReply, ModelUnavailable, Turn
 
 JOBS = "chat:jobs"
@@ -48,7 +48,7 @@ class WorkerQueue:
     ) -> Iterator[str | ModelReply]:
         """Yield the answer's text pieces as the worker writes them, then the final ModelReply. File texts go in the
         prompt; images ride in the job as base64 PNG, which the worker sends as image blocks."""
-        return without_contact(self._run(history, message, page_lang, attachments))
+        return without_markers(self._run(history, message, page_lang, attachments))
 
     def _run(
         self, history: list[Turn], message: str, page_lang: str, attachments: Sequence[Attachment]

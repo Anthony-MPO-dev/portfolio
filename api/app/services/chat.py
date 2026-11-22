@@ -17,6 +17,7 @@ Tests: tests/test_chat.py, tests/test_chat_attachments.py.
 """
 
 import logging
+import re
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -252,8 +253,9 @@ class ChatService:
                 lines = " ".join(f"[attachment-{n}: {f.summary}]" for n, f in enumerate(files, 1))
                 self.store.append_turn(sid, f"{message}\n{lines}" if lines else message, text)
             if question and not cached:
-                self.cache.put(lang, question, ModelReply(text, final.offer_contact))
-            yield {"type": "done", "status": "ok", "offer_contact": final.offer_contact}
+                self.cache.put(lang, question, ModelReply(text, final.offer_contact, final.offer_resume))
+            resume = final.offer_resume or bool(ASKS_FOR_RESUME.search(message))
+            yield {"type": "done", "status": "ok", "offer_contact": final.offer_contact, "offer_resume": resume}
         finally:
             self.store.release_lock(sid)
             if ids:
@@ -263,6 +265,10 @@ class ChatService:
         log.warning("reply blocked by the output guard: %s", reason)  # the reason only, never the text
         self.alert(f"output guard: {reason}")
         return {"type": "done", "status": "blocked", "offer_contact": True}
+
+
+# A visitor asking for the resume gets the panel even when the model forgot the resume line.
+ASKS_FOR_RESUME = re.compile(r"\bresum[eé]s?\b|r[eé]sum[eé]|\bcv\b|curr[ií]cul|cover letter|carta de apresenta", re.IGNORECASE)
 
 
 def _over(counts: tuple[int, int], hour: int, day: int) -> bool:

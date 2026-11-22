@@ -37,7 +37,10 @@ def ask(chat: ChatService, message: str, sid: str | None = None, ip: str = IP, l
             done = event
     text = "".join(pieces).strip()
     reply = text if done["status"] == "ok" else None
-    return SimpleNamespace(status=done["status"], session_id=result.session_id, reply=reply, offer_contact=done["offer_contact"])
+    return SimpleNamespace(
+        status=done["status"], session_id=result.session_id, reply=reply, offer_contact=done["offer_contact"],
+        offer_resume=done.get("offer_resume", False),
+    )  # fmt: skip
 
 
 def test_new_visitor_gets_a_session_and_the_model_reply():
@@ -172,6 +175,22 @@ def test_model_contact_signal_reaches_the_page():
     assert ask(chat, "Can I talk to him?").offer_contact is True
 
 
+def test_model_resume_signal_reaches_the_page():
+    chat, _, _ = make(FakeModel(ModelReply("They are below.", offer_contact=False, offer_resume=True)))
+    assert ask(chat, "Anything to read about him?").offer_resume is True
+
+
+@pytest.mark.parametrize("message", ["so send me his resume in pdf", "Can I get his CV?", "manda o currículo dele", "and a cover letter"])
+def test_asking_for_the_resume_offers_it_even_when_the_model_forgets_the_line(message):
+    chat, _, _ = make(FakeModel(ModelReply("Sure.", offer_contact=False)))
+    assert ask(chat, message).offer_resume is True
+
+
+def test_an_ordinary_question_offers_no_resume():
+    chat, _, _ = make(FakeModel(ModelReply("He has 3+ years of Python.", offer_contact=False)))
+    assert ask(chat, "How long has he used Python?").offer_resume is False
+
+
 def test_erased_conversation_is_gone_and_the_next_message_starts_a_new_one():
     chat, model, _ = make()
     sid = ask(chat, "My name is Jane").session_id
@@ -233,7 +252,7 @@ def test_only_whole_words_go_out_while_the_answer_is_written():
         {"type": "delta", "text": "He "},
         {"type": "delta", "text": "has 3+ "},
         {"type": "delta", "text": "years."},
-        {"type": "done", "status": "ok", "offer_contact": False},
+        {"type": "done", "status": "ok", "offer_contact": False, "offer_resume": False},
     ]
     assert store.history(result.session_id)[-1] == {"role": "assistant", "content": "He has 3+ years."}
 
@@ -260,7 +279,7 @@ def test_the_final_reply_decides_whether_the_page_offers_the_form():
     chat, _, _ = make(model)
     _, events = stream_events(chat)
     assert "".join(e["text"] for e in events if e["type"] == "delta") == "Anthony replies by email."
-    assert events[-1] == {"type": "done", "status": "ok", "offer_contact": True}
+    assert events[-1] == {"type": "done", "status": "ok", "offer_contact": True, "offer_resume": False}
 
 
 def test_the_session_stays_locked_while_the_answer_streams_and_is_freed_at_the_end():

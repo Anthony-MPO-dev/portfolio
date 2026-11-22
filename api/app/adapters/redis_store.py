@@ -167,7 +167,7 @@ class RedisAnswerCache:
         return ModelReply(**json.loads(raw)) if raw else None
 
     def put(self, lang: str, question: str, reply: ModelReply) -> None:
-        value = json.dumps({"text": reply.text, "offer_contact": reply.offer_contact}, ensure_ascii=False)
+        value = json.dumps({"text": reply.text, "offer_contact": reply.offer_contact, "offer_resume": reply.offer_resume}, ensure_ascii=False)
         self.redis.set(self._key(lang, question), value, ex=CACHE_TTL)
 
     def _key(self, lang: str, question: str) -> str:

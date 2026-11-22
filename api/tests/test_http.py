@@ -73,7 +73,7 @@ def test_new_visitor_gets_the_reply_and_a_strict_session_cookie():
     assert events(response) == [
         {"type": "delta", "text": "Hi "},
         {"type": "delta", "text": "there."},
-        {"type": "done", "status": "ok", "offer_contact": True},
+        {"type": "done", "status": "ok", "offer_contact": True, "offer_resume": False},
     ]
     assert response.headers["x-accel-buffering"] == "no" and "no-store" in response.headers["cache-control"]
     assert cookie.startswith("__host-chat_sid=sid-1;")

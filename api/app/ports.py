@@ -24,6 +24,7 @@ class Turn(TypedDict):
 class ModelReply:
     text: str
     offer_contact: bool
+    offer_resume: bool = False
 
 
 class ModelUnavailable(Exception):

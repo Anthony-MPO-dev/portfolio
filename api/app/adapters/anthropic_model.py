@@ -26,7 +26,7 @@ from types import SimpleNamespace
 import anthropic
 import httpx2
 
-from app.adapters.prompt import parse_reply, transcript, without_contact
+from app.adapters.prompt import parse_reply, transcript, without_markers
 from app.breaker import CircuitBreaker, CircuitOpen
 from app.ports import Attachment, ModelReply, ModelUnavailable, Turn
 
@@ -93,7 +93,7 @@ class AnthropicModel:
     def stream(
         self, history: list[Turn], message: str, page_lang: str, attachments: Sequence[Attachment] = ()
     ) -> Iterator[str | ModelReply]:
-        return without_contact(self._run(history, message, page_lang, attachments))
+        return without_markers(self._run(history, message, page_lang, attachments))
 
     def _open(self, content: list[dict]):
         manager = self.client.messages.stream(
