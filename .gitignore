@@ -5,7 +5,13 @@ __pycache__/
 .venv/
 node_modules/
 ESTADO.md
-.claude/settings.local.json
 .pytest_cache/
 site/build/
 site/.react-router/
+.claude/settings.local.json*
+ops/
+Perfil.jpeg
+cropped-image.jpg
+ChatGPT Image*.png
+site/public/models/
+api/.models/

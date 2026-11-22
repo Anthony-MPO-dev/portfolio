@@ -27,6 +27,7 @@ Tests: tests/test_redis_store.py (fakeredis; a real local Redis when REDIS_TEST_
 import base64
 import hashlib
 import json
+import re
 import secrets
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
@@ -114,7 +115,9 @@ class RedisStore:
         self.redis.delete(*(f"chat:a:{sid}:{aid}" for aid in ids))
 
     def delete_session(self, sid: str) -> None:
-        files = list(self.redis.scan_iter(f"chat:a:{sid}:*", count=100))  # uploaded and not yet sent
+        # the sid comes from the cookie: escaped, a "*" in it can't match everyone else's files
+        literal = re.escape(sid)  # a Redis glob reads backslash-anything as that very character
+        files = list(self.redis.scan_iter(f"chat:a:{literal}:*", count=100))  # uploaded and not yet sent
         self.redis.delete(f"chat:m:{sid}", f"chat:h:{sid}", f"chat:lock:{sid}", f"chat:ac:{sid}", *files)
 
     # counters

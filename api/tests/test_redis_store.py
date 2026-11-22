@@ -157,6 +157,13 @@ def test_erasing_a_session_removes_everything_stored_about_it(store, r):
     assert len(list(r.scan_iter("chat:*sid-2*"))) == 2
 
 
+@pytest.mark.parametrize("cookie", ["*", "?id-2", "[s]id-2", "sid-\\2"])
+def test_erasing_with_a_pattern_in_the_cookie_leaves_everyone_elses_files(store, r, cookie):
+    store.save_attachment("sid-2", Attachment("pdf", "pdf, 1 page", text="someone else's"))
+    store.delete_session(cookie)
+    assert len(list(r.scan_iter("chat:a:sid-2:*"))) == 1
+
+
 def test_the_chat_off_key_switches_the_chat_off(store, r):
     assert store.switched_off() is False
     r.set("chat:off", 1)
