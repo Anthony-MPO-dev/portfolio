@@ -17,8 +17,9 @@ export type Contact =
   | { step: "none" | "offered" | "email" }
   | { step: "form"; error: boolean }
   | { step: "sent"; whatsapp?: string };
-// partial: the answer as it streams in; it becomes an entry only when the answer ends "ok".
-export type State = { entries: Entry[]; pending: boolean; partial: string; files: FileChip[]; contact: Contact };
+// partial: the answer as it streams in; it becomes an entry only when the answer ends "ok". contactAt: the entry that
+// offered the contact; the form shows right after it, so messages sent later land below it, in view.
+export type State = { entries: Entry[]; pending: boolean; partial: string; files: FileChip[]; contact: Contact; contactAt: number | null };
 export type Action =
   | { type: "send"; text: string }
   | { type: "delta"; text: string }
@@ -30,7 +31,7 @@ export type Action =
   | { type: "leadDone"; result: LeadResult }
   | { type: "clear" };
 
-export const initial: State = { entries: [], pending: false, partial: "", files: [], contact: { step: "none" } };
+export const initial: State = { entries: [], pending: false, partial: "", files: [], contact: { step: "none" }, contactAt: null };
 const OFFER_ON: readonly Notice[] = [
   "offline",
   "resting",
@@ -70,8 +71,10 @@ export function reduce(state: State, action: Action): State {
       const { status, reply, offerContact } = action.result;
       const entry: Entry = status === "ok" ? { id, from: "bot", text: reply } : { id, from: "notice", notice: status };
       const offer = status === "ok" ? offerContact : OFFER_ON.includes(status);
-      const contact: Contact = offer && state.contact.step === "none" ? { step: "offered" } : state.contact;
-      return { ...state, entries: [...state.entries, entry], pending: false, partial: "", contact };
+      const first = offer && state.contact.step === "none";
+      const contact: Contact = first ? { step: "offered" } : state.contact;
+      const contactAt = first ? id : state.contactAt;
+      return { ...state, entries: [...state.entries, entry], pending: false, partial: "", contact, contactAt };
     }
     case "openForm":
       return { ...state, contact: { step: "form", error: false } };

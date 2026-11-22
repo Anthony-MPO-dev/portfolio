@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
 import { contact } from "@/content/profile";
 import { conversation } from "./api";
 import { CHAT_ASK } from "@/lib/events";
@@ -48,7 +48,7 @@ export function Chat({ lang }: { lang: Lang }) {
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
-  }, [open, state.entries.length, state.pending, state.partial, state.contact.step]);
+  }, [open, state.entries.length, state.pending, state.partial]); // not on the form opening: it opens where it was offered
 
   // Says whether the text went. A ref, not state.pending: a double tap sees the first send at once, so only one
   // request goes out.
@@ -166,7 +166,10 @@ export function Chat({ lang }: { lang: Lang }) {
             </div>
           )}
           {state.entries.map((entry) => (
-            <Message key={entry.id} entry={entry} t={t} />
+            <Fragment key={entry.id}>
+              <Message entry={entry} t={t} />
+              {entry.id === state.contactAt && <ContactPanel state={state} lang={lang} dispatch={dispatch} lead={talk.lead} />}
+            </Fragment>
           ))}
           {state.partial && <Message entry={{ id: -1, from: "bot", text: state.partial }} t={t} />}
           {state.pending && !state.partial && (
@@ -176,7 +179,6 @@ export function Chat({ lang }: { lang: Lang }) {
               <span />
             </p>
           )}
-          <ContactPanel state={state} lang={lang} dispatch={dispatch} lead={talk.lead} />
         </div>
 
         <div ref={proofBox} className="chat-proof" />

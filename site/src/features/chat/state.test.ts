@@ -59,6 +59,15 @@ describe("contact", () => {
     expect(form.contact).toEqual({ step: "form", error: false });
   });
 
+  // the form sat at the end of the log, so messages sent while it was open landed above it, out of view (22/11)
+  it("anchors the contact to the answer that offered it, so later messages come after it", () => {
+    expect(offered.contactAt).toBe(1);
+    const later = reduce(reduce(form, { type: "send", text: "Still there?" }), ok("Yes.", true));
+    expect(later.contactAt).toBe(1);
+    expect(later.entries).toHaveLength(4);
+    expect(reduce(later, { type: "clear" }).contactAt).toBeNull();
+  });
+
   it("shows the WhatsApp number only when the API sends it", () => {
     const hiring = reduce(form, { type: "leadDone", result: { status: "ok", whatsapp: "+15550100" } });
     expect(hiring.contact).toEqual({ step: "sent", whatsapp: "+15550100" });
