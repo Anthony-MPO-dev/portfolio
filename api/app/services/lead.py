@@ -75,6 +75,6 @@ class LeadService:
             self.sink.save(lead)
         except LeadUnavailable:
             return LeadResult("unavailable")
-        # rule (b), and only for someone shown to be a person (a live conversation or a fresh browser proof):
+        # rule (b), and only for someone shown to be a person (a fresh browser proof under the strict check):
         # one curl with a made-up lead no longer gets the number; the lead is saved either way
         return LeadResult("ok", self.whatsapp if kind == "hiring" and person() else None)  # asked only now

@@ -182,3 +182,14 @@ def test_tables_missed_at_startup_are_made_a_minute_later_and_then_the_purge_run
         _purge_forever(object())
     # the purge runs even while the tables can't be made; once they are, only the purge, every 6 hours
     assert (calls, waits) == (["schema", "purge", "schema", "purge"], [60, 6 * 3600])
+
+
+def test_the_whatsapp_number_uses_the_strict_browser_check_and_the_chat_the_lenient_one(env, monkeypatch):
+    calls, made = [], []
+    monkeypatch.setattr("app.main.TurnstileCheck", lambda secret: lambda token, strict=False: calls.append(strict) or True)
+    monkeypatch.setattr("app.main.create_app", lambda **kw: made.append(kw) or FastAPI())
+    build({**env, "TURNSTILE_SECRET": "0x-secret"}, FACTS)
+    chat = made[0]["chat"]
+    chat.is_person("token")
+    chat.human("token")
+    assert calls == [True, False]

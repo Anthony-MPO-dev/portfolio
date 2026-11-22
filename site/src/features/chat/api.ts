@@ -98,7 +98,7 @@ export async function uploadFile(file: Blob, human?: string): Promise<UploadResu
   }
 }
 
-// human: a fresh browser proof, which the WhatsApp number needs when no conversation is open (conversation.lead)
+// human: a fresh browser proof, which the WhatsApp number needs (conversation.lead sends one with every hiring lead)
 export async function submitLead(fields: LeadFields, honeypot: string, pageLang: Lang, human?: string): Promise<LeadResult> {
   const data: Data | null = await post("/api/lead", { ...fields, website: honeypot, page_lang: pageLang }, undefined, human ? { "X-Human": human } : {})
     .then((r) => r.json())

@@ -7,7 +7,8 @@ the reason is logged: the visitor and site-wide limits keep holding, and a fault
 With strict=True (the WhatsApp number) a fault counts as no proof instead. Only those faults count toward the circuit breaker (3 in a row skip siteverify for 30 s). The visitor's IP isn't sent
 (it's optional for siteverify).
 Public API: TurnstileCheck (callable: token, strict=False -> bool), VERIFY_URL.
-Used by: app.main, when TURNSTILE_SECRET is set (wired into app.services.chat as `human`).
+Used by: app.main, when TURNSTILE_SECRET is set (wired into app.services.chat as `human`, and with strict=True as
+`person`, the WhatsApp number's check).
 Depends on: urllib3, app.breaker.
 Tests: tests/test_turnstile.py.
 """
@@ -51,6 +52,8 @@ class TurnstileCheck:
         if response.status != 200:
             return False  # a bad request: the token itself was odd
         answer = json.loads(response.data)
+        if not isinstance(answer, dict):
+            raise ValueError("siteverify answered something other than an object")
         if answer.get("success"):
             return True
         codes = answer.get("error-codes") or []

@@ -68,3 +68,8 @@ def test_a_strict_check_counts_a_fault_as_no_proof():
     assert TurnstileCheck("SECRET", pool=unreachable)("token", strict=True) is False
     assert TurnstileCheck("SECRET", pool=FakePool({"success": False}, status=503))("token", strict=True) is False
     assert TurnstileCheck("SECRET", pool=FakePool({"success": True}))("token", strict=True) is True
+
+
+def test_an_answer_that_is_not_a_json_object_is_a_fault_not_a_crash():
+    check = TurnstileCheck("SECRET", pool=FakePool(["odd"]))
+    assert (check("token"), check("token", strict=True)) == (True, False)
