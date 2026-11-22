@@ -9,9 +9,9 @@ ESTADO.md
 site/build/
 site/.react-router/
 .claude/settings.local.json*
-ops/
-Perfil.jpeg
-cropped-image.jpg
-ChatGPT Image*.png
+/ops/
+/Perfil.jpeg
+/cropped-image.jpg
+/ChatGPT Image*.png
 site/public/models/
 api/.models/
