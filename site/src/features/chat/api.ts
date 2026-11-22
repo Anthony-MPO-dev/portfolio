@@ -31,7 +31,6 @@ function post(url: string, body: unknown, signal?: AbortSignal): Promise<Respons
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    credentials: "same-origin",
     signal,
   });
 }
@@ -89,7 +88,6 @@ export async function uploadFile(file: Blob, human?: string): Promise<UploadResu
       method: "POST",
       headers: { "Content-Type": "application/octet-stream", ...(human ? { "X-Human": human } : {}) },
       body: file,
-      credentials: "same-origin",
     });
     const data = (await response.json()) as Data;
     if (data.status === "ok" && typeof data.id === "string") return { status: "ok", id: data.id, summary: String(data.summary ?? "") };
@@ -141,7 +139,7 @@ export function conversation(proof: () => Promise<string | undefined>) {
 
 export async function clearConversation(): Promise<void> {
   try {
-    await fetch("/api/chat", { method: "DELETE", credentials: "same-origin" });
+    await fetch("/api/chat", { method: "DELETE" });
   } catch {
     // offline: the server forgets the conversation on its own within 2 hours
   }
