@@ -4,7 +4,7 @@ import portrait from "@/assets/portrait-168.webp";
 import { CountUp } from "@/components/count-up";
 import { FireFigure } from "@/components/fire-figure";
 import { SiteHeader } from "@/components/site-header";
-import { contact, home } from "@/content/profile";
+import { contact, home, seo } from "@/content/profile";
 import { BotTests } from "@/features/bot-tests/bot-tests";
 import { PipelineScene } from "@/features/credit-pipeline/pipeline-scene";
 import { FactSearch } from "@/features/fact-search/fact-search";
@@ -30,12 +30,13 @@ export function meta({ location }: { location: { pathname: string } }) {
   const lang = langOf(location.pathname);
   const { profile } = home[lang];
   const { url, tags } = pageLinks(lang, "/");
-  const title = `${contact.name}, ${profile.role}`;
+  const title = seo[lang]?.title ?? `${contact.name}, ${profile.role}`;
+  const description = seo[lang]?.description ?? profile.lede;
   return [
     { title },
-    { name: "description", content: profile.lede },
+    { name: "description", content: description },
     { property: "og:title", content: title },
-    { property: "og:description", content: profile.lede },
+    { property: "og:description", content: description },
     { property: "og:type", content: "website" },
     ...tags,
     // The card search engines read about the author (schema.org Person): only facts already on the page.

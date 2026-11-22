@@ -45,7 +45,7 @@ const en = {
   intro: {
     label: "Services: Insight AI & Automation",
     title: "Most AI projects stall between the demo and production. I get them into production and measure what changes.",
-    who: "I work with mid-size companies and with teams inside large ones, in the US and Europe.",
+    who: "My focus is mid-size companies and teams inside large ones, in the US and Europe.",
     sources: "Sources:",
   },
   stall: {
@@ -150,7 +150,7 @@ const pt: typeof en = {
   intro: {
     label: "Serviços: Insight AI & Automation",
     title: "A maioria dos projetos de IA trava entre a demo e a produção. Eu coloco em produção e meço o que muda.",
-    who: "Trabalho com empresas de médio porte e com times dentro de grandes empresas, nos EUA e na Europa.",
+    who: "Meu foco são empresas de médio porte e times dentro de grandes empresas, nos EUA e na Europa.",
     sources: "Fontes:",
   },
   stall: {

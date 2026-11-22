@@ -4,7 +4,17 @@ import type { Lang } from "@/lib/lang";
 // of knowledge/facts.md and the approved LinkedIn texts. The Portuguese is a faithful translation the author reviews
 // (15/11). Each scroll scene keeps its own caption next to its drawing. Keep the wording, qualifiers included
 // ("about", "as fast as", "up to"), in sync with those sources, in both languages.
-// Public API: contact, home. Used by: app/routes/home.tsx, services.tsx, components/site-header.tsx, features/chat.
+// Public API: contact, home, seo. Used by: app/routes/home.tsx, services.tsx, components/site-header.tsx, features/chat.
+
+// What search engines show for the home page (title and description), approved by the author (22/11). A language without
+// an entry keeps the default: the name with the role, and the lede.
+export const seo: Partial<Record<Lang, { title: string; description: string }>> = {
+  en: {
+    title: "Anthony Muniz, AI and backend engineer for remote teams",
+    description:
+      "I'm the engineer who makes LLM agents work with real customers, and I'll show you the numbers. Open to remote roles with US and European teams.",
+  },
+};
 
 export const contact = {
   name: "Anthony Muniz",

@@ -112,7 +112,8 @@ injection from reaching anything.
 
 ## Insight AI & Automation (freelance)
 
-His own company. He automates manual work for mid-size companies and enterprise teams, in the US and Europe. Most projects are one of two things:
+His own company. He automates manual work for mid-size companies and enterprise teams. It looks for remote clients in the
+US and Europe and has none there yet. Most projects are one of two things:
 
 - an n8n workflow that moves data between HubSpot, Google Sheets, Gmail and WhatsApp;
 - an AI chatbot that answers from the client's own documents and hands off to a human.
