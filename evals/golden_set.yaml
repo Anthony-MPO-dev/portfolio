@@ -99,6 +99,12 @@ facts:
     q: What's the name of Anthony's company?
     expect: [[Insight AI]]
 
+  - id: no-clients-abroad
+    # Insight AI looks for clients in the US and Europe and has none there yet (Anthony, 22/11): never a track record.
+    q: Does Insight AI already have clients in the US or Europe?
+    expect: [["not yet", "no clients", "none", "doesn't have", "does not have", "hasn't", "has not"]]
+    forbid_secret: true
+
   - id: services
     q: What freelance work does he take?
     expect: [[n8n], [chatbot, chatbots]]
