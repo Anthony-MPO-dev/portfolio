@@ -122,7 +122,7 @@ def build(env: Mapping[str, str], facts: str, embed: Embed | None = None) -> Fas
     api = create_app(
         chat=chat,
         lead=lead,
-        worker=queue,
+        worker=queue if engine == "worker" else None,  # the PC's job routes only when the PC is the engine
         worker_token=env["WORKER_TOKEN"],
         ip_key=env["IP_HMAC_KEY"].encode(),
         origin=env.get("SITE_ORIGIN", "https://anthonymuniz.dev"),

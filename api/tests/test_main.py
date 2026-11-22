@@ -55,6 +55,13 @@ def test_without_a_key_the_worker_stays_the_engine(env, monkeypatch):
     build(env, FACTS)
 
 
+@pytest.mark.parametrize(("settings", "code"), [({}, 401), ({"ANTHROPIC_API_KEY": "sk-ant-test"}, 404)])
+def test_the_worker_routes_exist_only_with_the_worker_engine(env, settings, code):
+    from fastapi.testclient import TestClient
+
+    assert TestClient(build(env | settings, FACTS)).get("/api/worker/next").status_code == code  # 401: there, no token
+
+
 def test_the_anthropic_engine_without_its_key_is_refused(env):
     with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
         build({**env, "MODEL_ENGINE": "anthropic"}, FACTS)
