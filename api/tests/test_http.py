@@ -102,11 +102,11 @@ def test_requests_from_other_sites_are_refused(headers):
     assert (world.chat(headers=headers).status_code, world.model.calls) == (403, [])
 
 
-def test_limits_come_back_as_429_with_the_status():
+def test_limits_come_back_as_429_with_the_status_and_no_text():
     world = World(limits=Limits(per_ip_hour=1))
     world.chat()
     response = world.chat()
-    assert (response.status_code, response.json()["status"]) == (429, "rate_limited")
+    assert (response.status_code, response.json()) == (429, {"status": "rate_limited", "offer_contact": False})
 
 
 def test_offline_is_a_normal_answer_with_the_contact_offer():
@@ -284,6 +284,19 @@ def test_the_browser_proof_rides_in_the_chat_body_and_in_a_header_for_uploads():
     upload = world.client.post("/api/attachments", content=b"%PDF", headers={**RAW, "X-Human": "real-browser"})
     assert upload.json()["status"] == "ok"
     assert seen == ["script", "real-browser"]
+
+
+def test_an_upload_without_a_session_or_the_proof_is_challenged_before_its_body_is_read():
+    read = []
+
+    def body():
+        read.append(True)
+        yield b"%PDF"
+
+    world = World(human=lambda token: token == "real-browser")
+    response = world.client.post("/api/attachments", content=body(), headers=RAW)
+    assert (response.status_code, response.json(), "set-cookie" in response.headers) == (200, {"status": "challenge"}, False)
+    assert (read, world.converted, world.store.uploads) == ([], [], {})
 
 
 def test_the_map_of_facts_is_public_and_cached_for_an_hour():

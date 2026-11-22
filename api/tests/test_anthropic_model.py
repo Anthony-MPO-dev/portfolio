@@ -69,7 +69,7 @@ def test_streams_the_text_then_the_reply_and_the_contact_line_never_reaches_the_
     assert out[-1] == ModelReply("Yes, remote roles.", True)
 
 
-def test_sends_the_cached_system_prompt_the_conversation_and_haiku_at_medium_effort():
+def test_sends_the_cached_system_prompt_the_conversation_and_haiku_at_high_effort():
     client = FakeClient(FakeStream(["Hi."]))
     run(AnthropicModel(client, "SYSTEM"))
     call = client.calls[0]

@@ -6,11 +6,13 @@ channel) or a link outside the allowlist. The page renders plain text and the si
 check keeps a hit from ever being shown or saved.
 Public API: check.
 Used by: app.services.chat (injected by app.main with this process's canary).
-Depends on: the standard library re.
+Depends on: the standard library re, app.redact (the e-mail pattern).
 Tests: tests/test_output_guard.py.
 """
 
 import re
+
+from app.redact import EMAIL
 
 ALLOWED_EMAILS = {"anthonympodev@gmail.com"}
 ALLOWED_LINKS = ("anthonymuniz.dev", "github.com/anthony-mpo-dev", "linkedin.com/in/anthony-mpo-dev")
@@ -18,7 +20,6 @@ SECRET = re.compile(
     r"sk-ant-[\w-]{10,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----"
 )
 PATH = re.compile(r"[A-Za-z]:\\(?:Users|Windows)\\|/home/[a-z_]|/Users/[A-Za-z]|\.claude[/\\]")
-EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 PHONE = re.compile(r"\+?\d[\d ().-]{8,}\d")
 IMAGE = re.compile(r"!\[[^\]]*\]\(")
 URL = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)

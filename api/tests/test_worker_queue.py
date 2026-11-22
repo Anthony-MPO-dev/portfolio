@@ -98,17 +98,17 @@ def test_worker_failure_is_offline_without_waiting_for_the_timeout(r):
 
 def test_worker_that_never_answers_is_offline_after_the_timeout(r):
     queue = make(r, timeout=1)
-    queue.next_job(wait=1)  # the worker polled once, then went silent
+    queue.next_job(wait=0.1)  # the worker polled once, then went silent
     with pytest.raises(ModelUnavailable):
         ask(queue)
 
 
 def test_worker_skips_a_job_whose_visitor_already_gave_up(r):
     queue = make(r, timeout=1)
-    queue.next_job(wait=1)
+    queue.next_job(wait=0.1)
     with pytest.raises(ModelUnavailable):
         ask(queue, "too late")
-    assert queue.next_job(wait=1) is None
+    assert queue.next_job(wait=0.1) is None
 
 
 def test_nothing_the_queue_writes_stays_in_redis_forever(r):

@@ -1,8 +1,9 @@
 """HTTP layer of the chat API.
 
 Responsibility: translate HTTP into the use cases and back, nothing else. Browser routes (/api/chat, /api/lead) take
-JSON only, /api/attachments one file as raw bytes (10 MB at most), and all refuse other sites (Sec-Fetch-Site,
-then Origin). The session lives in the __Host-chat_sid cookie
+JSON only, /api/attachments one file as raw bytes (10 MB at most; with the browser proof wired, one with neither a
+session nor the proof gets the use case's "challenge" before its body is read), and all refuse other sites
+(Sec-Fetch-Site, then Origin). The session lives in the __Host-chat_sid cookie
 (Secure, HttpOnly, SameSite=Strict, no Max-Age), set only when the server created a new session. The visitor's IP
 (through Cloudflare, see app.client_ip) becomes an HMAC before it reaches any use case. Worker routes need the bearer token. Every answer is no-store and
 there are no public API docs, except the fact map (GET /api/search/facts), public and cached for an hour. The fact
@@ -169,15 +170,16 @@ def create_app(
             lines = (json.dumps(event, ensure_ascii=False) + "\n" for event in result.events)
             response = StreamingResponse(lines, media_type="application/x-ndjson", headers={"X-Accel-Buffering": "no"})
         else:
-            response = JSONResponse(
-                {"status": result.status, "reply": result.reply, "offer_contact": result.offer_contact},
-                CODES[result.status],
-            )
+            response = JSONResponse({"status": result.status, "offer_contact": result.offer_contact}, CODES[result.status])
         return remember(response, result.session_id, sid)
 
     @app.post("/api/attachments", dependencies=upload)
     async def post_attachment(request: Request) -> Response:
-        """One file as the raw request body, read in memory and never past 10 MB."""
+        """One file as the raw request body, read in memory and never past 10 MB. Without a session or the browser
+        proof, the use case's "challenge" goes back before a byte is read."""
+        sid, proof = request.cookies.get(COOKIE), request.headers.get("x-human")  # Turnstile token, for a new session
+        if chat.human and not sid and not proof:
+            return JSONResponse({"status": "challenge"}, CODES["challenge"])
         declared, data = int(request.headers.get("content-length") or 0), bytearray()
         if declared <= MAX_UPLOAD:
             async for piece in request.stream():
@@ -188,14 +190,9 @@ def create_app(
         if too_big or not data:
             reason, code = ("too_big", 413) if too_big else ("unreadable", 422)
             return JSONResponse({"status": "rejected", "reason": reason}, code)
-        sid = request.cookies.get(COOKIE)
         result = await run_in_threadpool(
-            chat.attach,
-            session_id=sid,
-            client_key=client_key(request),
-            data=bytes(data),
-            human_token=request.headers.get("x-human"),  # Turnstile token, needed only to open a conversation
-        )
+            chat.attach, session_id=sid, client_key=client_key(request), data=data, human_token=proof
+        )  # the bytearray as is: no 10 MB copy
         body = {"status": result.status} | ({"id": result.id, "summary": result.summary} if result.status == "ok" else {})
         response = JSONResponse(body | ({"reason": result.reason} if result.reason else {}), CODES[result.status])
         return remember(response, result.session_id, sid)

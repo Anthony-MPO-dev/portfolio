@@ -55,6 +55,13 @@ def test_without_a_key_the_worker_stays_the_engine(env, monkeypatch):
     build(env, FACTS)
 
 
+@pytest.mark.parametrize(("settings", "code"), [({}, 401), ({"ANTHROPIC_API_KEY": "sk-ant-test"}, 404)])
+def test_the_worker_routes_exist_only_with_the_worker_engine(env, settings, code):
+    from fastapi.testclient import TestClient
+
+    assert TestClient(build(env | settings, FACTS)).get("/api/worker/next").status_code == code  # 401: there, no token
+
+
 def test_the_anthropic_engine_without_its_key_is_refused(env):
     with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
         build({**env, "MODEL_ENGINE": "anthropic"}, FACTS)
@@ -146,3 +153,31 @@ def test_a_slow_request_logs_one_line_with_its_route_and_no_path(env, caplog):
     client.post("/api/chat?x=1", content=b"hi", headers={"content-type": "text/plain"})  # refused before any network
     [line] = [r.getMessage() for r in caplog.records if r.name == "app.tracing"]
     assert line.startswith('slow_request {"route": "POST /api/chat", "status": 415') and "x=1" not in line
+
+
+def test_tables_missed_at_startup_are_made_a_minute_later_and_then_the_purge_runs_every_6_hours(monkeypatch):
+    import psycopg
+
+    from app.main import _purge_forever
+
+    calls, waits, down = [], [], iter([True, False])
+
+    class Stop(Exception):
+        pass
+
+    def schema(db):
+        calls.append("schema")
+        if next(down):
+            raise psycopg.OperationalError("Postgres is down")
+
+    def sleep(seconds):
+        waits.append(seconds)
+        if len(waits) == 2:
+            raise Stop
+
+    monkeypatch.setattr("app.main.ensure_schema", schema)
+    monkeypatch.setattr("app.main.purge_expired", lambda db: calls.append("purge"))
+    monkeypatch.setattr("app.main.time", type("Clock", (), {"sleep": staticmethod(sleep)}))
+    with pytest.raises(Stop):
+        _purge_forever(object())
+    assert (calls, waits) == (["schema", "schema", "purge"], [60, 6 * 3600])
