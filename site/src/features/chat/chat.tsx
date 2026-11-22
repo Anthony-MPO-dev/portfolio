@@ -31,8 +31,8 @@ export function Chat({ lang }: { lang: Lang }) {
   const fileKey = useRef(0);
   const proofBox = useRef<HTMLDivElement>(null); // where Cloudflare's check shows, only if it wants a click
   const proof = async () => {
-    // the panel may have just opened ("Ask the bot"): let it render before Cloudflare's check goes in it
-    for (let i = 0; i < 3 && !proofBox.current; i++) await new Promise((r) => requestAnimationFrame(r));
+    // the panel may have just opened ("Ask the bot"): let it show before Cloudflare's check goes in it
+    for (let i = 0; i < 3 && proofBox.current?.closest("[hidden]"); i++) await new Promise((r) => requestAnimationFrame(r));
     return proofBox.current ? humanToken(proofBox.current) : undefined;
   };
   const [talk] = useState(() => conversation(proof)); // the session and its browser proof (api.ts)
@@ -48,7 +48,7 @@ export function Chat({ lang }: { lang: Lang }) {
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
-  }, [state.entries.length, state.pending, state.partial, state.contact.step]);
+  }, [open, state.entries.length, state.pending, state.partial, state.contact.step]);
 
   // Says whether the text went. A ref, not state.pending: a double tap sees the first send at once, so only one
   // request goes out.
@@ -119,136 +119,135 @@ export function Chat({ lang }: { lang: Lang }) {
       >
         {t.launcher}
       </button>
-      {open && (
-        <section
-          id="chat"
-          className="chat"
-          role="dialog"
-          aria-label={t.title}
-          onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-        >
-          <header className="chat-head">
-            <div>
-              <p className="chat-title">{t.title}</p>
-              <p className="chat-sub">{t.sub}</p>
-            </div>
-            <div className="chat-actions">
-              {state.entries.length > 0 && (
-                <button
-                  type="button"
-                  className="chat-btn"
-                  onClick={() => {
-                    inflight.current?.abort();
-                    dispatch({ type: "clear" });
-                    talk.clear();
-                  }}
-                >
-                  {t.clear}
-                </button>
-              )}
-              <button type="button" className="chat-btn" onClick={() => setOpen(false)}>
-                {t.close}
-              </button>
-            </div>
-          </header>
-
-          <div className="chat-log" ref={log} aria-live="polite" aria-busy={state.pending}>
-            {state.entries.length === 0 && (
-              <div className="chat-intro">
-                <h2>{t.intro}</h2>
-                <div className="chat-suggest">
-                  {t.suggestions.map((q) => (
-                    <button key={q} type="button" onClick={() => send(q)}>
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {state.entries.map((entry) => (
-              <Message key={entry.id} entry={entry} t={t} />
-            ))}
-            {state.partial && <Message entry={{ id: -1, from: "bot", text: state.partial }} t={t} />}
-            {state.pending && !state.partial && (
-              <p className="chat-typing" role="status" aria-label={t.typing}>
-                <span />
-                <span />
-                <span />
-              </p>
-            )}
-            <ContactPanel state={state} lang={lang} dispatch={dispatch} />
+      <section
+        id="chat"
+        className="chat"
+        hidden={!open}
+        role="dialog"
+        aria-label={t.title}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+      >
+        <header className="chat-head">
+          <div>
+            <p className="chat-title">{t.title}</p>
+            <p className="chat-sub">{t.sub}</p>
           </div>
-
-          <div ref={proofBox} className="chat-proof" />
-          <form
-            className="chat-composer"
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendDraft();
-            }}
-          >
-            {state.files.length > 0 && (
-              <ul className="chat-files">
-                {state.files.map((f) => (
-                  <li key={f.key} className={`chat-file ${f.state}`}>
-                    <span className="chat-file-name">{f.name}</span>
-                    <span className="chat-file-note">
-                      {f.state === "uploading" ? t.files.reading : f.state === "ready" ? f.summary : t.files.refused[f.reason]}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={`${t.files.remove} ${f.name}`}
-                      onClick={() => dispatch({ type: "fileRemove", key: f.key })}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <textarea
-              ref={input}
-              rows={1}
-              maxLength={MAX}
-              value={draft}
-              placeholder={t.placeholder}
-              aria-label={t.placeholder}
-              enterKeyHint="send"
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={onKey}
-            />
-            <div className="chat-bar">
-              <input ref={picker} type="file" accept={ACCEPT} multiple hidden onChange={(e) => pick(e.target.files)} />
+          <div className="chat-actions">
+            {state.entries.length > 0 && (
               <button
                 type="button"
-                className="chat-attach"
-                disabled={state.pending || room < 1}
-                aria-label={t.files.attach}
-                title={t.files.attach}
-                onClick={() => picker.current?.click()}
+                className="chat-btn"
+                onClick={() => {
+                  inflight.current?.abort();
+                  dispatch({ type: "clear" });
+                  talk.clear();
+                }}
               >
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path
-                    d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3l8-8"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                  />
-                </svg>
+                {t.clear}
               </button>
-              {draft.length > MAX - 100 && (
-                <span className="chat-count">
-                  {draft.length}/{MAX}
-                </span>
-              )}
-              <button type="submit" className="chat-send" disabled={!draft.trim() || state.pending || uploading}>
-                {t.send}
-              </button>
+            )}
+            <button type="button" className="chat-btn" onClick={() => setOpen(false)}>
+              {t.close}
+            </button>
+          </div>
+        </header>
+
+        <div className="chat-log" ref={log} aria-live="polite" aria-busy={state.pending}>
+          {state.entries.length === 0 && (
+            <div className="chat-intro">
+              <h2>{t.intro}</h2>
+              <div className="chat-suggest">
+                {t.suggestions.map((q) => (
+                  <button key={q} type="button" onClick={() => send(q)}>
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
-          </form>
-          <p className="chat-privacy">{t.privacy}</p>
-        </section>
-      )}
+          )}
+          {state.entries.map((entry) => (
+            <Message key={entry.id} entry={entry} t={t} />
+          ))}
+          {state.partial && <Message entry={{ id: -1, from: "bot", text: state.partial }} t={t} />}
+          {state.pending && !state.partial && (
+            <p className="chat-typing" role="status" aria-label={t.typing}>
+              <span />
+              <span />
+              <span />
+            </p>
+          )}
+          <ContactPanel state={state} lang={lang} dispatch={dispatch} />
+        </div>
+
+        <div ref={proofBox} className="chat-proof" />
+        <form
+          className="chat-composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendDraft();
+          }}
+        >
+          {state.files.length > 0 && (
+            <ul className="chat-files">
+              {state.files.map((f) => (
+                <li key={f.key} className={`chat-file ${f.state}`}>
+                  <span className="chat-file-name">{f.name}</span>
+                  <span className="chat-file-note">
+                    {f.state === "uploading" ? t.files.reading : f.state === "ready" ? f.summary : t.files.refused[f.reason]}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`${t.files.remove} ${f.name}`}
+                    onClick={() => dispatch({ type: "fileRemove", key: f.key })}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <textarea
+            ref={input}
+            rows={1}
+            maxLength={MAX}
+            value={draft}
+            placeholder={t.placeholder}
+            aria-label={t.placeholder}
+            enterKeyHint="send"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={onKey}
+          />
+          <div className="chat-bar">
+            <input ref={picker} type="file" accept={ACCEPT} multiple hidden onChange={(e) => pick(e.target.files)} />
+            <button
+              type="button"
+              className="chat-attach"
+              disabled={state.pending || room < 1}
+              aria-label={t.files.attach}
+              title={t.files.attach}
+              onClick={() => picker.current?.click()}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10.5 18a2 2 0 0 1-3-3l8-8"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                />
+              </svg>
+            </button>
+            {draft.length > MAX - 100 && (
+              <span className="chat-count">
+                {draft.length}/{MAX}
+              </span>
+            )}
+            <button type="submit" className="chat-send" disabled={!draft.trim() || state.pending || uploading}>
+              {t.send}
+            </button>
+          </div>
+        </form>
+        <p className="chat-privacy">{t.privacy}</p>
+      </section>
     </>
   );
 }
