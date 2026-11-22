@@ -10,9 +10,9 @@ function respond(status: number, body: unknown) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("sendMessage", () => {
-  it("posts the message and the page language as JSON and reads the answer", async () => {
-    const fetch = respond(200, { status: "ok", reply: "Yes.", offer_contact: true });
-    expect(await sendMessage("Open to remote?", "pt")).toEqual({ status: "ok", reply: "Yes.", offerContact: true });
+  it("posts the message and the page language as JSON", async () => {
+    const fetch = respond(429, { status: "rate_limited" });
+    await sendMessage("Open to remote?", "pt");
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/chat");
     expect(init.method).toBe("POST");
@@ -46,7 +46,7 @@ describe("sendMessage", () => {
   it.each([
     ["the network fails", () => vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("down"))))],
     ["the answer isn't JSON", () => respond(404, "<html>not found</html>")],
-    ["the status is unknown", () => respond(200, { status: "weird", reply: "x" })],
+    ["the status is unknown", () => respond(200, { status: "weird" })],
   ])("is offline, with the contact offered, when %s", async (_, setup) => {
     setup();
     expect(await sendMessage("q", "en")).toEqual({ status: "offline", reply: "", offerContact: true });

@@ -73,11 +73,11 @@ export async function sendMessage(
   }
 }
 
-function chatResult(data: Data | null, streamed?: string): ChatResult {
+// Only a streamed "ok" carries text; every other answer is a JSON status.
+function chatResult(data: Data | null, streamed = ""): ChatResult {
   if (!data || !isOne(CHAT, data.status)) return OFFLINE;
   const status = data.status;
-  const reply = streamed === undefined ? String(data.reply ?? "") : status === "ok" ? streamed : "";
-  return { status, reply, offerContact: data.offer_contact === true };
+  return { status, reply: status === "ok" ? streamed : "", offerContact: data.offer_contact === true };
 }
 
 // One file as raw bytes; the API converts it and keeps the result for this conversation until the answer ends.
