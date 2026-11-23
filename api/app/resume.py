@@ -16,6 +16,7 @@ from pathlib import Path
 
 import yaml
 from fpdf import FPDF
+from fpdf.enums import MethodReturnValue
 
 from app.output_guard import check as guard
 
@@ -96,37 +97,64 @@ def check_draft(draft: Draft, base: dict, allowed: set[str]) -> str | None:
     return None
 
 
+ACCENT = (4, 122, 70)  # the site's dark green (#047a46): the band, the headings, the bullets and the letter's mark
+
+
 class _Page(FPDF):
-    def __init__(self):
+    """One column of plain text, so applicant tracking systems read it in order; the colour and the marks are shapes,
+    never text."""
+
+    def __init__(self, mark: bool = False):
         super().__init__(format="A4")
+        self.mark = mark
         self.set_margins(18, 16, 18)
         self.set_auto_page_break(True, 16)
         self.add_page()
 
-    def line_of(self, text: str, size: float, style: str = "", gap: float = 0.5, grey: bool = False):
+    def header(self):
+        """Every page: a thin green band along the top; on the letter, a large, faint ">_" (the site's prompt)."""
+        self.set_fill_color(*ACCENT)
+        self.rect(0, 0, self.w, 2.2, "F")
+        if self.mark:
+            with self.local_context(fill_opacity=0.06):
+                self.polygon([(112, 196), (128, 196), (170, 232), (128, 268), (112, 268), (154, 232)], style="F")
+                self.rect(172, 258, 26, 10, "F")
+        self.set_y(16)
+
+    def line_of(self, text: str, size: float, style: str = "", gap: float = 0.5, grey: bool = False, color=None, markdown=False):
         self.set_font("Helvetica", style, size)
-        self.set_text_color(90 if grey else 15)
-        self.multi_cell(0, size * 0.5, text.translate(PLAIN), align="L", new_x="LMARGIN", new_y="NEXT")
+        self.set_text_color(*(color or ((90,) if grey else (15,))))
+        self.multi_cell(0, size * 0.52, text.translate(PLAIN), align="L", new_x="LMARGIN", new_y="NEXT", markdown=markdown)
         self.ln(gap)
 
     def heading(self, text: str):
-        self.ln(2.5)
-        self.line_of(text.upper(), 10, "B", 0.5)
-        self.set_draw_color(15)
+        self.ln(4)
+        self.line_of(text.upper(), 10, "B", 0.8, color=ACCENT)
+        self.set_draw_color(*ACCENT)
+        self.set_line_width(0.35)
         self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
-        self.ln(2)
+        self.ln(3)
 
     def bullet(self, text: str):
+        """A small green square, then the text indented under itself: each item reads apart from the next, and one
+        that wouldn't fit starts on the next page whole."""
+        text = text.translate(PLAIN)
         self.set_font("Helvetica", "", 9.5)
+        self.set_x(self.l_margin + 4.5)
+        lines = self.multi_cell(0, 5, text, align="L", dry_run=True, output=MethodReturnValue.LINES)
+        if self.get_y() + 5 * len(lines) > self.page_break_trigger:
+            self.add_page()
+        self.set_fill_color(*ACCENT)
+        self.rect(self.l_margin + 0.6, self.get_y() + 1.9, 1.5, 1.5, "F")
+        self.set_x(self.l_margin + 4.5)
         self.set_text_color(15)
-        self.cell(4, 4.75, "-")
-        self.multi_cell(0, 4.75, text.translate(PLAIN), align="L", new_x="LMARGIN", new_y="NEXT")
-        self.ln(0.8)
+        self.multi_cell(0, 5, text, align="L", new_x="LMARGIN", new_y="NEXT")
+        self.ln(1.8)
 
     def head(self, name: str, base: dict, contact: str, size: float, location: str):
-        self.line_of(name, size, "B", 1)
-        self.line_of(base["title"], 11.5, "", 1)
-        self.line_of(contact, 9, grey=True)
+        self.line_of(name, size, "B", 1.2)
+        self.line_of(base["title"], 11.5, "", 1.5, color=ACCENT)
+        self.line_of(contact, 9, grey=True, gap=0.6)
         self.line_of(location, 9, grey=True, gap=2)
 
 
@@ -140,33 +168,38 @@ def render_resume(base: dict, name: str, contact: str, draft: Draft | None = Non
     pdf.heading(h["summary"])
     pdf.line_of(draft.summary if draft else base["summary"], 9.5)
     pdf.heading(h["experience"])
-    for role in base["roles"]:
-        pdf.line_of(role["title"], 10.5, "B", 0.3)
-        pdf.line_of(f"{role['where']} · {role['when']}", 9, grey=True, gap=0.3)
+    for n, role in enumerate(base["roles"]):
+        if n:
+            pdf.ln(2.5)
+        pdf.line_of(role["title"], 10.5, "B", 0.6)
+        pdf.line_of(f"{role['where']} · {role['when']}", 9, grey=True, gap=0.6)
         if role["note"]:
-            pdf.line_of(role["note"], 9, "I", 0.8, grey=True)
+            pdf.line_of(role["note"], 9, "I", 1.6, grey=True)
         for bullet in _by_id(role["bullets"], draft.bullets[role["id"]] if draft else None):
             pdf.bullet(bullet["text"])
-        pdf.ln(1.5)
     pdf.heading(h["projects"])
     for project in _by_id(base["projects"], draft.projects if draft else None):
         pdf.bullet(project["text"])
     pdf.heading(h["skills"])
     for group in _by_id(base["skills"], draft.skills if draft else None):
-        pdf.line_of(f"{group['label']}: {group['items']}", 9.5, gap=0.8)
+        pdf.line_of(f"**{group['label']}:** {group['items']}", 9.5, gap=1.4, markdown=True)
     pdf.heading(h["education"])
     for line in base["education"]:
-        pdf.line_of(line, 9.5, gap=0.8)
+        pdf.line_of(line, 9.5, gap=1.4)
     pdf.heading(h["languages"])
-    pdf.line_of(base["languages"], 9.5)
+    for line in base["languages"]:
+        pdf.line_of(line, 9.5, gap=1.4)
     return bytes(pdf.output())
 
 
 def render_letter(base: dict, name: str, contact: str, draft: Draft | None = None) -> bytes:
     letter = base["letter"]
-    pdf = _Page()
-    pdf.head(name, base, contact, 16, letter["location"])  # the letter has no private data, only the resume
-    pdf.ln(4)
+    pdf = _Page(mark=True)
+    pdf.head(name, base, contact, 20, letter["location"])  # the letter has no private data, only the resume
+    pdf.set_draw_color(*ACCENT)
+    pdf.set_line_width(0.35)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+    pdf.ln(8)
     to = draft.to if draft and draft.to else letter["to_default"]
     pdf.line_of(PLACEHOLDER.sub(lambda m: to if m[1] == "to" else m[0], letter["greeting"]), 10.5, gap=3)
     intro = letter["intro_standard"]

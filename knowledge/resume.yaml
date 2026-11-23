@@ -76,7 +76,7 @@ en:
     - id: rag
       text: "RAG side projects (FastAPI, ChromaDB, Celery): a PDF notes app that drops near-duplicate chunks before indexing, and a resume generator with one vector collection per user."
     - id: portfolio
-      text: "anthonymuniz.dev: this site's chatbot answers from my public facts, hands off to a human and is tested with a 60-case golden set before each release."
+      text: "anthonymuniz.dev: this site's chatbot answers from my public facts, hands off to a human and is tested against a golden set of questions before each release."
   education:
     - B.Sc. in Computer Science, Federal University of Mato Grosso (UFMT), 2020 to 2025
     - Technical Course in Computer Science, Federal Institute of Rondônia (IFRO), 2017 to 2019
@@ -87,7 +87,9 @@ en:
     - {id: async, label: Messaging and async, items: "Celery, RabbitMQ, Redis, event-driven architecture"}
     - {id: data, label: Data, items: "SQL Server, PostgreSQL, MongoDB, Pandas, data pipelines"}
     - {id: ops, label: Observability and DevOps, items: "Prometheus, Grafana, Loki, Tempo, Docker, AWS S3, Linux, Git, CI/CD"}
-  languages: "English: professional working proficiency · Portuguese: native"
+  languages:
+    - "English: professional working proficiency"
+    - "Portuguese: native"
   letter:
     location: Brazil · Open to remote roles (UTC-3)
     greeting: "Dear {to},"
@@ -169,7 +171,7 @@ pt:
     - id: rag
       text: "Projetos de RAG (FastAPI, ChromaDB, Celery): um app de notas a partir de PDFs que descarta trechos quase repetidos antes de indexar, e um gerador de currículo com uma coleção de vetores por usuário."
     - id: portfolio
-      text: "anthonymuniz.dev: o chatbot deste site responde a partir dos meus fatos públicos, passa a conversa para um humano e é testado com 60 casos antes de cada versão."
+      text: "anthonymuniz.dev: o chatbot deste site responde a partir dos meus fatos públicos, passa a conversa para um humano e é testado com um conjunto fixo de perguntas antes de cada versão."
   education:
     - Bacharelado em Ciência da Computação, Universidade Federal de Mato Grosso (UFMT), 2020 a 2025
     - Curso Técnico em Informática, Instituto Federal de Rondônia (IFRO), 2017 a 2019
@@ -180,7 +182,9 @@ pt:
     - {id: async, label: Mensageria e assíncrono, items: "Celery, RabbitMQ, Redis, arquitetura orientada a eventos"}
     - {id: data, label: Dados, items: "SQL Server, PostgreSQL, MongoDB, Pandas, pipelines de dados"}
     - {id: ops, label: Observabilidade e DevOps, items: "Prometheus, Grafana, Loki, Tempo, Docker, AWS S3, Linux, Git, CI/CD"}
-  languages: "Inglês: profissional · Português: nativo"
+  languages:
+    - "Inglês: profissional"
+    - "Português: nativo"
   letter:
     location: Brasil · Aberto a vagas remotas (UTC-3)
     greeting: "Prezado(a) {to},"
