@@ -1,8 +1,8 @@
 /* Chat: the launcher in the corner and the panel. On phones the panel is a full page over the site. Transcript
    style (a label over each message) instead of bubbles; replies keep their line breaks. */
-/* The launcher is a round chat bubble with three green dots typing inside and a green "online" dot (chosen 25/11).
-   The dots move for about 5 seconds after the page loads, then rest
-   (WCAG 2.2.2); pointing at it or focusing it plays them again. Transform and opacity only. */
+/* The launcher is a chat bubble floating in the corner, no background, with three green dots typing inside (25/11).
+   A faint halo in the page colour keeps it readable over text. The dots move for about 5 seconds after the page
+   loads, then rest (WCAG 2.2.2); pointing at it or focusing it plays them again. Transform and opacity only. */
 .chat-launcher {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
@@ -14,50 +14,36 @@
   height: 60px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: var(--ink);
-  color: var(--bg);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  border-radius: 12px;
+  background: none;
+  color: var(--ink);
+  filter: drop-shadow(0 0 4px var(--bg));
   cursor: pointer;
   transition: transform 0.2s;
 }
 .chat-launcher:is(:hover, :focus-visible) {
   transform: translateY(-2px);
 }
-.chat-launcher:focus-visible {
-  outline-offset: 4px;
-}
-.chat-launcher::after {
-  content: "";
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--on-ink);
-  box-shadow: 0 0 0 3px var(--bg);
-}
 .chat-launcher > * {
   grid-area: 1 / 1;
 }
 .chat-launcher svg {
-  width: 34px;
-  height: 34px;
+  width: 48px;
+  height: 48px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.75;
   stroke-linejoin: round;
 }
 .chat-dots {
   display: inline-flex;
-  gap: 3px;
-  transform: translateY(-2px); /* into the bubble's box, above its tail */
+  gap: 4px;
+  transform: translateY(-3px); /* into the bubble's box, above its tail */
 }
 .chat-dots i {
-  width: 4px;
-  height: 4px;
-  background: var(--on-ink);
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
   animation: bot-dot 1.2s ease-in-out 4;
 }
 .chat-dots i:nth-child(2) {
