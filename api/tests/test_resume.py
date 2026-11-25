@@ -54,7 +54,7 @@ def test_the_standard_resume_prints_the_approved_text_and_the_private_location_b
 
 def test_a_tailored_resume_keeps_only_the_chosen_bullets_in_their_order():
     text = text_of(render_resume(BASE["en"], BASE["name"], BASE["contact"], draft()))
-    assert text.index("caught an LLM judge") < text.index("13 of 23")
+    assert text.index("transcript-only review") < text.index("13 of 23")
     assert "3x faster" not in text and "focused on LLM agents in production" in text
 
 

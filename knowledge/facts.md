@@ -31,9 +31,10 @@ he moved SharePoint document libraries to AWS S3.
 - The team's main dashboard metric swung 4x in 3 weeks while the bot hadn't changed at all. He replaced it with a
   resolution metric that holds up: no escalation, no reopening within 7 days, no human reply. It showed that 1 in 4
   "bot-resolved" chats actually had a human writing in them.
-- He built an evaluation that caught an LLM judge calling a change a clear win when expert review rated it no better.
-  The rule that stuck: use the judge's description, never its verdict. He also retired two automated detectors that
-  had 80% false positives on good conversations.
+- He caught a release that looked like a clear win on a transcript-only review and was no better once a support
+  expert checked the same cases. The team's LLM judge failed the same check, so the rule that stuck: use the judge's
+  description, never its verdict. He also retired two automated detectors that had 80% false positives on good
+  conversations.
 - Tech: Python, TypeScript, LLMs, RAG, n8n, HubSpot, AWS S3, MongoDB, Claude Code.
 
 The client's name, industry, customers and internal tools are confidential.

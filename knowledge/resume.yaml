@@ -31,7 +31,7 @@ en:
         - id: metric
           text: Replaced a dashboard metric that swung 4x in 3 weeks with a stricter resolution metric (no escalation, no reopening within 7 days, no human reply), which showed that 1 in 4 "bot-resolved" chats had a human writing.
         - id: evaluation
-          text: Built an evaluation that caught an LLM judge calling a change a clear win when expert review rated it no better, and retired two automated detectors with 80% false positives.
+          text: Caught a release that looked like a clear win on a transcript-only review and was no better once a support expert checked the same cases, which the team's LLM judge had also missed. Retired two automated detectors with 80% false positives.
         - id: crm
           text: Automated HubSpot workflows and n8n integrations with automated tests, and moved SharePoint document libraries to AWS S3.
     - id: credit
@@ -97,7 +97,7 @@ en:
     intro_standard: I'm an AI and backend engineer working where Python services and LLM agents meet, and I'm looking for a remote, full-time role with a US or European team.
     intro_tailored: "I'm an AI and backend engineer working where Python services and LLM agents meet, and I'd like to bring that to the {role} role at {company}. {opening}"
     body:
-      - Since August 2026 I've been on contract through my own company, Insight AI & Automation, improving an AI customer-support agent that runs in production for a B2B SaaS company. Chat replies got 3x faster after I changed how the agent waits for split messages, and fixing the knowledge-base search put the right document first or second for questions it used to miss. I also built the evaluation that caught an LLM judge praising a change that expert review rated as no better.
+      - Since August 2026 I've been on contract through my own company, Insight AI & Automation, improving an AI customer-support agent that runs in production for a B2B SaaS company. Chat replies got 3x faster after I changed how the agent waits for split messages, and fixing the knowledge-base search put the right document first or second for questions it used to miss. I also caught a release that looked like a clear win on a transcript-only review and was no better once a support expert checked the same cases.
       - Before that, from December 2024 to August 2026, I worked at a credit fund, where credit analysis ran on legacy low-code automations. I rebuilt them as Python and FastAPI services around a credit intelligence pipeline that pulls from 5+ credit bureaus. Analysis that took about an hour started finishing in as fast as 5 minutes, and capacity went from about 10 to as many as 100 credit operations a day, with the heavy steps behind RabbitMQ and Celery workers and Prometheus, Grafana and Loki following each stage.
       - Alongside my degree I spent almost 2 years as a research fellow at FAPEMAT, building a pipeline and forecasting models for tuberculosis data in Mato Grosso, which became my thesis. I finished my B.Sc. in Computer Science at UFMT in 2025.
       - I'd be glad to walk you through the credit pipeline in a call, with the architecture on screen.
@@ -126,7 +126,7 @@ pt:
         - id: metric
           text: Troquei uma métrica do painel que oscilou 4x em 3 semanas por uma métrica de resolução mais rígida (sem escalonamento, sem reabertura em 7 dias, sem resposta humana), que mostrou que 1 em cada 4 conversas "resolvidas pelo bot" tinha um humano escrevendo.
         - id: evaluation
-          text: Montei uma avaliação que pegou um juiz de LLM chamando de vitória clara uma mudança que a revisão de especialistas considerou igual, e aposentei dois detectores automáticos com 80% de falsos positivos.
+          text: Peguei uma versão que parecia vitória clara numa revisão só das transcrições e não era melhor quando uma especialista do suporte conferiu os mesmos casos, algo que o juiz de LLM do time também tinha deixado passar. Aposentei dois detectores automáticos com 80% de falsos positivos.
         - id: crm
           text: Automatizei workflows do HubSpot e integrações no n8n com testes automatizados, e migrei bibliotecas de documentos do SharePoint para o AWS S3.
     - id: credit
@@ -192,7 +192,7 @@ pt:
     intro_standard: Sou engenheiro de IA e backend, trabalho onde serviços em Python e agentes de LLM se encontram, e procuro uma vaga remota de tempo integral com um time dos EUA ou da Europa.
     intro_tailored: "Sou engenheiro de IA e backend, trabalho onde serviços em Python e agentes de LLM se encontram, e quero levar isso para a vaga de {role} na {company}. {opening}"
     body:
-      - Desde agosto de 2026 trabalho em contrato pela minha empresa, a Insight AI & Automation, melhorando um agente de IA de atendimento que roda em produção para uma empresa de SaaS B2B. As respostas do chat ficaram 3x mais rápidas depois que mudei a espera por mensagens picadas, e o conserto da busca na base de conhecimento pôs o documento certo em primeiro ou segundo lugar em perguntas que antes ele perdia. Também montei a avaliação que pegou um juiz de LLM elogiando uma mudança que a revisão de especialistas considerou igual.
+      - Desde agosto de 2026 trabalho em contrato pela minha empresa, a Insight AI & Automation, melhorando um agente de IA de atendimento que roda em produção para uma empresa de SaaS B2B. As respostas do chat ficaram 3x mais rápidas depois que mudei a espera por mensagens picadas, e o conserto da busca na base de conhecimento pôs o documento certo em primeiro ou segundo lugar em perguntas que antes ele perdia. Também peguei uma versão que parecia vitória clara numa revisão só das transcrições e não era melhor quando uma especialista do suporte conferiu os mesmos casos.
       - Antes disso, de dezembro de 2024 a agosto de 2026, trabalhei num fundo de crédito, onde a análise de crédito rodava em automações legadas em low-code. Reescrevi tudo como serviços em Python e FastAPI, em volta de um pipeline de inteligência de crédito que consulta mais de 5 birôs. A análise, que levava cerca de uma hora, passou a terminar em até 5 minutos, e a capacidade foi de cerca de 10 para até 100 operações de crédito por dia, com as etapas pesadas em workers de RabbitMQ e Celery e Prometheus, Grafana e Loki acompanhando cada etapa.
       - Junto com a graduação, passei quase 2 anos como bolsista de pesquisa na FAPEMAT, construindo um pipeline e modelos de previsão para dados de tuberculose em Mato Grosso, que viraram meu TCC. Terminei o bacharelado em Ciência da Computação na UFMT em 2025.
       - Posso mostrar o pipeline de crédito numa conversa, com a arquitetura na tela.
