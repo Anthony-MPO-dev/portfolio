@@ -7,7 +7,6 @@ import type { Notice } from "./state";
 
 const en = {
   launcher: "Ask me about Anthony",
-  nudge: "Ask me",
   title: "Ask about Anthony",
   sub: "An AI assistant that answers from Anthony's public profile. It can be wrong.",
   intro: "What do you want to know?",
@@ -92,7 +91,6 @@ const en = {
 
 const pt: typeof en = {
   launcher: "Pergunte sobre o Anthony",
-  nudge: "Pergunte",
   title: "Pergunte sobre o Anthony",
   sub: "Um assistente de IA que responde a partir do perfil público do Anthony. Ele pode errar.",
   intro: "O que você quer saber?",

@@ -1,52 +1,63 @@
 /* Chat: the launcher in the corner and the panel. On phones the panel is a full page over the site. Transcript
    style (a label over each message) instead of bubbles; replies keep their line breaks. */
-/* The launcher is the head of Anthony's Copiloto (his own brand art, 22/11) as an app icon, with a speech bubble on
-   it ("Ask me" and typing dots; on phones only the dots). It hops, asking for the click. Transform and opacity only. */
+/* The launcher is a round chat bubble with three green dots typing inside and a green "online" dot (chosen 25/11:
+   option A's button with option C's dots). The dots move for about 5 seconds after the page loads, then rest
+   (WCAG 2.2.2); pointing at it or focusing it plays them again. Transform and opacity only. */
 .chat-launcher {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
   bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 50;
   display: grid;
-  justify-items: end;
-  gap: 6px;
+  place-items: center;
+  width: 60px;
+  height: 60px;
   padding: 0;
   border: 0;
-  background: none;
-  color: var(--ink);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
   cursor: pointer;
-  animation: bot-hop 4s ease-in-out;
+  transition: transform 0.2s;
+}
+.chat-launcher:hover {
+  transform: translateY(-2px);
 }
 .chat-launcher:focus-visible {
   outline-offset: 4px;
 }
-.chat-say {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 9px;
-  background: var(--bg);
-  border: 1.5px solid var(--ink);
-  font: 600 12px/1 var(--mono);
-  white-space: nowrap;
-}
-.chat-say::after {
+.chat-launcher::after {
   content: "";
   position: absolute;
-  right: 20px;
-  top: 100%;
-  border: 6px solid transparent;
-  border-top-color: var(--ink);
+  top: 5px;
+  right: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--on-ink);
+  box-shadow: 0 0 0 3px var(--bg);
+}
+.chat-launcher > * {
+  grid-area: 1 / 1;
+}
+.chat-launcher svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
 }
 .chat-dots {
   display: inline-flex;
   gap: 3px;
+  transform: translateY(-2px); /* into the bubble's box, above its tail */
 }
 .chat-dots i {
-  width: 5px;
-  height: 5px;
-  background: currentColor;
+  width: 4px;
+  height: 4px;
+  background: var(--on-ink);
   animation: bot-dot 1.2s ease-in-out 4;
 }
 .chat-dots i:nth-child(2) {
@@ -55,33 +66,10 @@
 .chat-dots i:nth-child(3) {
   animation-delay: 0.3s;
 }
-.chat-bot {
-  display: block;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px; /* the rounded app icon of the Copiloto's brand sheet */
-  box-shadow: 0 0 0 1px var(--line);
-}
-/* It moves for about 5 seconds after the page loads, then rests (WCAG 2.2.2); pointing at it or focusing it plays it
-   again, under other names so the finished animations restart. */
-.chat-launcher:is(:hover, :focus-visible) {
-  animation: bot-hop-again 4s ease-in-out infinite;
-}
+/* under another name so the finished animation restarts */
 .chat-launcher:is(:hover, :focus-visible) .chat-dots i {
   animation-name: bot-dot-again;
   animation-iteration-count: infinite;
-}
-@keyframes bot-hop {
-  0%, 70%, 100% { transform: none; }
-  78% { transform: translateY(-6px) rotate(-4deg); }
-  86% { transform: rotate(3deg); }
-  92% { transform: none; }
-}
-@keyframes bot-hop-again {
-  0%, 70%, 100% { transform: none; }
-  78% { transform: translateY(-6px) rotate(-4deg); }
-  86% { transform: rotate(3deg); }
-  92% { transform: none; }
 }
 @keyframes bot-dot {
   0%, 60%, 100% { transform: none; opacity: 0.4; }
@@ -125,9 +113,6 @@
   }
   html.chat-open {
     overflow: hidden;
-  }
-  .chat-say-text {
-    display: none;
   }
 }
 
@@ -453,6 +438,11 @@
   .chat-typing span {
     animation: none;
     opacity: 0.6;
+  }
+  .chat-launcher,
+  .chat-dots i {
+    animation: none;
+    transition: none;
   }
 }
 

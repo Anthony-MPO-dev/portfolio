@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useReducer, useRef, useState, type KeyboardEvent } from "react";
-import copilotHead from "@/assets/copilot-head.webp";
 import { contact } from "@/content/profile";
 import { conversation } from "./api";
 import { CHAT_ASK } from "@/lib/events";
@@ -120,16 +119,15 @@ export function Chat({ lang }: { lang: Lang }) {
         aria-label={t.launcher}
         onClick={() => setOpen(true)}
       >
-        <span className="chat-say" aria-hidden="true">
-          <span className="chat-say-text">{t.nudge}</span>
-          <span className="chat-dots">
-            <i />
-            <i />
-            <i />
-          </span>
-        </span>
         {/* decorative: the button's name says what it does */}
-        <img className="chat-bot" src={copilotHead} width={56} height={56} alt="" decoding="async" />
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 5h16v11H9l-5 4z" />
+        </svg>
+        <span className="chat-dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
       </button>
       <section
         id="chat"
