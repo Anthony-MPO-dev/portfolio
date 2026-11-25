@@ -1,7 +1,7 @@
 /* Chat: the launcher in the corner and the panel. On phones the panel is a full page over the site. Transcript
    style (a label over each message) instead of bubbles; replies keep their line breaks. */
-/* The launcher is a round chat bubble with three green dots typing inside and a green "online" dot (chosen 25/11:
-   option A's button with option C's dots). The dots move for about 5 seconds after the page loads, then rest
+/* The launcher is a round chat bubble with three green dots typing inside and a green "online" dot (chosen 25/11).
+   The dots move for about 5 seconds after the page loads, then rest
    (WCAG 2.2.2); pointing at it or focusing it plays them again. Transform and opacity only. */
 .chat-launcher {
   position: fixed;
@@ -21,7 +21,7 @@
   cursor: pointer;
   transition: transform 0.2s;
 }
-.chat-launcher:hover {
+.chat-launcher:is(:hover, :focus-visible) {
   transform: translateY(-2px);
 }
 .chat-launcher:focus-visible {
@@ -72,12 +72,12 @@
   animation-iteration-count: infinite;
 }
 @keyframes bot-dot {
-  0%, 60%, 100% { transform: none; opacity: 0.4; }
-  30% { transform: translateY(-3px); opacity: 1; }
+  0%, 60%, 100% { transform: none; }
+  30% { transform: translateY(-4px); }
 }
 @keyframes bot-dot-again {
-  0%, 60%, 100% { transform: none; opacity: 0.4; }
-  30% { transform: translateY(-3px); opacity: 1; }
+  0%, 60%, 100% { transform: none; }
+  30% { transform: translateY(-4px); }
 }
 .chat-launcher[hidden],
 .chat[hidden] {
@@ -439,10 +439,9 @@
     animation: none;
     opacity: 0.6;
   }
-  .chat-launcher,
-  .chat-dots i {
-    animation: none;
-    transition: none;
+  /* the site-wide rule already stops animations; this stops the lift */
+  .chat-launcher:is(:hover, :focus-visible) {
+    transform: none;
   }
 }
 

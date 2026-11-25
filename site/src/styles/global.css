@@ -12,7 +12,7 @@
   --line: #e2e1da;
   --accent: #047a46;
   --accent-fill: #3dfc8a;
-  --on-ink: #3dfc8a; /* a bright mark on --ink (the chat button's dots) */
+  --on-ink: #3dfc8a; /* a bright mark on --ink (the chat button's dots and online dot) */
   --danger: #d12d25;
   --before: #b9b8b0;
   --rain-opacity: 0.28;
@@ -48,8 +48,8 @@
   --rain-opacity: 0.32;
   color-scheme: dark;
 }
-/* The scrollbars in the site's green, thin (inherited, so the chat's transcript follows). */
-html {
+/* The scrollbars in the site's green and thin, on the page and on every inner scroll (the chat's transcript). */
+* {
   scrollbar-color: var(--accent) var(--bg);
   scrollbar-width: thin;
 }
